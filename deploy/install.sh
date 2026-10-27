@@ -28,6 +28,7 @@ python3 -c 'import sys; sys.exit(sys.version_info < (3, 11))' || { echo "Trackin
 echo "==> Benutzer und Ordner"
 id trackingdrs >/dev/null 2>&1 || useradd --system --home-dir "$DATEN" --shell /usr/sbin/nologin trackingdrs
 install -d -o trackingdrs -g trackingdrs -m 750 "$DATEN"
+find "$DATEN" -maxdepth 1 -name 'trackingdrs.sqlite*' -exec chmod 640 {} +
 install -d -o root -g root -m 755 /etc/trackingdrs
 # der Code gehoert root: der Webdienst kann ihn nicht veraendern
 chown -R root:root "$ZIEL"
@@ -49,7 +50,7 @@ systemctl start trackingdrs-tls.timer
 systemctl restart trackingdrs.service
 
 for _ in $(seq 1 20); do
-  systemctl is-active --quiet trackingdrs.service && python3 - <<'PRUEFEN' && break
+  systemctl is-active --quiet trackingdrs.service && python3 - 2>/dev/null <<'PRUEFEN' && break
 import ssl, urllib.request
 kontext = ssl.create_default_context(cafile="/var/lib/trackingdrs/tls/ca.crt")
 kontext.check_hostname = False
