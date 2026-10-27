@@ -1,0 +1,20 @@
+#!/usr/sbin/nft -f
+# TrackingDRS: Firewall im Container (install.sh legt sie als /etc/trackingdrs/firewall.nft ab,
+# trackingdrs-firewall.service laedt sie beim Start). Von aussen nur Webseite (80, 443) und SSH.
+# Ausgehende Verbindungen (Updates, spaeter Kalender-Abo) und ihre Antworten bleiben frei.
+# Eigene Tabelle: andere Regeln im Container bleiben unberuehrt.
+table inet trackingdrs
+delete table inet trackingdrs
+table inet trackingdrs {
+	chain eingang {
+		type filter hook input priority filter; policy drop;
+		iif "lo" accept
+		ct state established,related accept
+		ct state invalid drop
+		meta l4proto { icmp, ipv6-icmp } accept
+		tcp dport { 22, 80, 443 } accept
+	}
+	chain weiter {
+		type filter hook forward priority filter; policy drop;
+	}
+}

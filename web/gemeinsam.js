@@ -1,0 +1,126 @@
+// Gemeinsame Hilfen fuer alle Seiten: Schnittstelle, DOM-Bau ohne innerHTML, Meldungen, Dialoge, Kalenderwochen.
+'use strict';
+
+const T = {
+  async api(methode, url, daten) {
+    const kopf = { 'X-TrackingDRS': '1' };
+    if (daten !== undefined) kopf['Content-Type'] = 'application/json';
+    let antwort;
+    try {
+      antwort = await fetch(url, { method: methode, headers: kopf, credentials: 'same-origin',
+        body: daten !== undefined ? JSON.stringify(daten) : undefined });
+    } catch (e) {
+      throw new Error('Keine Verbindung zum Server.');
+    }
+    let inhalt = {};
+    try { inhalt = await antwort.json(); } catch (e) { /* leer */ }
+    if (!antwort.ok) {
+      const f = new Error(inhalt.fehler || 'Fehler ' + antwort.status);
+      f.status = antwort.status;
+      throw f;
+    }
+    return inhalt;
+  },
+
+  // el('div', {class: 'karte', onclick: fn}, 'Text', kindElement, [weitere])
+  el(tag, attribute, ...kinder) {
+    const e = document.createElement(tag);
+    for (const [name, wert] of Object.entries(attribute || {})) {
+      if (wert === null || wert === undefined || wert === false) continue;
+      if (name.startsWith('on')) e.addEventListener(name.slice(2), wert);
+      else if (name === 'class') e.className = wert;
+      else if (name === 'text') e.textContent = wert;
+      else if (name === 'value') e.value = wert;
+      else if (name === 'checked') e.checked = true;
+      else e.setAttribute(name, wert === true ? '' : wert);
+    }
+    const anhaengen = k => {
+      if (k === null || k === undefined || k === false) return;
+      if (Array.isArray(k)) k.forEach(anhaengen);
+      else e.appendChild(typeof k === 'string' || typeof k === 'number' ? document.createTextNode(String(k)) : k);
+    };
+    kinder.forEach(anhaengen);
+    return e;
+  },
+
+  leeren(e) { while (e.firstChild) e.removeChild(e.firstChild); return e; },
+
+  // Inhalt ersetzen; null/false werden uebersprungen (Element.append wuerde "null" als Text einfuegen)
+  setzen(e, ...kinder) {
+    T.leeren(e);
+    kinder.flat(Infinity).forEach(k => { if (k !== null && k !== undefined && k !== false) e.append(k); });
+    return e;
+  },
+
+  meldung(text, fehler) {
+    let ort = document.getElementById('meldungen');
+    if (!ort) { ort = T.el('div', { id: 'meldungen', 'aria-live': 'polite' }); document.body.appendChild(ort); }
+    const m = T.el('div', { class: 'meldung' + (fehler ? ' fehler' : ''), text });
+    ort.appendChild(m);
+    setTimeout(() => m.remove(), fehler ? 7000 : 3500);
+  },
+
+  // Dialog mit Formular. felder: Element(e) im Formular. Rueckgabe: Promise, das mit dem Ergebnis von speichern()
+  // aufgeloest wird (oder null bei Abbrechen). speichern(form) darf einen Fehler werfen: er erscheint im Dialog.
+  dialog({ titel, inhalt, knopf = 'Speichern', abbrechen = 'Abbrechen', speichern, gefaehrlich = false, fest = false }) {
+    return new Promise(fertig => {
+      const fehler = T.el('div', { class: 'fehlertext', role: 'alert' });
+      const ok = T.el('button', { type: 'submit', class: gefaehrlich ? 'warnen' : 'haupt', text: knopf });
+      const form = T.el('form', { method: 'dialog' },
+        T.el('h2', { class: 'dreieck', text: titel }), inhalt, fehler,
+        T.el('div', { class: 'knoepfe' },
+          abbrechen && !fest ? T.el('button', { type: 'button', value: 'nein', text: abbrechen, onclick: () => schliessen(null) }) : null, ok));
+      const d = T.el('dialog', {}, form);
+      const schliessen = wert => { d.close(); d.remove(); fertig(wert); };
+      d.addEventListener('cancel', ev => { ev.preventDefault(); if (!fest) schliessen(null); });
+      form.addEventListener('submit', async ev => {
+        ev.preventDefault();
+        fehler.textContent = '';
+        ok.disabled = true;
+        try { schliessen(speichern ? await speichern(form) : true); }
+        catch (e) { fehler.textContent = e.message; ok.disabled = false; }
+      });
+      document.body.appendChild(d);
+      d.showModal();
+      const erstes = form.querySelector('input:not([type=hidden]):not([readonly]), select, textarea');
+      if (erstes) erstes.focus();
+    });
+  },
+
+  feld(beschriftung, eingabe, hilfe) {
+    return T.el('label', { class: 'feld' }, beschriftung, eingabe, hilfe ? T.el('span', { class: 'hilfe', text: hilfe }) : null);
+  },
+
+  // ISO-Kalenderwoche
+  kw(datum) {
+    const d = new Date(Date.UTC(datum.getFullYear(), datum.getMonth(), datum.getDate()));
+    const tag = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - tag);
+    const jahresanfang = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil(((d - jahresanfang) / 86400000 + 1) / 7);
+  },
+  datum(text) { return new Date(text.slice(0, 10) + 'T12:00:00'); },
+  kwText(text) { return 'KW ' + T.kw(T.datum(text)); },
+  zeitraum(start, ende) {
+    const s = T.datum(start), e = T.datum(ende);
+    return 'KW ' + T.kw(s) + '/' + s.getFullYear() + ' bis KW ' + T.kw(e) + '/' + e.getFullYear();
+  },
+  tagText(text) {
+    const d = T.datum(text);
+    return d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
+  },
+  zeitText(text) {
+    if (!text) return '';
+    const d = new Date(text);
+    return d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }) + ' ' +
+      d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  },
+  isoDatum(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  },
+
+  async kopieren(text) {
+    try { await navigator.clipboard.writeText(text); T.meldung('Kopiert.'); }
+    catch (e) { T.meldung('Kopieren ging nicht. Bitte den Text markieren und mit Strg+C kopieren.', true); }
+  },
+};

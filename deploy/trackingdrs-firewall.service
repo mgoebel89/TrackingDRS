@@ -1,0 +1,14 @@
+# Firewall von TrackingDRS (Regeln: /etc/trackingdrs/firewall.nft). Abschalten: systemctl disable --now trackingdrs-firewall
+[Unit]
+Description=TrackingDRS Firewall (von aussen nur Webseite und SSH)
+Before=network-pre.target
+Wants=network-pre.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/nft -f /etc/trackingdrs/firewall.nft
+ExecStop=/usr/sbin/nft delete table inet trackingdrs
+
+[Install]
+WantedBy=multi-user.target

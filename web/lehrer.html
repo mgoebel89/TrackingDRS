@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TrackingDRS</title>
+<link rel="stylesheet" href="/static/stil.css">
+<link rel="icon" href="/static/logo.svg" type="image/svg+xml">
+</head>
+<body>
+<header class="kopf">
+  <a class="marke" href="#projekte"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M0 10 L10 0 L10 10 Z"/></svg>TrackingDRS</a>
+  <span class="unter" id="unter"></span>
+  <span class="rechts">
+    <span class="chip" id="wer"></span>
+    <button class="leicht" id="abmelden" type="button">Abmelden</button>
+  </span>
+</header>
+<div class="rahmen">
+  <nav class="seite" aria-label="Bereiche">
+    <a href="#projekte" data-ansicht="projekte"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="7" height="7" rx="1.5"/><rect x="14" y="4" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Projekte</a>
+    <a href="#archiv" data-ansicht="archiv"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9M10 13h4"/></svg>Archiv</a>
+    <a href="#lehrkraefte" data-ansicht="lehrkraefte" data-admin hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5M16 4.5a3.5 3.5 0 0 1 0 7M18.5 14.8c1.6.8 2.6 2.5 3 5.2"/></svg>Lehrkräfte</a>
+    <a href="#konto" data-ansicht="konto"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4.2-6 8-6s7 2 8 6"/></svg>Mein Konto</a>
+  </nav>
+  <main class="inhalt" id="inhalt" aria-live="polite"></main>
+</div>
+<script src="/static/gemeinsam.js"></script>
+<script src="/static/lehrer.js"></script>
+</body>
+</html>

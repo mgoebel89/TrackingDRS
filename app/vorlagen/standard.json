@@ -1,0 +1,14 @@
+{
+  "name": "Standard (Tracking-Sheet DRS)",
+  "beschreibung": "Phasen und Prüffragen wie im Excel-Tracking-Sheet",
+  "phasen": [
+    {"name": "Informieren", "aufgaben": []},
+    {"name": "Planen", "aufgaben": []},
+    {"name": "Realisieren", "aufgaben": []},
+    {"name": "Kontrollieren", "aufgaben": [
+      "Dokumentation vollständig vorhanden?",
+      "Auftrag ausgeführt?",
+      "Mit fachlicher Arbeit zufrieden?"
+    ]}
+  ]
+}

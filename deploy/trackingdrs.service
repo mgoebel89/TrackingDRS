@@ -1,0 +1,28 @@
+# TrackingDRS Webseite: https://<container> (Port 443), http (Port 80) leitet um und liefert /ca.crt.
+[Unit]
+Description=TrackingDRS Webseite
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=trackingdrs
+Group=trackingdrs
+WorkingDirectory=/opt/trackingdrs
+Environment=TRACKINGDRS_DATEN=/var/lib/trackingdrs
+Environment=PYTHONUNBUFFERED=1
+# Zertifikat vor jedem Start pruefen bzw. erneuern; "+" = als root, "-" = Fehler stoppt den Start nicht (dann HTTP)
+ExecStartPre=-+/usr/local/sbin/trackingdrs-tls
+ExecStart=/usr/bin/python3 -m app.server
+Restart=always
+RestartSec=5
+# Ports 80/443 ohne root, sonst kaum Rechte
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/trackingdrs
+ProtectHome=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

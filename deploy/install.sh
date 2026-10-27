@@ -1,0 +1,73 @@
+#!/bin/bash
+# TrackingDRS im Container installieren oder aktualisieren (Ubuntu 24.04 / Debian 12). Als root aus dem Repo-Ordner:
+#
+#   git clone https://github.com/mgoebel89/TrackingDRS /opt/trackingdrs && bash /opt/trackingdrs/deploy/install.sh
+#
+# Legt den Systembenutzer trackingdrs an, Daten in /var/lib/trackingdrs (Datenbank, Zertifikate, spaeter Fotos),
+# Dienste: trackingdrs (Webseite 80/443), trackingdrs-tls.timer (Zertifikat), trackingdrs-firewall (nur 22/80/443).
+# Befehle danach: trackingdrs (Konsole, z.B. trackingdrs einrichtungscode), trackingdrs-update.
+set -euo pipefail
+ZIEL=/opt/trackingdrs
+DATEN=/var/lib/trackingdrs
+
+cd "$(dirname "$(readlink -f "$0")")/.."
+[ "$(pwd)" = "$ZIEL" ] || { echo "Bitte aus $ZIEL aufrufen (git clone ... $ZIEL)."; exit 1; }
+[ "$(id -u)" = 0 ] || { echo "Bitte als root ausfuehren."; exit 1; }
+
+echo "==> Pakete"
+fehlt=""
+for befehl in python3 openssl nft git; do command -v "$befehl" >/dev/null || fehlt=1; done
+[ -e /usr/share/zoneinfo/Europe/Berlin ] || fehlt=1
+if [ -n "$fehlt" ]; then
+  export DEBIAN_FRONTEND=noninteractive
+  apt-get update -q >/dev/null
+  apt-get install -y -q python3 openssl nftables git ca-certificates tzdata >/dev/null
+fi
+python3 -c 'import sys; sys.exit(sys.version_info < (3, 11))' || { echo "TrackingDRS braucht Python 3.11 oder neuer."; exit 1; }
+
+echo "==> Benutzer und Ordner"
+id trackingdrs >/dev/null 2>&1 || useradd --system --home-dir "$DATEN" --shell /usr/sbin/nologin trackingdrs
+install -d -o trackingdrs -g trackingdrs -m 750 "$DATEN"
+install -d -o root -g root -m 755 /etc/trackingdrs
+# der Code gehoert root: der Webdienst kann ihn nicht veraendern
+chown -R root:root "$ZIEL"
+chmod -R go-w "$ZIEL"
+
+echo "==> Befehle, Dienste, Firewall"
+install -o root -g root -m 755 deploy/tls.sh /usr/local/sbin/trackingdrs-tls
+install -o root -g root -m 755 deploy/update.sh /usr/local/sbin/trackingdrs-update
+install -o root -g root -m 755 deploy/trackingdrs-cli.sh /usr/local/bin/trackingdrs
+install -o root -g root -m 644 deploy/firewall.nft /etc/trackingdrs/firewall.nft
+for einheit in trackingdrs.service trackingdrs-tls.service trackingdrs-tls.timer trackingdrs-firewall.service; do
+  install -o root -g root -m 644 "deploy/$einheit" "/etc/systemd/system/$einheit"
+done
+systemctl daemon-reload
+/usr/local/sbin/trackingdrs-tls
+systemctl enable -q trackingdrs-firewall.service trackingdrs-tls.timer trackingdrs.service
+systemctl restart trackingdrs-firewall.service   # Regeln neu laden (auch nach einem Update)
+systemctl start trackingdrs-tls.timer
+systemctl restart trackingdrs.service
+
+for _ in $(seq 1 20); do
+  systemctl is-active --quiet trackingdrs.service && python3 - <<'PRUEFEN' && break
+import ssl, urllib.request
+kontext = ssl.create_default_context(cafile="/var/lib/trackingdrs/tls/ca.crt")
+kontext.check_hostname = False
+urllib.request.urlopen("https://127.0.0.1/api/status", context=kontext, timeout=3).read()
+PRUEFEN
+  sleep 1
+done
+if ! systemctl is-active --quiet trackingdrs.service; then
+  journalctl -u trackingdrs.service -n 30 --no-pager
+  echo "Der Dienst trackingdrs laeuft nicht (siehe oben)."
+  exit 1
+fi
+
+ip=$(hostname -I | awk '{print $1}')
+code=$(/usr/local/bin/trackingdrs einrichtungscode 2>/dev/null || true)
+echo
+echo "TrackingDRS laeuft: https://$ip"
+echo "  Stammzertifikat fuer die Geraete: http://$ip/ca.crt"
+if [ -n "$code" ] && [ "${code#Die Einrichtung}" = "$code" ]; then
+  echo "  Erstes Admin-Konto anlegen: https://$ip/einrichtung   Einrichtungscode: $code"
+fi

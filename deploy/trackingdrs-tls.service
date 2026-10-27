@@ -1,0 +1,7 @@
+# Zertifikat fuer HTTPS pruefen und bei Bedarf erneuern (laeuft per trackingdrs-tls.timer jede Woche)
+[Unit]
+Description=TrackingDRS HTTPS-Zertifikat erneuern
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/trackingdrs-tls --neustart
