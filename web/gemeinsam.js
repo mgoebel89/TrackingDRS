@@ -1,6 +1,12 @@
 // Gemeinsame Hilfen fuer alle Seiten: Schnittstelle, DOM-Bau ohne innerHTML, Meldungen, Dialoge, Kalenderwochen.
 'use strict';
 
+// Schul-Logo im Kopf: ohne hinterlegtes Logo (404) verschwindet das Bild
+document.querySelectorAll('img.logo').forEach(img => {
+  const weg = () => img.remove();
+  if (img.complete && img.naturalWidth === 0) weg(); else img.addEventListener('error', weg);
+});
+
 const T = {
   async api(methode, url, daten) {
     const kopf = { 'X-TrackingDRS': '1' };
@@ -118,6 +124,41 @@ const T = {
   isoDatum(d) {
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   },
+
+  // Ereignis aus dem Verlauf als Satz
+  verlaufText(e) {
+    const d = e.daten || {};
+    const kw = w => w ? T.kwText(w) : 'keine';
+    const ampel = a => ({ g: 'grün', y: 'gelb', r: 'rot' })[a] || 'leer';
+    const texte = {
+      projekt_angelegt: () => 'Projekt angelegt',
+      projekt_geaendert: () => 'Projekt geändert: ' + Object.keys(d).map(k => ({ titel: 'Titel', klasse: 'Klasse',
+        schuljahr: 'Schuljahr', beschreibung: 'Beschreibung', start: 'Start', ende: 'Ende' })[k] || k).join(', '),
+      lehrkraefte_geaendert: () => 'Betreuung jetzt: ' + d.lehrkraefte.map(k => k.toUpperCase()).join(', '),
+      mitglied_angelegt: () => 'Teammitglied ' + d.name + ' hinzugefügt',
+      mitglied_geaendert: () => 'Teammitglied ' + d.name + (d.aktiv ? ' geändert' : ' deaktiviert'),
+      link_erneuert: () => 'Team-Link erneuert, der alte gilt nicht mehr',
+      archiviert: () => 'Projekt archiviert',
+      reaktiviert: () => 'Projekt wieder aktiv',
+      aufgabe_neu: () => 'Aufgabe „' + d.titel + '“ angelegt (' + d.phase + ')',
+      titel: () => 'umbenannt: „' + d.alt + '“ → „' + d.titel + '“',
+      verantwortlich: () => '„' + d.titel + '“: verantwortlich ' + (d.alt ? d.alt + ' → ' : '') + d.kuerzel,
+      verworfen: () => '„' + d.titel + '“ verworfen',
+      wiederhergestellt: () => '„' + d.titel + '“ wiederhergestellt',
+      reihenfolge: () => '„' + d.titel + '“ verschoben',
+      plan: () => '„' + d.titel + '“: ' + d.wochen.map(w => T.kwText(w)).join(', ') + (d.wert ? ' geplant' : ' nicht mehr geplant'),
+      ende: () => '„' + d.titel + '“: Endtermin ' + (d.alt ? kw(d.alt) + ' → ' : '') + kw(d.woche),
+      ampel: () => '„' + d.titel + '“: ' + T.kwText(d.woche) + ' ' + ampel(d.ampel) + (d.problem ? ' – ' + d.problem : ''),
+      meilenstein_neu: () => 'Meilenstein „' + d.titel + '“ in ' + kw(d.woche),
+      meilenstein_geaendert: () => 'Meilenstein „' + d.titel + '“: ' + kw(d.woche_alt) + ' → ' + kw(d.woche),
+      meilenstein_verworfen: () => 'Meilenstein „' + d.titel + '“ verworfen',
+      meilenstein_zurueck: () => 'Meilenstein „' + d.titel + '“ wiederhergestellt',
+      version: () => (d.versionsart === 'basisplan' ? 'Basisplan festgelegt' : 'Version gespeichert') + ': ' + d.name,
+    };
+    try { return (texte[e.art] || (() => e.art))(); } catch (f) { return e.art; }
+  },
+
+  werText(e) { return e.wer_art === 'team' ? 'Team' : e.wer_art === 'system' ? 'System' : e.wer.toUpperCase(); },
 
   async kopieren(text) {
     try { await navigator.clipboard.writeText(text); T.meldung('Kopiert.'); }

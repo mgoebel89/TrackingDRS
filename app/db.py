@@ -122,6 +122,44 @@ MIGRATIONEN = [
         daten TEXT NOT NULL DEFAULT '{}');
     CREATE INDEX ereignis_projekt ON ereignis (projekt_id, id);
     """,
+    # 2: Tracking-Sheet (Stufe B). Wochen werden als Datum ihres Montags gespeichert (ISO-Text).
+    """
+    ALTER TABLE aufgabe ADD COLUMN ende TEXT;
+    ALTER TABLE aufgabe ADD COLUMN ende_ursprung TEXT;
+    CREATE TABLE zelle (
+        aufgabe_id INTEGER NOT NULL REFERENCES aufgabe(id) ON DELETE CASCADE,
+        woche TEXT NOT NULL,
+        plan INTEGER NOT NULL DEFAULT 0,
+        ampel TEXT CHECK (ampel IN ('g', 'y', 'r')),
+        PRIMARY KEY (aufgabe_id, woche));
+    CREATE TABLE problem (
+        id INTEGER PRIMARY KEY,
+        aufgabe_id INTEGER NOT NULL REFERENCES aufgabe(id) ON DELETE CASCADE,
+        woche TEXT NOT NULL,
+        ampel TEXT NOT NULL CHECK (ampel IN ('y', 'r')),
+        problem TEXT NOT NULL,
+        massnahme TEXT NOT NULL,
+        verantwortlich_id INTEGER REFERENCES mitglied(id),
+        zeit TEXT NOT NULL,
+        wer_art TEXT NOT NULL,
+        wer TEXT NOT NULL);
+    CREATE TABLE meilenstein (
+        id INTEGER PRIMARY KEY,
+        projekt_id INTEGER NOT NULL REFERENCES projekt(id) ON DELETE CASCADE,
+        woche TEXT NOT NULL,
+        titel TEXT NOT NULL,
+        verworfen INTEGER NOT NULL DEFAULT 0,
+        erstellt TEXT NOT NULL);
+    CREATE TABLE version (
+        id INTEGER PRIMARY KEY,
+        projekt_id INTEGER NOT NULL REFERENCES projekt(id) ON DELETE CASCADE,
+        art TEXT NOT NULL CHECK (art IN ('basisplan', 'buchungsschluss')),
+        name TEXT NOT NULL,
+        zeit TEXT NOT NULL,
+        aktiv INTEGER NOT NULL DEFAULT 1,
+        daten TEXT NOT NULL);
+    CREATE INDEX version_projekt ON version (projekt_id, id);
+    """,
 ]
 
 

@@ -4,17 +4,6 @@ const { el } = T;
 const S = { konto: null, lehrkraefte: null, vorlagen: null };
 const inhalt = document.getElementById('inhalt');
 
-const VERLAUF = {
-  projekt_angelegt: d => 'Projekt angelegt',
-  projekt_geaendert: d => 'Projekt geändert: ' + Object.keys(d).map(k => ({ titel: 'Titel', klasse: 'Klasse', schuljahr: 'Schuljahr',
-    beschreibung: 'Beschreibung', start: 'Start', ende: 'Ende' })[k] || k).join(', '),
-  lehrkraefte_geaendert: d => 'Betreuung jetzt: ' + d.lehrkraefte.map(k => k.toUpperCase()).join(', '),
-  mitglied_angelegt: d => 'Teammitglied ' + d.name + ' hinzugefügt',
-  mitglied_geaendert: d => 'Teammitglied ' + d.name + (d.aktiv ? ' geändert' : ' deaktiviert'),
-  link_erneuert: d => 'Team-Link erneuert, der alte gilt nicht mehr',
-  archiviert: d => 'Projekt archiviert',
-  reaktiviert: d => 'Projekt wieder aktiv',
-};
 
 function passwortVorschlag() {
   const zeichen = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -67,6 +56,7 @@ async function zeigen() {
     else if (ansicht === 'projekt') await projektZeigen(Number(id));
     else if (ansicht === 'lehrkraefte') await lehrkraefteZeigen();
     else if (ansicht === 'konto') kontoZeigen();
+    else if (ansicht === 'einstellungen') await einstellungenZeigen();
     else location.hash = 'projekte';
   } catch (e) { fehlerZeigen(e); }
 }
@@ -192,20 +182,14 @@ async function projektZeigen(id) {
         el('td', {}, el('button', { type: 'button', class: 'leicht', onclick: () => mitgliedDialog(p, m) }, 'Bearbeiten')))))))
       : el('div', { class: 'leer', text: 'Noch keine Teammitglieder.' }));
 
-  const struktur = el('section', { class: 'karte' },
-    el('h2', { class: 'dreieck', text: 'Phasen und Aufgaben' }),
-    el('p', { class: 'leise', text: 'Aus der Vorlage. Das Tracking-Sheet mit Wochenraster folgt in Stufe B.' }),
-    p.phasen.map(ph => el('div', { class: 'phase' },
-      el('div', { class: 'etikett', text: ph.name }),
-      ph.aufgaben.length ? el('ul', {}, ph.aufgaben.map(a => el('li', { text: a.titel })))
-        : el('div', { class: 'leise', text: 'noch keine Aufgaben' }))));
+  const sheetOrt = el('div');
+  const struktur = el('section', { class: 'karte' }, el('h2', { class: 'dreieck', text: 'Tracking-Sheet' }), sheetOrt);
 
   const verlauf = el('section', { class: 'karte' },
     el('h2', { class: 'dreieck', text: 'Verlauf' }),
     el('div', { class: 'verlauf' }, p.verlauf.map(e => el('div', {},
       el('span', { class: 'zeit', text: T.zeitText(e.zeit) }),
-      el('span', {}, el('b', { text: e.wer_art === 'team' ? 'Team' : e.wer.toUpperCase() }), ' ',
-        (VERLAUF[e.art] || (() => e.art))(e.daten))))));
+      el('span', {}, el('b', { text: T.werText(e) }), ' ', T.verlaufText(e))))));
 
   T.setzen(inhalt, 
     el('div', { class: 'werkzeug' },
@@ -213,7 +197,8 @@ async function projektZeigen(id) {
       el('button', { type: 'button', onclick: () => projektBearbeiten(p) }, 'Bearbeiten'),
       el('button', { type: 'button', class: p.archiviert ? '' : 'warnen', onclick: () => archivieren(p) },
         p.archiviert ? 'Wieder aktivieren' : 'Archivieren')),
-    ueberblick, p.archiviert ? null : teamlink, mitglieder, struktur, verlauf);
+    ueberblick, struktur, p.archiviert ? null : teamlink, mitglieder, verlauf);
+  Raster.erzeugen({ ort: sheetOrt, basis: '/api/projekte/' + p.id, rolle: 'lehrkraft' }).laden();
 }
 
 async function projektBearbeiten(p) {
@@ -343,6 +328,45 @@ async function lehrkraftDialog(l) {
     T.meldung('Gespeichert.');
   }
   zeigen();
+}
+
+// --- Einstellungen (Admin): Schul-Logo ---
+
+function dateiLesen(datei) {
+  return new Promise((ok, fehler) => {
+    const leser = new FileReader();
+    leser.onload = () => ok(String(leser.result).split(',')[1] || '');
+    leser.onerror = () => fehler(new Error('Die Datei konnte nicht gelesen werden.'));
+    leser.readAsDataURL(datei);
+  });
+}
+
+async function einstellungenZeigen() {
+  titelSetzen('Einstellungen');
+  const { logo } = await T.api('GET', '/api/einstellungen');
+  const datei = el('input', { type: 'file', accept: '.svg,.png,.jpg,.jpeg,image/svg+xml,image/png,image/jpeg' });
+  const vorschau = logo ? el('img', { src: '/logo?' + Date.now(), alt: 'aktuelles Logo', class: 'logo-vorschau' })
+    : el('div', { class: 'leer', text: 'Noch kein Logo hinterlegt.' });
+  const hochladen = async () => {
+    if (!datei.files.length) { T.meldung('Bitte zuerst eine Datei wählen.', true); return; }
+    try {
+      await T.api('POST', '/api/einstellungen/logo', { inhalt: await dateiLesen(datei.files[0]) });
+      T.meldung('Logo gespeichert.');
+      location.reload();
+    } catch (e) { T.meldung(e.message, true); }
+  };
+  const entfernen = async () => {
+    try { await T.api('POST', '/api/einstellungen/logo-entfernen', {}); T.meldung('Logo entfernt.'); location.reload(); }
+    catch (e) { T.meldung(e.message, true); }
+  };
+  T.setzen(inhalt,
+    el('h1', { class: 'dreieck', text: 'Einstellungen' }),
+    el('section', { class: 'karte stapel' },
+      el('h2', { class: 'dreieck', text: 'Schul-Logo' }),
+      el('p', { class: 'leise', text: 'Erscheint oben links auf allen Seiten, auch bei den Teams. Am besten das Querformat als SVG oder PNG (höchstens 1 MB).' }),
+      vorschau,
+      el('div', { class: 'zeile' }, datei, el('button', { type: 'button', class: 'haupt', onclick: hochladen }, 'Hochladen'),
+        logo ? el('button', { type: 'button', class: 'warnen', onclick: entfernen }, 'Logo entfernen') : null)));
 }
 
 // --- Eigenes Konto ---

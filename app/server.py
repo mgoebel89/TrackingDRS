@@ -7,6 +7,8 @@ TRACKINGDRS_BIND, TRACKINGDRS_OHNE_TLS.
 Alle Aenderungen laufen ueber POST mit JSON und dem Kopf X-TrackingDRS: 1 (Schutz vor fremden Formularen).
 Lehrkraefte melden sich per Cookie an, Teams nur ueber ihren geheimen Link.
 """
+import base64
+import binascii
 import json
 import mimetypes
 import os
@@ -18,7 +20,7 @@ import threading
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import VERSION, db, konten, projekte
+from . import VERSION, db, einstellungen, konten, projekte, sheet
 
 BASIS = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WEB_DIR = os.path.join(BASIS, "web")
@@ -30,7 +32,7 @@ BIND = os.environ.get("TRACKINGDRS_BIND", "0.0.0.0")
 OHNE_TLS = os.environ.get("TRACKINGDRS_OHNE_TLS") == "1"
 
 COOKIE = "tdrs"
-MAX_BODY = 1024 * 1024
+MAX_BODY = 2 * 1024 * 1024   # Logo als Base64
 SEITEN = {"/anmelden": "anmelden.html", "/lehrer": "lehrer.html", "/einrichtung": "einrichtung.html"}
 STATISCH = re.compile(r"/static/([a-z0-9_-]+\.(css|js|svg|png|ico))")
 TEAM_SEITE = re.compile(r"/t/[A-Za-z0-9_-]{20,64}")
@@ -166,7 +168,7 @@ class Handler(BaseHTTPRequestHandler):
             raise Fehler(404, "Nicht gefunden.")
         except Fehler as f:
             self.antwort(f.status, {"fehler": f.meldung})
-        except (konten.KontoFehler, projekte.ProjektFehler) as f:
+        except (konten.KontoFehler, projekte.ProjektFehler, einstellungen.EinstellungFehler) as f:
             self.antwort(400, {"fehler": str(f)})
         except (BrokenPipeError, ConnectionResetError, ssl.SSLError, socket.timeout):
             pass
@@ -194,7 +196,19 @@ class Handler(BaseHTTPRequestHandler):
             return self.datei(os.path.join(WEB_DIR, treffer.group(1)), cache=False)
         if pfad == "/ca.crt":
             return self.ca_zertifikat()
+        if pfad == "/logo":
+            return self.logo(con)
         raise Fehler(404, "Nicht gefunden.")
+
+    def logo(self, con):
+        pfad, typ = einstellungen.logo_pfad(con, os.path.dirname(self.server.db_pfad))
+        if pfad is None:
+            raise Fehler(404, "Kein Logo hinterlegt.")
+        with open(pfad, "rb") as f:
+            inhalt = f.read()
+        # SVG nie als Dokument mit Skripten ausfuehren (sandbox), kurz zwischenspeichern
+        self.antwort(200, inhalt, typ, extra=[("Content-Security-Policy", "sandbox"), ("Cache-Control", "max-age=300")],
+                     cache=True)
 
     def ca_zertifikat(self):
         self.datei(os.path.join(TLS_DIR, "ca.crt"), "application/x-x509-ca-cert")
@@ -293,6 +307,28 @@ def api_lehrkraft_aendern(h, con, daten, lid):
     h.antwort(200, {"lehrkraft": konten.holen(con, lid)})
 
 
+def api_einstellungen(h, con, daten):
+    _admin(h, con)
+    h.antwort(200, {"logo": db.einstellung(con, "logo")})
+
+
+def api_logo(h, con, daten):
+    a = _admin(h, con)
+    try:
+        inhalt = base64.b64decode(daten.get("inhalt") or "", validate=True)
+    except (binascii.Error, ValueError):
+        raise Fehler(400, "Die Datei konnte nicht gelesen werden.")
+    art = einstellungen.logo_speichern(con, os.path.dirname(h.server.db_pfad), inhalt)
+    print("Logo (%s) hochgeladen von %s" % (art, a["kuerzel"]), flush=True)
+    h.antwort(200, {"logo": art})
+
+
+def api_logo_entfernen(h, con, daten):
+    _admin(h, con)
+    einstellungen.logo_entfernen(con, os.path.dirname(h.server.db_pfad))
+    h.antwort(200, {"logo": None})
+
+
 def api_vorlagen(h, con, daten):
     h.konto(con)
     h.antwort(200, {"vorlagen": [{"schluessel": v["schluessel"], "name": v["name"]} for v in projekte.vorlagen(con)]})
@@ -363,6 +399,69 @@ def api_team(h, con, daten, token):
     h.antwort(200, {"projekt": sicht})
 
 
+# --- Tracking-Sheet: gleiche Aktionen fuer Team (ueber den Link) und Lehrkraft (angemeldet) ---
+
+def _team_projekt(con, token):
+    zeile = con.execute("SELECT id FROM projekt WHERE link_token = ? AND archiviert = 0", (token,)).fetchone()
+    if zeile is None:
+        raise Fehler(404, "Dieser Link ist nicht (mehr) gültig. Bitte die Lehrkraft um den aktuellen Link.")
+    return zeile[0]
+
+
+def _sheet_antwort(h, con, pid):
+    bekannt = urllib.parse.parse_qs(urllib.parse.urlsplit(h.path).query).get("stand")
+    if bekannt and bekannt[0] == str(sheet.stand(con, pid)):
+        return h.antwort(200, {"unveraendert": True})
+    h.antwort(200, {"sheet": sheet.lesen(con, pid)})
+
+
+def _sheet_aendern(h, con, pid, wer_art, wer, daten):
+    ergebnis = sheet.aendern(con, pid, wer_art, wer, daten)
+    h.antwort(200, {"ergebnis": ergebnis, "sheet": sheet.lesen(con, pid)})
+
+
+def api_team_sheet(h, con, daten, token):
+    _sheet_antwort(h, con, _team_projekt(con, token))
+
+
+def api_team_sheet_aendern(h, con, daten, token):
+    _sheet_aendern(h, con, _team_projekt(con, token), "team", "Team", daten)
+
+
+def api_team_version(h, con, daten, token, vid):
+    h.antwort(200, {"version": sheet.version_lesen(con, _team_projekt(con, token), _ganzzahl(vid))})
+
+
+def api_team_verlauf(h, con, daten, token, aid):
+    h.antwort(200, {"verlauf": sheet.aufgabe_verlauf(con, _team_projekt(con, token), aid)})
+
+
+def api_sheet(h, con, daten, pid):
+    _k, pid = _projekt(h, con, pid)
+    _sheet_antwort(h, con, pid)
+
+
+def api_sheet_aendern(h, con, daten, pid):
+    k, pid = _projekt(h, con, pid)
+    _sheet_aendern(h, con, pid, "lehrkraft", k["kuerzel"], daten)
+
+
+def api_version(h, con, daten, pid, vid):
+    _k, pid = _projekt(h, con, pid)
+    h.antwort(200, {"version": sheet.version_lesen(con, pid, _ganzzahl(vid))})
+
+
+def api_verlauf(h, con, daten, pid, aid):
+    _k, pid = _projekt(h, con, pid)
+    h.antwort(200, {"verlauf": sheet.aufgabe_verlauf(con, pid, aid)})
+
+
+def api_basisplan(h, con, daten, pid):
+    k, pid = _projekt(h, con, pid)
+    sheet.basisplan_setzen(con, pid, k["kuerzel"])
+    h.antwort(200, {"sheet": sheet.lesen(con, pid)})
+
+
 ROUTEN = [(m, re.compile(p), f) for m, p, f in [
     ("GET", r"/api/status", api_status),
     ("POST", r"/api/einrichtung", api_einrichtung),
@@ -374,6 +473,9 @@ ROUTEN = [(m, re.compile(p), f) for m, p, f in [
     ("POST", r"/api/lehrkraefte", api_lehrkraft_anlegen),
     ("POST", r"/api/lehrkraefte/(\d+)", api_lehrkraft_aendern),
     ("GET", r"/api/vorlagen", api_vorlagen),
+    ("GET", r"/api/einstellungen", api_einstellungen),
+    ("POST", r"/api/einstellungen/logo", api_logo),
+    ("POST", r"/api/einstellungen/logo-entfernen", api_logo_entfernen),
     ("GET", r"/api/projekte", api_projekte),
     ("POST", r"/api/projekte", api_projekt_anlegen),
     ("GET", r"/api/projekte/(\d+)", api_projekt),
@@ -382,7 +484,16 @@ ROUTEN = [(m, re.compile(p), f) for m, p, f in [
     ("POST", r"/api/projekte/(\d+)/mitglieder/(\d+)", api_mitglied_aendern),
     ("POST", r"/api/projekte/(\d+)/link-erneuern", api_link_erneuern),
     ("POST", r"/api/projekte/(\d+)/archivieren", api_archivieren),
+    ("GET", r"/api/projekte/(\d+)/sheet", api_sheet),
+    ("POST", r"/api/projekte/(\d+)/sheet", api_sheet_aendern),
+    ("GET", r"/api/projekte/(\d+)/version/(\d+)", api_version),
+    ("GET", r"/api/projekte/(\d+)/aufgabe/(\d+)/verlauf", api_verlauf),
+    ("POST", r"/api/projekte/(\d+)/basisplan", api_basisplan),
     ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})", api_team),
+    ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/sheet", api_team_sheet),
+    ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/sheet", api_team_sheet_aendern),
+    ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/version/(\d+)", api_team_version),
+    ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/aufgabe/(\d+)/verlauf", api_team_verlauf),
 ]]
 
 

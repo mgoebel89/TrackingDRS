@@ -12,7 +12,7 @@ Besprechung werden daraus berechnet.
 | Stufe | Inhalt | Stand |
 |---|---|---|
 | A | Grundgerüst: Installation, Lehrkraft-Konten, HTTPS, Firewall, Projekte, Teams, Team-Link, Standardvorlage | fertig |
-| B | Tracking-Sheet: Raster mit Plan und Ampel, Verantwortliche, Versionen, Basisplan, Vergleich | geplant |
+| B | Tracking-Sheet: Raster mit Plan und Ampel, Verantwortliche, Meilensteine, Basisplan, Vergleich, Handyansicht „Diese Woche“, Schul-Logo | fertig (Versionen zum Buchungsschluss kommen mit C) |
 | C | Termine, Buchung, Warnungen, Cockpit, Kalender mit Dienstkalender-Abo | geplant |
 | D | Besprechungstafel (Smartboard), Kurzzusammenfassung, Arbeitsaufträge | geplant |
 | E | Anfragen: Rückfrage, Bestellliste mit Einreichfenstern, Ausleihe, Abnahme | geplant |
