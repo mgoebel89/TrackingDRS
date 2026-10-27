@@ -469,7 +469,7 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
   <h2><span class="nr">01</span>Was die Basisversion kann</h2>
   <div class="raster">
     <div class="karte"><div class="etikett">Tracking-Sheet digital</div><p>Dein Sheet als Vorlage: Phasen, Aufgaben, KW-Raster mit <span class="mono">b e g y r</span>, Gesamtstatus je Woche, Probleme mit Maßnahme. Die Schüler bearbeiten es frei wie in Excel, jede Änderung wird protokolliert.</p></div>
-    <div class="karte"><div class="etikett">Termine &amp; Besprechungen</div><p>Du legst je Woche Termine an, die Teams buchen. Besprochen wird gemeinsam an einer Tafel auf dem Smartboard, mit Stift, Handskizzen und Post-its. Beim Abschließen wird die Tafel eingefroren.</p></div>
+    <div class="karte"><div class="etikett">Termine &amp; Besprechungen</div><p>Aus festen Projektzeiten (z. B. donnerstags, dienstags in ungeraden KW) entstehen die Termine automatisch, abzüglich Ferien und Ausfällen. Die Teams buchen sie. Besprochen wird gemeinsam an einer Tafel auf dem Smartboard, mit Stift, Handskizzen und Post-its. Beim Abschließen wird die Tafel eingefroren.</p></div>
     <div class="karte"><div class="etikett">Lehrer-Cockpit</div><p>Die Besprechungen der Woche in Zeitfolge, je Team mit Kurzzusammenfassung und Warnungen. Sie wird ohne KI berechnet, nur aus den Daten.</p></div>
     <div class="karte"><div class="etikett">Anfragen &amp; Extras</div><p>Anfragen mit Bearbeitungsstand (Rückfrage, Bestellung, Ausleihe, Abnahme), Mindmap als Bild/PDF, Fotos, private Lehrernotizen, PDF- und Excel-Export, Projektvorlagen.</p></div>
   </div>
@@ -485,9 +485,9 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
     <div class="schritt"><div class="wer-t">Team</div><b>Planen</b><span>Aufgaben, Zeiträume, Endtermine, Meilensteine</span></div>
   </div>
   <div class="woche">
-    <div class="etikett">Jede Projektwoche (Woche mit angelegten Terminen)</div>
+    <div class="etikett">Jede Projektwoche (Woche mit Projekttag)</div>
     <div class="ablauf">
-      <div class="schritt lk"><div class="wer-t">Lehrkraft</div><b>Termine anlegen</b><span>von Hand, „Vorwoche übernehmen“ hilft</span></div>
+      <div class="schritt lk"><div class="wer-t">Lehrkraft</div><b>Termine entstehen</b><span>automatisch aus den Projektzeiten, ohne Ferien und Ausfälle</span></div>
       <div class="schritt"><div class="wer-t">Team</div><b>Termin buchen</b><span>sonst Warnung an Team und dich</span></div>
       <div class="schritt"><div class="wer-t">Team</div><b>Aktualisieren</b><span>Raster, Probleme, Fotos, Fragen, Vorbereitung</span></div>
       <div class="schritt lk"><div class="wer-t">Beide</div><b>Besprechung</b><span>an der Tafel: Post-its, Skizzen, Ergebnis</span></div>
@@ -520,7 +520,7 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
       </ul></div>
     <div class="karte"><h3>Rund um die Besprechung</h3>
       <ul class="liste">
-        <li><b>Termin buchen</b> im Reiter „Termin“: freien Termin antippen, einer je Woche. Umbuchen geht bis zum Buchungsschluss, den du je Woche festlegst. Termine anderer Teams erscheinen nur als „belegt“.</li>
+        <li><b>Termin buchen</b> im Reiter „Termin“: freien Termin antippen, einer je Woche. Umbuchen geht bis zum Buchungsschluss, den du festlegst. Termine anderer Teams erscheinen nur als „belegt“.</li>
         <li><b>Vorbereitung:</b> kurzer Stand und Themen für die Besprechung.</li>
         <li><b>Anfragen stellen:</b> Rückfrage, Material ausleihen oder Abnahme. Bestellungen sammelt das Team in einer Bestellliste und reicht sie im Einreichfenster ein. Den Bearbeitungsstand sieht das Team jederzeit. Rückfragen mit „in der Besprechung klären“ landen auf der Tafel.</li>
         <li><b>Arbeitsaufträge abhaken.</b> Abhaken reicht, der Zeitpunkt wird gespeichert.</li>
@@ -537,7 +537,7 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
     <div class="karte"><h3>Cockpit (Startseite)</h3><p>Drei Bausteine. Links der Handlungsbedarf (heute, jetzt erledigen, im Blick behalten), rechts die nächsten zwei Wochen mit deinem Dienstkalender und darunter je Team eine Projektkarte. Dazu gibt es einen eigenen Reiter „Kalender“ für Monat und Halbjahr.</p></div>
     <div class="karte"><h3>Besprechungstafel (Smartboard)</h3><p>Die Kurzzusammenfassung liegt als Post-its auf der Tafel und wird abgearbeitet. Stift, Skizzen und neue Post-its gehen überall. Post-its in „Aufträge“ oder „Absprachen“ werden zu Einträgen. „Abschließen“ friert die Tafel mit Uhrzeit ein. Auf deinem Monitor läuft parallel die Lehreransicht mit Zusammenfassung und Notizen.</p></div>
     <div class="karte"><h3>Projektseite</h3><p>Raster mit Versionen und Vergleich (Basisplan oder Stand zu einem Buchungsschluss), Verlauf aller Änderungen (filterbar), Protokolle, Aufträge, Fotos, Mindmap und Lehrernotizen. Lehrernotizen sind nur für Lehrkräfte sichtbar und erscheinen nie auf der Tafel.</p></div>
-    <div class="karte"><h3>Verwaltung</h3><p>Termine je Woche und Einreichfenster für Bestellungen anlegen, Projekte und Teams anlegen, Team-Link erneuern, Vorlagen speichern, Excel-Import/-Export im Sheet-Layout, PDF-Export, Archiv, Komplett-Sicherung als ZIP. Lehrkräfte verwaltet ein Admin.</p></div>
+    <div class="karte"><h3>Verwaltung</h3><p>Projektzeiten, Ausfälle und Einreichfenster für Bestellungen festlegen, Projekte und Teams anlegen, Team-Link erneuern, Vorlagen speichern, Excel-Export im Sheet-Layout, PDF-Export, Archiv, Komplett-Sicherung als ZIP. Lehrkräfte verwaltet ein Admin.</p></div>
   </div>
 
   <div class="karte">
@@ -813,13 +813,13 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
         <div class="skizze-titel"><h3>Termine anlegen</h3><span class="leise">Lehrkraft, Reiter „Termine &amp; Fenster“</span></div>
         <div class="karte" style="display:grid;gap:10px">
           <div class="feld-reihe">
-            <div class="feld-m"><span class="etikett">Tag</span><span class="eingabe">Di 10.11.</span></div>
-            <div class="feld-m"><span class="etikett">Von – bis</span><span class="eingabe">08:30 – 10:00</span></div>
+            <div class="feld-m"><span class="etikett">Projektzeit</span><span class="eingabe">Di · ungerade KW</span></div>
+            <div class="feld-m"><span class="etikett">Besprechungsfenster</span><span class="eingabe">08:30 – 10:00</span></div>
             <div class="feld-m"><span class="etikett">Je Termin</span><span class="eingabe">15 min</span></div>
             <div class="feld-m"><span class="etikett">Für</span><span class="eingabe">BSMT 22b ▾</span></div>
-            <div class="feld-m"><span class="etikett">Buchungsschluss</span><span class="eingabe">Mo 09.11., 18:00</span></div>
+            <div class="feld-m"><span class="etikett">Buchungsschluss</span><span class="eingabe">Vortag 18:00</span></div>
           </div>
-          <div class="hinweis-zeile"><span class="k">Vorwoche übernehmen</span><span class="k haupt">6 Termine anlegen</span></div>
+          <div class="hinweis-zeile"><span class="k">Ausfall eintragen</span><span class="k haupt">Regel speichern</span></div>
           <div class="tag-kopf">Di 10.11. · Stand jetzt</div>
           <div class="slots">
             <div class="slot belegt">08:30<small>Förderband</small></div>
@@ -831,7 +831,7 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
           </div>
           <div class="hinweis-zeile"><span class="chip w">Noch ohne Termin: Sortieranlage, Pneumatik-Greifer</span><span class="k">Team eintragen ▾</span></div>
         </div>
-        <p class="leise" style="font-size:.88rem">Termine entstehen aus Tag, Zeitraum und Länge. Den Buchungsschluss legst du je Woche fest. Danach können nur noch Lehrkräfte ändern.</p>
+        <p class="leise" style="font-size:.88rem">Eine Regel je Projektzeit (jede Woche, gerade oder ungerade KW). An jedem Projekttag entstehen die Termine selbst, Ferien aus dem Schulkalender und eingetragene Ausfälle fallen weg. Einzelne Tage kannst du anpassen oder streichen. Nach dem Buchungsschluss ändern nur noch Lehrkräfte.</p>
       </div>
       <div class="skizze">
         <div class="skizze-titel"><h3>Termin buchen</h3><span class="leise">Team, Handy, Reiter „Termin“</span></div>
@@ -1123,7 +1123,7 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
         <tr><td><b>Fotos</b></td><td>Hinweis „keine Personen“, verkleinert gespeichert, Aufnahmedaten (EXIF) entfernt</td></tr>
         <tr><td><b>Lehrernotizen</b></td><td>Nur für Lehrkräfte des Projekts sichtbar, nie im Team-Link, im PDF-Export nur auf Wunsch</td></tr>
         <tr><td><b>Dienstkalender</b></td><td>Nur für die jeweilige Lehrkraft sichtbar, nie für Teams oder auf der Tafel. Der Abo-Link wird wie ein Passwort behandelt.</td></tr>
-        <tr><td><b>Zugriff</b></td><td>Schulnetz und dein VPN, überall HTTPS. Den Team-Link kannst du jederzeit erneuern, dann ist der alte ungültig.</td></tr>
+        <tr><td><b>Zugriff</b></td><td>Nur Schulnetz und dein VPN. Lehrerbereich und Anmeldung nur über HTTPS, Team-Links über HTTP (keine Zertifikatswarnung auf Schülergeräten; Passwörter senden Teams keine). Den Team-Link kannst du jederzeit erneuern, dann ist der alte ungültig.</td></tr>
         <tr><td><b>Aufbewahrung</b></td><td>Archiv nach Projektende (nur lesbar), Löschen von Hand, davor PDF-Export möglich</td></tr>
         <tr><td><b>Sicherung</b></td><td>Proxmox-Backup des Containers, zusätzlich Komplett-Sicherung als ZIP im Lehrerbereich</td></tr>
       </tbody>
@@ -1136,10 +1136,10 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
   <div class="stufen">
     <div class="stufe"><span class="s">A</span><div><b>Grundgerüst</b><p>Repo, Proxmox-Skript, Installation, Lehrkraft-Konten, HTTPS, Firewall. Projekte, Teams und Team-Link, Standardvorlage.</p></div></div>
     <div class="stufe"><span class="s">B</span><div><b>Tracking-Raster</b><p>Raster mit Plan- und Statusebene (Tasten wie in Excel, Ziehen plant b), genau ein Verantwortlicher je Aufgabe, Ereignisprotokoll, Y/R-Pflichtfeld, Verworfen/Verschoben, Meilensteine, Gesamtstatus, Versionen zum Buchungsschluss, Basisplan, Vergleich (überlagert und als Liste), Handyansicht „Diese Woche“.</p></div></div>
-    <div class="stufe"><span class="s">C</span><div><b>Termine &amp; Cockpit</b><p>Termine je Woche aus Tag, Zeitraum und Länge (mit „Vorwoche übernehmen“ und Buchungsschluss), Buchung durch das Team, Warnungen, Cockpit (Handlungsbedarf, Zwei-Wochen-Kalender, Projektkarten, Ampel-Matrix), Kalender-Reiter mit Dienstkalender-Abo (ICS) und Ferien.</p></div></div>
+    <div class="stufe"><span class="s">C</span><div><b>Termine &amp; Cockpit</b><p>Projektzeiten als Regeln (Wochentag, Uhrzeit, jede/gerade/ungerade KW), Ausfälle, Ferien aus dem Schulkalender-Abo, automatische Termine mit Buchungsschluss, Buchung durch das Team, Versionen zum Buchungsschluss, Häkchen „erledigt“, Warnungen, Cockpit (Handlungsbedarf, Zwei-Wochen-Kalender, Projektkarten, Ampel-Matrix), Kalender-Reiter mit Dienstkalender-Abo (ICS) und Ferien.</p></div></div>
     <div class="stufe"><span class="s">D</span><div><b>Besprechung</b><p>Vorbereitung, Fragen, Kurzzusammenfassung, Besprechungstafel (Zonen, Stift, Post-its, live von Schülergeräten), Arbeitsaufträge, Tafel einfrieren.</p></div></div>
     <div class="stufe"><span class="s">E</span><div><b>Anfragen</b><p>Rückfrage, Ausleihe, Abnahme mit Status, Antwortverlauf und Warnungen. Bestelllisten mit Einreichfenstern, Sonderfenstern und Prüfung je Position. Sammelbestellung je Lieferant als Excel/PDF.</p></div></div>
-    <div class="stufe"><span class="s">F</span><div><b>Extras</b><p>Fotos, Mindmap, Lehrernotizen, Vorlagen speichern, Excel-Import/-Export, PDF-Export, Archiv, ZIP-Sicherung.</p></div></div>
+    <div class="stufe"><span class="s">F</span><div><b>Extras</b><p>Fotos, Mindmap, Lehrernotizen, Vorlagen speichern, Excel-Export, PDF-Export, Archiv, ZIP-Sicherung.</p></div></div>
     <div class="stufe"><span class="s">G</span><div><b>VPN &amp; Probelauf</b><p>WireGuard im Installer, Sperrregeln auf dem Server, Sperrtest als root im Container, Test von zuhause, Probelauf mit einer Klasse.</p></div></div>
     <div class="stufe"><span class="s">H</span><div><b>Optional: SchulLager</b><p>Bestellungen als Beschaffung übergeben, Ausleihen aus dem Bestand, Status zurückholen. Kann jederzeit nachgerüstet werden.</p></div></div>
   </div>
@@ -1147,21 +1147,9 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
 </section>
 
 <section>
-  <h2><span class="nr">11</span>Zur Abstimmung offen</h2>
-  <p>Zu jedem Punkt steht mein Vorschlag. Wenn du einverstanden bist, reicht ein „passt“. Sonst antworte mit der Nummer.</p>
-  <div class="karte">
-    <ol class="offen">
-      <li><b>Wo arbeiten die Schüler?</b> Der Container ist nur im Schulnetz und über dein VPN erreichbar, nicht von zuhause der Schüler oder über mobile Daten.<span class="vorschlag"><b>Vorschlag:</b> So lassen. Für Fotos müssen Handys im Schul-WLAN sein. Bitte bestätigen, dass das passt.</span></li>
-      <li><b>Zertifikatswarnung auf Schülergeräten.</b> Eine eigene CA müsste auf jedem Gerät installiert werden, sonst warnt der Browser beim Team-Link.<span class="vorschlag"><b>Vorschlag:</b> Hast du eine eigene Domain (beim VPS) mit DNS-API? Dann gibt es ein echtes Let's-Encrypt-Zertifikat ohne Warnung. Sonst eigene CA wie bei der Roboter-Simulation, und die Schüler bestätigen die Warnung einmal.</span></li>
-      <li><b>Wann ist eine Aufgabe „erledigt“?</b> Im Sheet gibt es dafür kein Zeichen.<span class="vorschlag"><b>Vorschlag:</b> Häkchen „erledigt“ je Aufgabe mit Zeitstempel. Daraus berechnet sich die Warnung „Endtermin überschritten“.</span></li>
-      <li><b>Sehen Teams andere Projekte?</b><span class="vorschlag"><b>Vorschlag:</b> Nein, jedes Team sieht nur sein eigenes Projekt.</span></li>
-      <li><b>Excel-Import.</b><span class="vorschlag"><b>Vorschlag:</b> Genau das Layout deines Sheets (Phasen, KW-Spalten, Probleme rechts). Andere Layouts werden nicht unterstützt.</span></li>
-      <li><b>Datenschutz: Fernzugriff mit vollen Namen.</b><span class="vorschlag"><b>Vorschlag:</b> Kurz mit Schulleitung oder Datenschutzbeauftragtem abstimmen (Verarbeitungsverzeichnis). Technisch liegen keine Daten auf dem VPS, er leitet nur verschlüsselt weiter.</span></li>
-      <li><b>Klassen und Schuljahre.</b><span class="vorschlag"><b>Vorschlag:</b> Projekte hängen an Klasse und Schuljahr. Das Cockpit filtert danach, das Archiv ist nach Schuljahr gegliedert.</span></li>
-      <li><b>Handschrift auf Post-its.</b><span class="vorschlag"><b>Vorschlag:</b> Post-its bleiben Handschrift (als Bild gespeichert). Aufträge brauchen beim Abschließen nur eine Frist. Eine kurze Textzeile ist freiwillig und lässt sich per Windows-Handschrifterkennung füllen, damit Cockpit und Suche den Auftrag lesbar zeigen.</span></li>
-      <li><b>Wie erfährst du von neuen Anfragen?</b><span class="vorschlag"><b>Vorschlag:</b> Zähler im Cockpit und die Warnung „Anfrage wartet“. Optional einmal täglich eine E-Mail mit allen offenen Anfragen. Dafür bräuchte der Container ein Postfach zum Versenden (SMTP).</span></li>
-      <li><b>Darf dein Schul-Outlook den Kalender veröffentlichen?</b> Das Abo braucht zwei Dinge: Die Schule erlaubt in Microsoft 365 das Veröffentlichen von Kalendern, und der Container darf nach außen auf Outlook zugreifen.<span class="vorschlag"><b>Vorschlag:</b> In Outlook im Web unter Einstellungen → Kalender → Freigegebene Kalender → „Kalender veröffentlichen“ prüfen, ob es angeboten wird. Wenn nicht, gibt es als Ausweg den Upload einer exportierten .ics-Datei.</span></li>
-    </ol>
+  <h2><span class="nr">11</span>Offene Punkte</h2>
+    <div class="karte">
+    <p><b>Alle Punkte sind entschieden</b> (27.10.2026). Die Antworten stehen in Abschnitt 12.</p>
   </div>
 </section>
 
@@ -1179,7 +1167,7 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
         <tr><td>Phasen</td><td>Vorlage anpassbar, Standard = dein Sheet</td></tr>
         <tr><td>Y/R</td><td>Problem und Maßnahme sind Pflicht</td></tr>
         <tr><td>Löschen</td><td>Nichts geht verloren (verworfen / verschoben sichtbar)</td></tr>
-        <tr><td>Takt</td><td>Teams buchen wöchentlich einen Termin. Bis dahin ist aktualisiert, sonst Warnung. Termine legst du jede Woche von Hand an.</td></tr>
+        <tr><td>Takt</td><td>Teams buchen in jeder Projektwoche einen Termin. Bis dahin ist aktualisiert, sonst Warnung.</td></tr>
         <tr><td>Besprechung</td><td>Schüler bereiten vor. Besprochen wird an einer Zonen-Tafel auf dem Smartboard (dein PC ist angeschlossen), mit Stift, Handskizzen und Post-its. Abschließen friert die Tafel ein.</td></tr>
         <tr><td>Tafel</td><td>Neu je Besprechung, offene Post-its wandern mit. Schülergeräte schicken live Post-its und Fotos. Lehrernotizen erscheinen nie auf der Tafel.</td></tr>
         <tr><td>Bildschirme</td><td>Board als erweiterter Bildschirm (schon eingerichtet): Tafel im Vollbild auf dem Board, Cockpit, Lehreransicht und Lehrernotizen auf deinem Monitor</td></tr>
@@ -1188,16 +1176,24 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
         <tr><td>Verantwortlich</td><td>Genau ein Schüler je Aufgabe, Pflicht sobald die Aufgabe geplant ist</td></tr>
         <tr><td>Anfragen</td><td>Rückfrage, Bestellliste, Material ausleihen, Abnahme/Freigabe, jeweils mit Status für das Team. SchulLager-Anbindung für Bestellung und Ausleihe optional.</td></tr>
         <tr><td>Bestellungen</td><td>Teams sammeln in einer Bestellliste und reichen nur in Einreichfenstern ein (von, bis Stichtag, im Cockpit festgelegt). Sonderfenster für einzelne Teams vergibst du. Felder mit Bestellnummer und Preis (nur Info, keine Summen, kein Budget). Entscheidung je Position: bestellen, SchulLager (verknüpft), Firma (nur Vermerk), ersetzen (du trägst ein oder das Team sucht), ablehnen.</td></tr>
-        <tr><td>Terminbuchung</td><td>Du legst Termine aus Tag, Zeitraum und Länge an, mit Buchungsschluss je Woche. Teams buchen einen Termin je Woche per Tipp und sehen andere Buchungen nur als „belegt“.</td></tr>
+        <tr><td>Terminbuchung</td><td>Projektzeiten als Regeln (z. B. jeden Donnerstag, dienstags in ungeraden KW) mit Besprechungsfenster und Terminlänge; Termine entstehen automatisch, ohne Ferien (Schulkalender-Abo) und von Hand eingetragene Ausfälle; einzelne Tage anpassbar; Buchungsschluss legst du fest. Teams buchen einen Termin je Woche per Tipp und sehen andere Buchungen nur als „belegt“.</td></tr>
         <tr><td>Aufträge / Meilensteine</td><td>Abhaken reicht / Team und Lehrkraft dürfen setzen</td></tr>
         <tr><td>Schüler-Extras</td><td>Fotos, Aufträge abhaken, Fragen an Lehrkraft</td></tr>
-        <tr><td>Lehrer-Extras</td><td>Cockpit, private Notizen, PDF, Excel-Import/-Export, Projektvorlagen</td></tr>
+        <tr><td>Lehrer-Extras</td><td>Cockpit, private Notizen, PDF, Excel-Export (kein Import), Projektvorlagen</td></tr>
         <tr><td>Cockpit</td><td>Drei Bausteine: Handlungsbedarf, Zwei-Wochen-Kalender, Projektkarten (umschaltbar auf Ampel-Matrix). Genutzt für den Morgen-Check, vor Besprechungen, für die langfristige Planung und um nachzusehen, was passiert ist.</td></tr>
         <tr><td>Kalender</td><td>Dienstkalender per ICS-Abo-Link aus Outlook, automatisch alle 30 Minuten. Kein Rückweg nach Outlook.</td></tr>
         <tr><td>Mindmap</td><td>Bild/PDF hochladen</td></tr>
         <tr><td>Netz</td><td>Gemieteter WireGuard-Server, Schul-IT hat ausgehendes UDP freigegeben. Der Container wird Peer im bestehenden Heim-VPN.</td></tr>
         <tr><td>Heimnetz-Schutz</td><td>Aus dem Schulnetz darf niemand ins Heimnetz, auch nicht über einen übernommenen Container. Die Sperre sitzt auf dem Server: vom Container nur Antworten.</td></tr>
         <tr><td>Daten</td><td>Vor- und Nachname, Archiv + Löschen von Hand, Proxmox-Backup</td></tr>
+        <tr><td>Zugriff Schüler</td><td>Nur in der Schule (Schulnetz, Schul-WLAN). Team-Links über HTTP, Lehrerbereich nur HTTPS.</td></tr>
+        <tr><td>Erledigt</td><td>Häkchen „erledigt“ je Aufgabe mit Zeitstempel (Grundlage für Fortschritt und Warnung „Endtermin überschritten“)</td></tr>
+        <tr><td>Andere Teams</td><td>Jedes Team sieht nur sein eigenes Projekt</td></tr>
+        <tr><td>Datenschutz</td><td>Fernzugriff mit vollen Namen ist mit Schulleitung/DSB geklärt</td></tr>
+        <tr><td>Ordnung</td><td>Projekte nach Klasse und Schuljahr, Archiv nach Schuljahr</td></tr>
+        <tr><td>Handschrift</td><td>Post-its bleiben Handschrift; für Aufträge ist nur die Frist Pflicht</td></tr>
+        <tr><td>Benachrichtigung</td><td>Neue Anfragen nur im Cockpit (Zähler, Warnung), keine E-Mails</td></tr>
+        <tr><td>Kalender</td><td>Outlook erlaubt das Veröffentlichen: Dienstkalender per ICS-Abo; Ferien aus dem Schulkalender-Abo, Ausfälle von Hand</td></tr>
         <tr><td>Name</td><td>TrackingDRS</td></tr>
       </tbody>
     </table>
