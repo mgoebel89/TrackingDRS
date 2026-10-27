@@ -1,0 +1,1710 @@
+<title>TrackingDRS Konzept</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@600;700&family=JetBrains+Mono:wght@400;600&family=Caveat:wght@500;600;700&display=swap">
+<style>
+/* Layout: DRS-Kopfzeile mit blauer Linie, eine Lesespalte, Karten mit EINER großen Ecke oben links, Bildschirmskizzen in eigenen Rahmen */
+:root {
+  --blau:#00639C; --blau-dunkel:#004d7a; --blau-hell:#e8f2f9; --blau-mittel:#7fb1cf;
+  --gruen:#9fb400; --gelb:#F8B442; --rot:#D4005E;
+  --bg:#f4f6f8; --karte:#ffffff; --text:#1d2433; --leise:#5d6779; --linie:#e4e7ec; --linie-stark:#cfd4dc; --knopf:#f2f4f7;
+  --zelle-leer:#f7f8fa; --b:#5aa9d6; --e:#1d2433; --auf-farbe:#ffffff;
+  --tafel:#fbfcfd; --tinte:#1d2433; --bezel:#1f2630;
+  --schatten:0 1px 2px rgba(16,24,40,.05), 0 1px 3px rgba(16,24,40,.06);
+  --f-titel:'Barlow Semi Condensed','DIN Pro','Segoe UI',Calibri,Arial,sans-serif;
+  --f-text:'Barlow','DIN Pro','Segoe UI',Calibri,system-ui,Arial,sans-serif;
+  --f-mono:'JetBrains Mono','Cascadia Mono',Consolas,monospace;
+  --ecke:18px; --r:7px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --blau:#4aa3dc; --blau-dunkel:#7fc0ea; --blau-hell:#13283a; --blau-mittel:#2f5f80;
+  --gruen:#b8cf1a; --gelb:#f6bb55; --rot:#ff4f97;
+  --bg:#0f1419; --karte:#171e26; --text:#e6eaf0; --leise:#9aa5b5; --linie:#26303b; --linie-stark:#34404d; --knopf:#1f2832;
+  --zelle-leer:#1b232c; --b:#2f7fb0; --e:#e6eaf0; --auf-farbe:#0f1419;
+  --tafel:#1a2129; --tinte:#e6eaf0; --bezel:#05080b;
+  --schatten:0 1px 2px rgba(0,0,0,.4); color-scheme:dark; } }
+:root[data-theme="dark"] {
+  --blau:#4aa3dc; --blau-dunkel:#7fc0ea; --blau-hell:#13283a; --blau-mittel:#2f5f80;
+  --gruen:#b8cf1a; --gelb:#f6bb55; --rot:#ff4f97;
+  --bg:#0f1419; --karte:#171e26; --text:#e6eaf0; --leise:#9aa5b5; --linie:#26303b; --linie-stark:#34404d; --knopf:#1f2832;
+  --zelle-leer:#1b232c; --b:#2f7fb0; --e:#e6eaf0; --auf-farbe:#0f1419;
+  --tafel:#1a2129; --tinte:#e6eaf0; --bezel:#05080b;
+  --schatten:0 1px 2px rgba(0,0,0,.4); color-scheme:dark; }
+
+* { box-sizing:border-box; }
+[hidden] { display:none !important; }
+body { background:var(--bg); color:var(--text); font-family:var(--f-text); font-size:16px; line-height:1.55;
+  -webkit-font-smoothing:antialiased; }
+header.kopf { background:var(--karte); border-bottom:2px solid var(--blau); box-shadow:var(--schatten);
+  padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px)); padding-block:14px; }
+.kopf-innen { max-width:1040px; margin:0 auto; display:flex; flex-wrap:wrap; gap:8px 18px; align-items:baseline; justify-content:space-between; }
+.marke { font-family:var(--f-titel); font-weight:700; font-size:1.5rem; color:var(--blau); letter-spacing:-.01em; display:flex; align-items:center; gap:10px; }
+.marke svg { width:.8em; height:.8em; fill:var(--blau); }
+.kopf-meta { color:var(--leise); font-size:.9rem; display:flex; gap:6px 14px; flex-wrap:wrap; }
+.status { display:inline-block; padding:1px 10px; border-radius:999px; background:var(--gelb); color:#1d2433; font-weight:600; font-size:.82rem; }
+main { max-width:1040px; margin:0 auto; padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px)); padding-block:28px 64px;
+  display:grid; gap:36px; }
+section { display:grid; gap:14px; min-width:0; }
+h1 { font-family:var(--f-titel); font-size:clamp(1.9rem, 4vw, 2.6rem); line-height:1.1; margin:0; text-wrap:balance; }
+h2 { font-family:var(--f-titel); font-size:1.55rem; margin:0; line-height:1.2; display:flex; gap:10px; align-items:baseline; text-wrap:balance; }
+h2 .nr { font-family:var(--f-mono); font-size:.8rem; color:var(--blau); font-weight:600; letter-spacing:.04em; }
+h3 { font-family:var(--f-titel); font-size:1.15rem; margin:0; }
+p { margin:0; max-width:68ch; }
+.leise { color:var(--leise); }
+.karte { background:var(--karte); border:1px solid var(--linie); border-radius:var(--ecke) 6px 6px 6px; padding:18px 20px; min-width:0; }
+.leitidee { background:var(--blau); color:#fff; border-radius:var(--ecke) 6px 6px 6px; padding:22px 24px; display:grid; gap:8px; }
+.leitidee p { max-width:none; font-size:1.12rem; }
+.leitidee .klein { font-size:.92rem; opacity:.85; }
+.raster { display:grid; gap:14px; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); }
+.raster-2 { display:grid; gap:14px; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); }
+ul.liste { margin:0; padding-left:1.15em; display:grid; gap:4px; }
+ul.liste li::marker { color:var(--blau); }
+.etikett { font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; font-weight:700; color:var(--leise); }
+code, .mono { font-family:var(--f-mono); font-size:.86em; }
+code { background:var(--knopf); border:1px solid var(--linie); border-radius:4px; padding:0 4px; overflow-wrap:anywhere; }
+.tabelle-rahmen { overflow-x:auto; border:1px solid var(--linie); border-radius:var(--ecke) 6px 6px 6px; background:var(--karte); }
+table { border-collapse:collapse; width:100%; font-size:.93rem; }
+th, td { text-align:left; padding:9px 12px; border-bottom:1px solid var(--linie); vertical-align:top; }
+th { font-size:.74rem; text-transform:uppercase; letter-spacing:.07em; color:var(--leise); background:var(--knopf); white-space:nowrap; }
+tr:last-child td { border-bottom:none; }
+td.wer { white-space:nowrap; color:var(--leise); }
+
+/* Ablauf */
+.ablauf { display:grid; gap:0; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); counter-reset:s; }
+.schritt { padding:14px 14px 14px 16px; border-left:3px solid var(--blau); background:var(--karte); border-top:1px solid var(--linie); border-bottom:1px solid var(--linie); border-right:1px solid var(--linie); min-width:0; }
+.schritt b { display:block; font-family:var(--f-titel); font-size:1.02rem; }
+.schritt span { font-size:.88rem; color:var(--leise); }
+.schritt .wer-t { font-size:.7rem; letter-spacing:.08em; text-transform:uppercase; font-weight:700; color:var(--blau); }
+.schritt.lk { border-left-color:var(--text); }
+.schritt.lk .wer-t { color:var(--text); }
+.woche { margin-top:6px; border:2px dashed var(--blau-mittel); border-radius:var(--ecke) 6px 6px 6px; padding:12px; display:grid; gap:8px; }
+.woche > .etikett { color:var(--blau); }
+
+/* Skizzen */
+.skizzen { display:grid; gap:18px; }
+.skizze { display:grid; gap:8px; min-width:0; }
+.skizze-titel { display:flex; flex-wrap:wrap; gap:4px 12px; align-items:baseline; }
+.rahmen { overflow-x:auto; padding:2px; }
+.geraet { background:var(--bg); border:1px solid var(--linie-stark); border-radius:14px; padding:10px; box-shadow:var(--schatten); }
+.geraet.tablet { min-width:760px; }
+.geraet.handy { width:340px; border-radius:26px; padding:12px 10px; }
+.app-kopf { display:flex; align-items:center; gap:10px; background:var(--karte); border-bottom:2px solid var(--blau); padding:8px 12px; border-radius:8px 8px 0 0; font-size:.86rem; }
+.app-kopf b { color:var(--blau); font-family:var(--f-titel); font-size:1rem; }
+.app-kopf .rechts { margin-left:auto; display:flex; gap:6px; }
+.k { display:inline-flex; align-items:center; gap:4px; border:1px solid var(--linie-stark); background:var(--karte); border-radius:6px; padding:3px 9px; font-size:.78rem; font-weight:600; color:var(--text); }
+.k.haupt { background:var(--blau); border-color:var(--blau); color:#fff; }
+.app-flaeche { background:var(--bg); padding:10px; display:grid; gap:8px; border-radius:0 0 8px 8px; }
+.tk { background:var(--karte); border:1px solid var(--linie); border-radius:12px 5px 5px 5px; padding:9px 11px; display:grid; gap:4px; font-size:.84rem; }
+.tk-kopf { display:flex; gap:8px; align-items:center; }
+.tk-kopf .zeit { font-family:var(--f-mono); font-weight:600; font-size:.8rem; color:var(--blau); }
+.tk-kopf b { font-family:var(--f-titel); font-size:.98rem; }
+.tk-kopf .k { margin-left:auto; }
+.ampel { width:11px; height:11px; border-radius:50%; display:inline-block; flex:none; }
+.a-g { background:var(--gruen); } .a-y { background:var(--gelb); } .a-r { background:var(--rot); }
+.warn { color:var(--rot); font-weight:600; }
+.hinweis-zeile { display:flex; flex-wrap:wrap; gap:6px; align-items:center; font-size:.82rem; }
+.chip { border-radius:999px; padding:1px 9px; font-size:.76rem; font-weight:600; border:1px solid var(--linie-stark); background:var(--karte); }
+.chip.w { border-color:var(--rot); color:var(--rot); }
+.cockpit { display:grid; grid-template-columns:1.6fr 1fr; gap:10px; }
+.spalte { display:grid; gap:8px; align-content:start; min-width:0; }
+.spalte .etikett { font-size:.66rem; }
+
+/* Gantt */
+.gantt { border-collapse:separate; border-spacing:2px; font-size:.74rem; width:auto; }
+.gantt th, .gantt td { padding:0; border:none; background:none; text-transform:none; letter-spacing:0; }
+.gantt th { font-family:var(--f-mono); font-weight:600; color:var(--leise); font-size:.66rem; text-align:center; padding-bottom:2px; }
+.gantt th.jetzt { color:var(--blau); }
+.gantt td.auf { white-space:nowrap; padding-right:6px; max-width:150px; overflow:hidden; text-overflow:ellipsis; color:var(--text); }
+.gantt td.phase { font-weight:700; color:var(--leise); font-size:.66rem; letter-spacing:.07em; text-transform:uppercase; padding-top:4px; }
+.z { width:26px; height:20px; border-radius:3px; background:var(--zelle-leer); text-align:center; font-family:var(--f-mono); font-weight:600; font-size:.68rem; line-height:20px; color:var(--auf-farbe); }
+.z.b { background:var(--b); } .z.e { background:var(--e); } .z.g { background:var(--gruen); } .z.y { background:var(--gelb); color:#1d2433; } .z.r { background:var(--rot); }
+.z.frei { background:repeating-linear-gradient(135deg, var(--zelle-leer) 0 4px, var(--linie) 4px 6px); }
+.z.ms { background:none; color:var(--blau); font-size:.9rem; }
+.z.jetzt { outline:2px solid var(--blau); outline-offset:0; }
+.verworfen td.auf { text-decoration:line-through; color:var(--leise); }
+.palette { display:flex; gap:5px; justify-content:center; background:var(--karte); border:1px solid var(--linie); border-radius:10px; padding:6px; }
+.palette .z { width:34px; height:30px; line-height:30px; font-size:.8rem; }
+.banner { background:var(--blau-hell); border:1px solid var(--blau-mittel); color:var(--text); border-radius:10px 4px 4px 4px; padding:7px 10px; font-size:.8rem; }
+.banner.w { background:transparent; border-color:var(--rot); }
+.reiter { display:flex; gap:4px; font-size:.76rem; overflow:hidden; }
+.reiter span { padding:4px 8px; border-radius:6px; color:var(--leise); font-weight:600; }
+.reiter span.an { background:var(--blau-hell); color:var(--blau); }
+
+/* Besprechungstafel (Smartboard) */
+.board { background:var(--bezel); border-radius:18px; padding:10px 12px 12px; min-width:900px; box-shadow:var(--schatten); }
+.board-kopf { display:flex; align-items:center; gap:10px; padding:2px 4px 10px; color:#eef2f6; font-size:.9rem; flex-wrap:wrap; }
+.board-kopf b { font-family:var(--f-titel); font-size:1.1rem; }
+.live { display:inline-flex; align-items:center; gap:6px; font-size:.78rem; color:#c9d3de; }
+.live-punkt { width:8px; height:8px; border-radius:50%; background:#9fb400; box-shadow:0 0 0 3px rgba(159,180,0,.25); }
+.board-knoepfe { margin-left:auto; display:flex; gap:6px; }
+.bk { font:inherit; font-size:.82rem; font-weight:600; color:#eef2f6; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.18); border-radius:8px; padding:6px 12px; cursor:pointer; }
+.bk.haupt { background:#00639C; border-color:#00639C; }
+.tafel { position:relative; aspect-ratio:16/9; background:var(--tafel); border-radius:6px; overflow:hidden; user-select:none; -webkit-user-select:none; touch-action:pan-x pan-y; }
+.tafel:not([data-werkzeug="hand"]) { touch-action:none; }
+.zonen { position:absolute; inset:0; display:grid; grid-template-columns:30% 42% 28%; }
+.zone { border-right:1.5px dashed var(--linie-stark); padding:10px 12px; min-width:0; }
+.zone.ergebnis { border-right:none; padding:0; display:grid; grid-template-rows:38.5% 38.5% 23%; }
+.unterzone { padding:10px 12px; border-bottom:1.5px dashed var(--linie-stark); transition:background .15s; }
+.unterzone:last-child { border-bottom:none; }
+.unterzone.hier { background:var(--blau-hell); }
+.zone-titel { display:block; font-size:.66rem; letter-spacing:.1em; text-transform:uppercase; font-weight:700; color:var(--leise); }
+.ms-zeile { margin-top:8px; font-size:.8rem; color:var(--text); display:flex; gap:6px; align-items:center; }
+.ms-zeile::before { content:"◆"; color:var(--blau); }
+canvas.tinte { position:absolute; inset:0; width:100%; height:100%; z-index:1; pointer-events:none; }
+.tafel[data-werkzeug="stift"] canvas.tinte, .tafel[data-werkzeug="radierer"] canvas.tinte { pointer-events:auto; z-index:4; cursor:crosshair; }
+.postit { position:absolute; z-index:2; width:13.5%; min-height:16%; padding:7px 9px 20px; background:#fff1a8; color:#1d2433;
+  transform:rotate(var(--dreh,0deg)); box-shadow:0 8px 14px -8px rgba(0,0,0,.45), 0 1px 2px rgba(0,0,0,.18);
+  font-family:'Caveat','Segoe Print','Comic Sans MS',cursive; font-size:1.2rem; line-height:1.05; cursor:grab; touch-action:none; }
+.postit.zieht { cursor:grabbing; z-index:3; box-shadow:0 18px 28px -10px rgba(0,0,0,.5); }
+.postit .art { display:block; font-family:var(--f-text); font-size:.58rem; font-weight:700; letter-spacing:.09em; text-transform:uppercase; opacity:.62; margin-bottom:3px; }
+.postit .text { display:block; outline:none; min-height:1.1em; }
+.postit .text:empty::before { content:"Schreiben …"; opacity:.4; }
+.postit .fuss { position:absolute; left:9px; right:9px; bottom:5px; font-family:var(--f-mono); font-size:.52rem; opacity:.7; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.postit .fuss.rot-t { color:#b00048; opacity:1; font-weight:600; }
+.postit .ziel { position:absolute; top:-9px; right:-6px; background:#00639C; color:#fff; font-family:var(--f-text); font-size:.6rem; font-weight:700; padding:2px 8px; border-radius:999px; white-space:nowrap; }
+.postit.blau, .pi-m.blau { background:#cfe4f4; } .postit.orange, .pi-m.orange { background:#ffd9b3; } .postit.pink, .pi-m.pink { background:#f9d0e2; }
+.postit.grau, .pi-m.grau { background:#e3e7ec; } .postit.gruen, .pi-m.gruen { background:#dfeaa6; } .postit.weiss, .pi-m.weiss { background:#fdfdfd; }
+.pi-m.gelb { background:#fff1a8; }
+.pi-m { display:inline-block; width:14px; height:14px; border-radius:2px; vertical-align:-2px; margin-right:5px; box-shadow:0 1px 2px rgba(0,0,0,.25); }
+.foto-bild { display:block; height:52px; margin:2px 0 4px; border-radius:2px; overflow:hidden; }
+.foto-bild svg { width:100%; height:100%; display:block; }
+.postit.neu-live { animation:rein .7s cubic-bezier(.2,.8,.3,1); }
+@keyframes rein { from { opacity:0; transform:translateY(-30px) rotate(var(--dreh,0deg)) scale(.9); } }
+.werkzeuge { position:absolute; z-index:6; left:50%; bottom:10px; transform:translateX(-50%); display:flex; align-items:center; gap:3px;
+  background:var(--karte); border:1px solid var(--linie-stark); border-radius:14px; padding:5px; box-shadow:0 10px 24px -12px rgba(16,24,40,.45); }
+.werkzeuge button { width:40px; height:40px; display:grid; place-items:center; border-radius:9px; border:1px solid transparent; background:transparent;
+  color:var(--text); font:inherit; font-size:1.15rem; cursor:pointer; }
+.werkzeuge button:hover { background:var(--knopf); }
+.werkzeuge button.an { background:var(--blau-hell); border-color:var(--blau-mittel); color:var(--blau); }
+.werkzeuge button:focus-visible { outline:2px solid var(--blau); outline-offset:1px; }
+.werkzeuge .farbe i { width:16px; height:16px; border-radius:50%; display:block; }
+.werkzeuge .trenner { width:1px; height:26px; background:var(--linie-stark); margin:0 3px; }
+
+/* PC-Ansicht Tracking-Sheet */
+.breit { margin-left:calc(50% - min(620px, 50vw - 24px)); margin-right:calc(50% - min(620px, 50vw - 24px)); }
+.geraet.pc { min-width:1100px; }
+.app-kopf .reiter span { white-space:nowrap; }
+.zahl { font-style:normal; background:var(--rot); color:#fff; border-radius:999px; padding:0 6px; font-size:.68rem; margin-left:3px; }
+.pc-body { position:relative; display:grid; grid-template-columns:minmax(0,1fr) 260px; gap:10px; padding:10px; background:var(--bg); border-radius:0 0 8px 8px; }
+.pc-haupt { display:grid; gap:8px; min-width:0; align-content:start; }
+.r-leiste { display:flex; gap:8px; align-items:center; flex-wrap:wrap; font-size:.8rem; min-height:36px; }
+.r-palette { display:inline-flex; align-items:center; gap:3px; background:var(--karte); border:1px solid var(--linie-stark); border-radius:10px; padding:3px 5px; }
+.r-palette .etikett { font-size:.6rem; margin:0 4px; }
+.r-palette button { min-width:30px; height:28px; display:inline-flex; align-items:center; justify-content:center; gap:3px; border:1px solid transparent; background:transparent;
+  border-radius:7px; cursor:pointer; font:inherit; font-family:var(--f-mono); font-size:.78rem; color:var(--text); }
+.r-palette button:hover { background:var(--knopf); }
+.r-palette button:focus-visible, .vchip:focus-visible, .v-wahl button:focus-visible, .r-menue button:focus-visible { outline:2px solid var(--blau); outline-offset:1px; }
+.r-hinweis { color:var(--rot); font-weight:600; font-size:.78rem; }
+.r-hinweis.ok { color:var(--leise); font-weight:500; }
+.r-scroll { overflow-x:auto; background:var(--karte); border:1px solid var(--linie); border-radius:12px 5px 5px 5px; }
+table.r-tab { border-collapse:separate; border-spacing:0; width:100%; font-size:.8rem; user-select:none; -webkit-user-select:none; }
+table.r-tab th, table.r-tab td { padding:0; border-bottom:1px solid var(--linie); vertical-align:middle; background:transparent; }
+table.r-tab th { font-family:var(--f-mono); font-size:.66rem; color:var(--leise); text-transform:none; letter-spacing:0; text-align:center; padding:6px 0 4px; font-weight:600; }
+table.r-tab th.jetzt { color:var(--blau); }
+table.r-tab th.links { text-align:left; padding-left:8px; font-family:var(--f-text); text-transform:uppercase; letter-spacing:.07em; font-size:.6rem; }
+.r-tab td.nr { width:26px; text-align:center; color:var(--leise); font-family:var(--f-mono); font-size:.7rem; }
+.r-tab td.name { padding:0 8px; min-width:170px; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer; }
+.r-tab tr.gewaehlt td.name { color:var(--blau); font-weight:600; }
+.r-tab td.name .nm { display:block; width:184px; overflow:hidden; text-overflow:ellipsis; }
+.r-tab td.vw { width:52px; text-align:center; }
+.r-tab td.w { width:34px; min-width:34px; cursor:cell; border-left:1px solid var(--linie); }
+.r-tab td.w.jetzt { background:var(--blau-hell); }
+.r-tab td.w.frei { background:repeating-linear-gradient(135deg, transparent 0 4px, var(--linie) 4px 6px); }
+.r-tab td.w.vor { box-shadow:inset 0 -3px 0 var(--blau); }
+.r-tab td.w.sel { box-shadow:inset 0 0 0 2px var(--blau); }
+.r-tab tr.phase td { background:var(--knopf); font-size:.64rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--leise); padding:5px 8px; }
+.neu-auf { margin-left:10px; font:inherit; font-size:.72rem; text-transform:none; letter-spacing:0; color:var(--blau); background:none; border:none; cursor:pointer; font-weight:600; padding:0; }
+.r-tab tr.verworfen td.name { text-decoration:line-through; color:var(--leise); }
+.r-tab tr.verworfen .c { opacity:.35; }
+.r-tab tr.gesamt td { border-bottom:none; background:var(--knopf); }
+.r-tab tr.gesamt td.name, .r-tab tr.ms-r td.name { font-weight:700; font-size:.64rem; text-transform:uppercase; letter-spacing:.07em; color:var(--leise); cursor:default; }
+.r-tab tr.gesamt td.w, .r-tab tr.ms-r td.w { cursor:default; }
+.c { position:relative; height:26px; }
+.c.b::before { content:""; position:absolute; left:0; right:0; top:8px; height:10px; background:var(--b); }
+.c.b.b-anf::before { left:4px; border-radius:5px 0 0 5px; }
+.c.b.b-end::before { right:4px; border-radius:0 5px 5px 0; }
+.c.b.b-anf.b-end::before { border-radius:5px; }
+.c.b.st-g::before, .m-b.st-g { background:var(--gruen); }
+.c.b.st-y::before, .m-b.st-y { background:var(--gelb); }
+.c.b.st-r::before, .m-b.st-r { background:var(--rot); }
+.c.b.ungeplant::before { opacity:.5; }
+.c .geist { position:absolute; left:0; right:0; top:20px; height:4px; background:var(--leise); opacity:.55; }
+.c .geist.g-anf { left:4px; border-radius:2px 0 0 2px; }
+.c .geist.g-end { right:4px; border-radius:0 2px 2px 0; }
+.c .geist.g-anf.g-end { border-radius:2px; }
+.m-geist { display:inline-block; width:14px; height:4px; background:var(--leise); opacity:.55; border-radius:2px; margin-right:4px; vertical-align:2px; }
+.d-tag { font-family:var(--f-text); font-size:.56rem; font-weight:700; padding:0 5px; border-radius:4px; margin-right:5px; text-transform:uppercase; letter-spacing:.04em; vertical-align:1px; white-space:nowrap; }
+.d-tag.neu { background:var(--gruen); color:#1d2433; }
+.d-tag.weg { background:var(--knopf); color:var(--leise); box-shadow:inset 0 0 0 1px var(--linie-stark); }
+.d-tag.verschoben { background:var(--gelb); color:#1d2433; }
+.d-tag.person { background:var(--blau-hell); color:var(--blau); }
+.d-tag.ampel { background:var(--knopf); color:var(--text); }
+.r-vergl { display:inline-flex; gap:6px; align-items:center; font-size:.74rem; color:var(--leise); font-weight:600; }
+.r-vergl select { font:inherit; font-size:.78rem; font-weight:500; color:var(--text); background:var(--karte); border:1px solid var(--linie-stark); border-radius:7px; padding:3px 6px; }
+.diff-liste { display:grid; gap:5px; max-height:230px; overflow:auto; }
+.diff-liste div { font-size:.78rem; line-height:1.35; }
+.c .dot { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); }
+.dot { display:inline-block; width:12px; height:12px; border-radius:50%; border:2px solid var(--karte); box-sizing:content-box; }
+.dot.g { background:var(--gruen); } .dot.y { background:var(--gelb); } .dot.r { background:var(--rot); }
+.c .e-m { position:absolute; right:1px; top:1px; }
+.e-m { display:inline-block; background:var(--e); color:var(--auf-farbe); font-family:var(--f-mono); font-size:.58rem; font-weight:700; line-height:1; padding:2px 3px; border-radius:3px; }
+.e-m.alt { background:transparent; color:var(--leise); outline:1px dashed var(--leise); }
+.c .ms { position:absolute; inset:0; display:grid; place-items:center; color:var(--blau); font-size:.9rem; cursor:help; }
+.m-b { display:inline-block; width:14px; height:8px; background:var(--b); border-radius:3px; margin-right:3px; }
+.frei-m { display:inline-block; width:14px; height:12px; background:repeating-linear-gradient(135deg, transparent 0 3px, var(--linie-stark) 3px 5px); border:1px solid var(--linie); margin-right:4px; vertical-align:-2px; }
+.vchip { display:inline-grid; place-items:center; min-width:30px; height:22px; padding:0 5px; border-radius:999px; border:1px solid var(--linie-stark); background:var(--knopf);
+  font:inherit; font-size:.7rem; font-weight:700; color:var(--text); cursor:pointer; }
+.vchip.fehlt { border-color:var(--rot); color:var(--rot); background:transparent; }
+.vchip.leer { color:var(--leise); font-weight:500; border-style:dashed; background:transparent; }
+.pc-panel { background:var(--karte); border:1px solid var(--linie); border-radius:14px 5px 5px 5px; padding:12px; display:grid; gap:12px; align-content:start; font-size:.82rem; min-width:0; }
+.pc-panel .etikett { font-size:.6rem; margin-bottom:3px; }
+.pc-panel input.titel { width:100%; font-family:var(--f-titel); font-weight:700; font-size:1.05rem; color:var(--text); background:transparent; border:1px solid transparent; border-radius:6px; padding:2px 4px; margin-left:-5px; }
+.pc-panel input.titel:hover, .pc-panel input.titel:focus { border-color:var(--linie-stark); outline:none; background:var(--bg); }
+.v-wahl { display:flex; flex-wrap:wrap; gap:4px; }
+.v-wahl button { font:inherit; font-size:.76rem; border:1px solid var(--linie-stark); background:var(--karte); color:var(--text); border-radius:999px; padding:3px 9px; cursor:pointer; }
+.v-wahl button.an { background:var(--blau); border-color:var(--blau); color:var(--auf-farbe); }
+.v-wahl.pflicht button { border-color:var(--rot); }
+.log { display:grid; gap:5px; max-height:220px; overflow:auto; }
+.log div { display:grid; grid-template-columns:82px 1fr; gap:6px; }
+.log .mono { color:var(--leise); font-size:.64rem; }
+.r-menue { position:absolute; z-index:8; background:var(--karte); border:1px solid var(--linie-stark); border-radius:10px; padding:6px; box-shadow:0 12px 28px -12px rgba(16,24,40,.45);
+  display:grid; gap:2px; min-width:180px; font-size:.8rem; }
+.r-menue .etikett { padding:2px 6px 4px; font-size:.6rem; }
+.r-menue button { text-align:left; font:inherit; border:none; background:transparent; color:var(--text); padding:5px 8px; border-radius:6px; cursor:pointer; display:flex; gap:8px; align-items:center; }
+.r-menue button:hover, .r-menue button.an { background:var(--blau-hell); }
+.r-menue .pflicht-t { color:var(--rot); font-size:.72rem; padding:0 6px 4px; font-weight:600; }
+.r-dialog { position:absolute; z-index:9; left:50%; top:56px; transform:translateX(-50%); width:330px; background:var(--karte); border:1px solid var(--linie-stark); border-radius:14px 6px 6px 6px;
+  padding:14px; display:grid; gap:6px; font-size:.82rem; box-shadow:0 20px 40px -14px rgba(16,24,40,.5); }
+.r-dialog label { font-size:.62rem; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--leise); margin-top:3px; }
+.r-dialog textarea, .r-dialog select { font:inherit; font-size:.85rem; color:var(--text); background:var(--bg); border:1px solid var(--linie-stark); border-radius:6px; padding:5px 7px; resize:vertical; }
+.r-dialog textarea:focus, .r-dialog select:focus { outline:none; border-color:var(--blau); box-shadow:0 0 0 3px var(--blau-hell); }
+.r-dialog-knoepfe { display:flex; justify-content:flex-end; gap:6px; margin-top:6px; }
+.r-k { font:inherit; font-size:.8rem; font-weight:600; border:1px solid var(--linie-stark); background:var(--karte); color:var(--text); border-radius:7px; padding:5px 12px; cursor:pointer; }
+.r-k.haupt { background:var(--blau); border-color:var(--blau); color:var(--auf-farbe); }
+.r-k:disabled { opacity:.45; cursor:default; }
+/* Cockpit */
+.k.an { background:var(--blau-hell); border-color:var(--blau-mittel); color:var(--blau); }
+.ck { display:grid; grid-template-columns:310px minmax(0,1fr); gap:12px; padding:12px; background:var(--bg); border-radius:0 0 8px 8px; }
+.ck-spalte { display:grid; gap:12px; align-content:start; min-width:0; }
+.ck-block { background:var(--karte); border:1px solid var(--linie); border-radius:14px 5px 5px 5px; padding:12px 14px; display:grid; gap:8px; min-width:0; }
+.ck-titel { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
+.ck-titel h4 { margin:0; font-family:var(--f-titel); font-size:1.05rem; }
+.ck-titel .rechts { margin-left:auto; display:flex; gap:4px; }
+.ck-gruppe .etikett { font-size:.6rem; display:flex; gap:6px; align-items:center; margin:2px 0; }
+.anz { font-family:var(--f-mono); font-size:.62rem; background:var(--knopf); border-radius:999px; padding:0 6px; color:var(--text); letter-spacing:0; }
+.anz.w { background:var(--rot); color:#fff; }
+.hb { display:grid; grid-template-columns:40px minmax(0,1fr) auto; gap:8px; align-items:center; padding:6px 2px; border-bottom:1px solid var(--linie); font-size:.8rem; }
+.hb:last-child { border-bottom:none; }
+.hb .ic { font-family:var(--f-mono); font-size:.7rem; color:var(--blau); font-weight:600; }
+.hb .ic.w { color:var(--rot); }
+.hb .leise { display:block; font-size:.7rem; }
+.hb .k { font-size:.7rem; padding:2px 7px; }
+.kal { display:grid; grid-template-columns:repeat(10, minmax(0,1fr)); border:1px solid var(--linie); border-radius:8px; overflow:hidden; }
+.kal-tag { min-height:100px; padding:4px; border-right:1px solid var(--linie); display:grid; gap:3px; align-content:start; font-size:.66rem; min-width:0; }
+.kal-tag:nth-child(5) { border-right:2px solid var(--linie-stark); }
+.kal-tag:last-child { border-right:none; }
+.kal-tag.heute { background:var(--blau-hell); }
+.kal-tag.frei { background:repeating-linear-gradient(135deg, transparent 0 5px, var(--linie) 5px 7px); }
+.kal-kopf { font-family:var(--f-mono); font-size:.6rem; color:var(--leise); font-weight:600; white-space:nowrap; }
+.kal-tag.heute .kal-kopf { color:var(--blau); }
+.ev { border-radius:4px; padding:2px 4px; line-height:1.2; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ev.dienst { background:var(--knopf); color:var(--text); box-shadow:inset 3px 0 0 var(--leise); }
+.ev.bespr { background:var(--blau-hell); color:var(--blau); font-weight:600; box-shadow:inset 0 0 0 1px var(--blau-mittel); }
+.ev.ms { color:var(--text); padding-left:0; }
+.ev.ms::before { content:"◆ "; color:var(--blau); }
+.ev.ms.w::before { color:var(--rot); }
+.ev.leer { box-shadow:inset 0 0 0 1px var(--linie-stark); color:var(--leise); border-radius:4px; }
+.kal-leg { display:flex; gap:6px 14px; flex-wrap:wrap; font-size:.72rem; color:var(--leise); align-items:center; }
+.kal-leg .ev { display:inline-block; }
+.pk-raster { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:10px; }
+.pk { border:1px solid var(--linie); border-radius:14px 5px 5px 5px; padding:10px 12px; display:grid; gap:6px; font-size:.78rem; min-width:0; }
+.pk.w { border-color:var(--rot); }
+.pk-kopf { display:flex; align-items:baseline; gap:8px; }
+.pk-kopf b { font-family:var(--f-titel); font-size:1rem; }
+.pk-kopf .ampel { width:14px; height:14px; margin-left:auto; align-self:center; }
+.trend { display:flex; gap:3px; align-items:center; color:var(--leise); font-size:.66rem; }
+.trend i { width:8px; height:8px; border-radius:50%; display:inline-block; }
+.trend i.g { background:var(--gruen); } .trend i.y { background:var(--gelb); } .trend i.r { background:var(--rot); }
+.trend span { margin-right:3px; }
+.fort { height:6px; background:var(--knopf); border-radius:3px; overflow:hidden; }
+.fort span { display:block; height:100%; background:var(--b); }
+.pk-zeile { display:grid; grid-template-columns:70px minmax(0,1fr); gap:6px; align-items:baseline; }
+.pk-zeile .etikett { font-size:.56rem; }
+
+/* Bestelllisten */
+table.pos { font-size:.78rem; }
+table.pos th, table.pos td { padding:5px 8px; vertical-align:middle; }
+.mini { display:inline-block; font-size:.72rem; font-weight:600; border:1px solid var(--linie-stark); background:var(--karte); color:var(--text); border-radius:6px; padding:1px 7px; white-space:nowrap; }
+.mini.ok { background:var(--gruen); border-color:var(--gruen); color:#1d2433; }
+.mini.nein { color:var(--rot); border-color:var(--rot); }
+.menge { display:inline-block; min-width:34px; text-align:center; border:1px solid var(--linie-stark); border-radius:5px; padding:0 4px; font-family:var(--f-mono); }
+.menge s { color:var(--leise); margin-right:3px; }
+.st.sammeln { background:var(--knopf); color:var(--text); border-color:var(--linie-stark); }
+.ev.frist { background:var(--gelb); color:#1d2433; font-weight:600; }
+.team-st { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:2px 8px; padding:7px 9px; border:1px solid var(--linie); border-radius:10px 4px 4px 4px; background:var(--karte); font-size:.8rem; }
+.team-st.an { border-color:var(--blau); box-shadow:0 0 0 2px var(--blau-hell); }
+.team-st .unter { grid-column:1 / -1; color:var(--leise); font-size:.7rem; }
+
+/* Termine buchen, Bestellentscheidung */
+.slots { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:6px; }
+.slot { border:1px solid var(--linie-stark); border-radius:8px; padding:6px 4px; text-align:center; font-family:var(--f-mono); font-size:.78rem; font-weight:600; background:var(--karte); color:var(--text); }
+.slot small { display:block; font-family:var(--f-text); font-size:.62rem; font-weight:500; color:var(--leise); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.slot.belegt { background:var(--knopf); color:var(--leise); }
+.slot.eigen { background:var(--blau); border-color:var(--blau); color:var(--auf-farbe); }
+.slot.eigen small { color:var(--auf-farbe); }
+.slot.frei small { color:var(--blau); }
+.tag-kopf { font-size:.7rem; font-weight:700; color:var(--leise); letter-spacing:.06em; text-transform:uppercase; margin-top:4px; }
+.feld-reihe { display:flex; flex-wrap:wrap; gap:8px; }
+.feld-m { display:grid; gap:2px; font-size:.8rem; }
+.feld-m .etikett { font-size:.58rem; }
+.wahl { display:inline-flex; border:1px solid var(--linie-stark); border-radius:7px; overflow:hidden; }
+.wahl span { font-size:.66rem; font-weight:600; padding:2px 6px; border-right:1px solid var(--linie-stark); color:var(--leise); white-space:nowrap; }
+.wahl span:last-child { border-right:none; }
+.wahl span.an { background:var(--blau); color:var(--auf-farbe); }
+.wahl span.an.nein { background:var(--rot); color:#fff; }
+table.pos .klein { display:block; font-family:var(--f-mono); font-size:.66rem; color:var(--leise); }
+
+ol.schritte { margin:0; padding-left:1.3em; display:grid; gap:8px; font-size:.93rem; }
+ol.schritte li::marker { font-family:var(--f-mono); font-weight:600; color:var(--blau); }
+
+/* Handy: Diese Woche */
+.hz { display:grid; gap:6px; }
+.hz-z { background:var(--karte); border:1px solid var(--linie); border-radius:10px 4px 4px 4px; padding:8px 10px; display:flex; gap:8px; align-items:center; font-size:.8rem; }
+.hz-z > div:first-child { min-width:0; flex:1; }
+.hz-z b { display:block; }
+.hz-z .leise { font-size:.72rem; }
+.hz-z.offen { border-color:var(--gelb); }
+.hz-amp { display:flex; gap:4px; }
+.hz-amp span { width:28px; height:28px; border-radius:50%; display:grid; place-items:center; font-family:var(--f-mono); font-size:.72rem; font-weight:700; border:2px solid var(--linie-stark); color:var(--leise); }
+.hz-amp span.an.g { background:var(--gruen); border-color:var(--gruen); color:#1d2433; }
+.hz-amp span.an.y { background:var(--gelb); border-color:var(--gelb); color:#1d2433; }
+
+/* Anfragen */
+.anf { display:grid; grid-template-columns:330px minmax(0,1fr); gap:10px; }
+.anf-liste { display:grid; gap:6px; align-content:start; }
+.anf-z { background:var(--karte); border:1px solid var(--linie); border-radius:10px 4px 4px 4px; padding:8px 10px; display:grid; grid-template-columns:1fr auto; gap:3px 8px; font-size:.8rem; }
+.anf-z.an { border-color:var(--blau); box-shadow:0 0 0 2px var(--blau-hell); }
+.anf-z .unter { grid-column:1 / -1; color:var(--leise); font-size:.72rem; }
+.typ { font-size:.58rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:2px 6px; border-radius:4px; background:var(--knopf); color:var(--leise); margin-right:6px; vertical-align:1px; }
+.st { font-size:.68rem; font-weight:700; padding:1px 8px; border-radius:999px; white-space:nowrap; align-self:start; border:1px solid transparent; }
+.st.neu { background:var(--blau-hell); color:var(--blau); border-color:var(--blau-mittel); }
+.st.arbeit { background:var(--gelb); color:#1d2433; }
+.st.fertig { background:var(--gruen); color:#1d2433; }
+.st.ab { color:var(--rot); border-color:var(--rot); }
+.zeitleiste { display:grid; grid-template-columns:repeat(5, 1fr); gap:6px; margin:4px 0; }
+.zs { border-top:3px solid var(--linie-stark); padding-top:5px; font-size:.7rem; color:var(--leise); }
+.zs.ok { border-color:var(--blau); color:var(--text); }
+.zs b { display:block; font-size:.76rem; }
+table.anf-felder { font-size:.8rem; }
+table.anf-felder td { padding:4px 8px; }
+table.anf-felder td:first-child { color:var(--leise); white-space:nowrap; width:110px; }
+.nachricht { display:grid; gap:2px; padding:7px 9px; border-radius:10px 4px 4px 4px; background:var(--bg); font-size:.8rem; }
+.nachricht .mono { color:var(--leise); font-size:.66rem; }
+.nachricht.lk { background:var(--blau-hell); }
+.zf-zeile { display:flex; gap:7px; align-items:baseline; font-size:.8rem; }
+.zf-zeile .mono { color:var(--leise); font-size:.72rem; white-space:nowrap; }
+.punkt-typ { font-size:.64rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:1px 6px; border-radius:4px; background:var(--knopf); color:var(--leise); white-space:nowrap; }
+.punkt-typ.auftrag { background:var(--blau-hell); color:var(--blau); }
+.punkt-typ.ms { background:var(--blau); color:#fff; }
+.eingabe { border:1px solid var(--linie-stark); border-radius:6px; padding:5px 8px; color:var(--leise); font-size:.8rem; background:var(--karte); }
+.dialog { max-width:300px; background:var(--karte); border:1px solid var(--linie-stark); border-radius:14px 6px 6px 6px; padding:12px; display:grid; gap:7px; font-size:.82rem; box-shadow:0 12px 30px -10px rgba(16,24,40,.35); }
+
+/* Netz */
+.netz svg { width:100%; height:auto; min-width:680px; display:block; }
+.netz text { font-family:var(--f-text); fill:var(--text); }
+.netz .t-leise { fill:var(--leise); font-size:11px; }
+.netz .t-titel { font-family:var(--f-titel); font-weight:700; font-size:14px; }
+.netz .zone { fill:var(--karte); stroke:var(--linie-stark); stroke-width:1.2; }
+.netz .ct { fill:var(--blau-hell); stroke:var(--blau); stroke-width:2; }
+.netz .geraet-k { fill:var(--knopf); stroke:var(--linie-stark); }
+.netz .weg { stroke:var(--blau); stroke-width:2.2; fill:none; }
+.netz .tunnel { stroke:var(--blau); stroke-width:6; fill:none; opacity:.25; }
+.netz .sperre { stroke:var(--rot); stroke-width:2; fill:none; stroke-dasharray:5 4; }
+.netz .x { stroke:var(--rot); stroke-width:3; }
+.netz .pfeil { fill:var(--blau); }
+.netz .t-rot { fill:var(--rot); font-size:11px; font-weight:600; }
+
+pre.baum { margin:0; font-family:var(--f-mono); font-size:.82rem; line-height:1.55; background:var(--karte); border:1px solid var(--linie);
+  border-radius:var(--ecke) 6px 6px 6px; padding:16px 18px; overflow-x:auto; color:var(--text); }
+pre.baum .c { color:var(--leise); }
+.stufen { display:grid; gap:8px; }
+.stufe { display:grid; grid-template-columns:44px 1fr; gap:12px; align-items:start; background:var(--karte); border:1px solid var(--linie); border-radius:12px 5px 5px 5px; padding:12px 14px; }
+.stufe .s { font-family:var(--f-mono); font-weight:600; color:var(--blau); font-size:1.05rem; }
+.stufe p { font-size:.93rem; }
+ol.offen { margin:0; padding-left:1.4em; display:grid; gap:10px; }
+ol.offen li { padding-left:4px; }
+ol.offen li::marker { font-family:var(--f-mono); font-weight:600; color:var(--blau); }
+ol.offen .vorschlag { display:block; color:var(--leise); font-size:.92rem; }
+ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
+.legende { display:flex; flex-wrap:wrap; gap:6px 14px; font-size:.82rem; color:var(--leise); align-items:center; }
+.legende .z { display:inline-block; vertical-align:middle; margin-right:4px; }
+
+@media (max-width:640px) {
+  .cockpit { grid-template-columns:1fr; }
+  .geraet.tablet { min-width:0; }
+  h2 { font-size:1.35rem; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition:none !important; } .postit.neu-live { animation:none; } }
+</style>
+
+<header class="kopf">
+  <div class="kopf-innen">
+    <div class="marke"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M0 10 L10 0 L10 10 Z"/></svg>TrackingDRS</div>
+    <div class="kopf-meta"><span class="status">Entwurf zur Abstimmung</span><span>Stand 27.10.2026</span><span>Projektarbeit Mechatronik, DRS Neuwied</span></div>
+  </div>
+</header>
+
+<main>
+
+<section>
+  <h1>Projekte über Monate im Blick behalten</h1>
+  <p class="leise">Ein Container im Schulnetz, der das Tracking-Sheet, die Besprechungen und die Mindmap-Vorgabe eines Schülerprojekts zusammenführt. Er läuft auf PC, iPad und Handy, ist per Proxmox-Einzeiler installierbar und von zuhause über dein WireGuard-VPN erreichbar.</p>
+  <div class="leitidee">
+    <p><b>Leitidee:</b> Jede Eingabe ist ein Eintrag mit Zeitstempel. Raster, Ampeln und Zusammenfassung werden daraus berechnet.</p>
+    <p class="klein">Das Excel-Blatt zeigt nur den letzten Stand. TrackingDRS hält zu jedem Buchungsschluss eine Version fest, dazu einen Basisplan. Es zeigt zum Beispiel, wie das Raster vor der Besprechung am 03.11. aussah, und listet auf, was sich seitdem geändert hat.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="nr">01</span>Was die Basisversion kann</h2>
+  <div class="raster">
+    <div class="karte"><div class="etikett">Tracking-Sheet digital</div><p>Dein Sheet als Vorlage: Phasen, Aufgaben, KW-Raster mit <span class="mono">b e g y r</span>, Gesamtstatus je Woche, Probleme mit Maßnahme. Die Schüler bearbeiten es frei wie in Excel, jede Änderung wird protokolliert.</p></div>
+    <div class="karte"><div class="etikett">Termine &amp; Besprechungen</div><p>Du legst je Woche Termine an, die Teams buchen. Besprochen wird gemeinsam an einer Tafel auf dem Smartboard, mit Stift, Handskizzen und Post-its. Beim Abschließen wird die Tafel eingefroren.</p></div>
+    <div class="karte"><div class="etikett">Lehrer-Cockpit</div><p>Die Besprechungen der Woche in Zeitfolge, je Team mit Kurzzusammenfassung und Warnungen. Sie wird ohne KI berechnet, nur aus den Daten.</p></div>
+    <div class="karte"><div class="etikett">Anfragen &amp; Extras</div><p>Anfragen mit Bearbeitungsstand (Rückfrage, Bestellung, Ausleihe, Abnahme), Mindmap als Bild/PDF, Fotos, private Lehrernotizen, PDF- und Excel-Export, Projektvorlagen.</p></div>
+  </div>
+  <p class="leise"><b>Bewusst nicht im System:</b> Das Pflichtenheft und andere Dokumente. Die Schüler schreiben in Word (Office 365), abgelegt wird rechtssicher in Moodle.</p>
+</section>
+
+<section>
+  <h2><span class="nr">02</span>So läuft ein Projekt</h2>
+  <div class="ablauf">
+    <div class="schritt lk"><div class="wer-t">Lehrkraft</div><b>Projekt anlegen</b><span>aus Vorlage, Lehrkräfte zuordnen (Teamteaching)</span></div>
+    <div class="schritt lk"><div class="wer-t">Lehrkraft</div><b>Team + Mindmap</b><span>Teammitglieder eintragen, Mindmap hochladen</span></div>
+    <div class="schritt lk"><div class="wer-t">Lehrkraft</div><b>Link teilen</b><span>Team-Link in den Teams-Chat der Gruppe</span></div>
+    <div class="schritt"><div class="wer-t">Team</div><b>Planen</b><span>Aufgaben, Zeiträume, Endtermine, Meilensteine</span></div>
+  </div>
+  <div class="woche">
+    <div class="etikett">Jede Projektwoche (Woche mit angelegten Terminen)</div>
+    <div class="ablauf">
+      <div class="schritt lk"><div class="wer-t">Lehrkraft</div><b>Termine anlegen</b><span>von Hand, „Vorwoche übernehmen“ hilft</span></div>
+      <div class="schritt"><div class="wer-t">Team</div><b>Termin buchen</b><span>sonst Warnung an Team und dich</span></div>
+      <div class="schritt"><div class="wer-t">Team</div><b>Aktualisieren</b><span>Raster, Probleme, Fotos, Fragen, Vorbereitung</span></div>
+      <div class="schritt lk"><div class="wer-t">Beide</div><b>Besprechung</b><span>an der Tafel: Post-its, Skizzen, Ergebnis</span></div>
+      <div class="schritt"><div class="wer-t">Team</div><b>Aufträge abhaken</b><span>bis zur Frist, mit Zeitstempel</span></div>
+    </div>
+  </div>
+  <div class="ablauf">
+    <div class="schritt"><div class="wer-t">Team</div><b>Kontrollieren</b><span>Prüfzeilen der Vorlage („Auftrag ausgeführt?“ …)</span></div>
+    <div class="schritt lk"><div class="wer-t">Lehrkraft</div><b>PDF-Export</b><span>Protokolle + Raster + Verlauf, z. B. für Moodle</span></div>
+    <div class="schritt lk"><div class="wer-t">Lehrkraft</div><b>Archivieren</b><span>nur lesbar, Team-Link aus, löschen von Hand</span></div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="nr">03</span>Was die Schüler eingeben</h2>
+  <p>Das Team öffnet seinen Link und landet direkt in seinem Projekt. Es gibt kein Passwort. Einträge stehen als „Team Klimaanlage, Mo 14:32“ im Verlauf, ohne Zuordnung zu einzelnen Schülern.</p>
+  <div class="raster-2">
+    <div class="karte"><h3>Tracking-Raster</h3>
+      <ul class="liste">
+        <li><b>Spalten sind Kalenderwochen</b> wie im Excel-Blatt.</li>
+        <li><b>Zwei Ebenen je Zelle:</b> Der Plan zeigt <span class="mono">b</span> (geplante Bearbeitungswoche) als Balken und <span class="mono">e</span> (Endtermin) als Marke. Der Status <span class="mono">g y r</span> färbt den Balken der jeweiligen Woche grün, gelb oder rot. Geplante Wochen ohne Ampel bleiben blau, der Endtermin bleibt markiert. Eine Ampel in einer ungeplanten Woche erscheint blasser.</li>
+        <li><b>Eingabe wie in Excel:</b> Zelle wählen und Buchstaben tippen, oder mit der Maus über die Wochen ziehen, um <span class="mono">b</span> zu planen.</li>
+        <li><b>Genau ein Verantwortlicher</b> je Aufgabe, gewählt aus der Teamliste. Pflicht, sobald die Aufgabe <span class="mono">b</span> oder <span class="mono">e</span> hat.</li>
+        <li>Bei <span class="mono">y</span> oder <span class="mono">r</span> öffnet sich ein Pflichtfeld: Problem, Korrekturmaßnahme, verantwortlich.</li>
+        <li>Aufgaben anlegen, umbenennen, verschieben. Gelöschte Aufgaben gelten als <i>verworfen</i> und bleiben für dich sichtbar.</li>
+        <li>Verschobene Endtermine merkt sich das System: „ursprünglich KW 50 → jetzt KW 2“.</li>
+        <li>Meilensteine ◆ dürfen Team und Lehrkraft setzen und verschieben, jede Änderung wird protokolliert.</li>
+        <li>Wochen ohne Projekttermine sind schraffiert.</li>
+        <li><b>Versionen:</b> Zu jedem Buchungsschluss friert das System den Stand ein. Zusätzlich legt die Lehrkraft einmal einen <b>Basisplan</b> fest, z. B. nach dem Pflichtenheft. Team und Lehrkraft können jede Version mit dem aktuellen Stand vergleichen: Der alte Plan erscheint als grauer Schatten unter den Balken, geänderte Zeilen sind markiert (neu, verworfen, verschoben, Person), daneben steht die Liste aller Änderungen.</li>
+      </ul></div>
+    <div class="karte"><h3>Rund um die Besprechung</h3>
+      <ul class="liste">
+        <li><b>Termin buchen</b> im Reiter „Termin“: freien Termin antippen, einer je Woche. Umbuchen geht bis zum Buchungsschluss, den du je Woche festlegst. Termine anderer Teams erscheinen nur als „belegt“.</li>
+        <li><b>Vorbereitung:</b> kurzer Stand und Themen für die Besprechung.</li>
+        <li><b>Anfragen stellen:</b> Rückfrage, Material ausleihen oder Abnahme. Bestellungen sammelt das Team in einer Bestellliste und reicht sie im Einreichfenster ein. Den Bearbeitungsstand sieht das Team jederzeit. Rückfragen mit „in der Besprechung klären“ landen auf der Tafel.</li>
+        <li><b>Arbeitsaufträge abhaken.</b> Abhaken reicht, der Zeitpunkt wird gespeichert.</li>
+        <li><b>Fotos</b> vom Aufbau per Handy hochladen, mit Datum. Hinweis beim Upload: „Aufbau fotografieren, keine Personen“.</li>
+        <li><b>Live an die Tafel:</b> Während der Besprechung schickt das Team Post-its und Fotos vom eigenen Laptop oder Handy direkt auf die Tafel.</li>
+        <li>Abgeschlossene Tafeln und die Mindmap ansehen.</li>
+      </ul></div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="nr">04</span>Was du als Lehrkraft siehst</h2>
+  <div class="raster-2">
+    <div class="karte"><h3>Cockpit (Startseite)</h3><p>Drei Bausteine. Links der Handlungsbedarf (heute, jetzt erledigen, im Blick behalten), rechts die nächsten zwei Wochen mit deinem Dienstkalender und darunter je Team eine Projektkarte. Dazu gibt es einen eigenen Reiter „Kalender“ für Monat und Halbjahr.</p></div>
+    <div class="karte"><h3>Besprechungstafel (Smartboard)</h3><p>Die Kurzzusammenfassung liegt als Post-its auf der Tafel und wird abgearbeitet. Stift, Skizzen und neue Post-its gehen überall. Post-its in „Aufträge“ oder „Absprachen“ werden zu Einträgen. „Abschließen“ friert die Tafel mit Uhrzeit ein. Auf deinem Monitor läuft parallel die Lehreransicht mit Zusammenfassung und Notizen.</p></div>
+    <div class="karte"><h3>Projektseite</h3><p>Raster mit Versionen und Vergleich (Basisplan oder Stand zu einem Buchungsschluss), Verlauf aller Änderungen (filterbar), Protokolle, Aufträge, Fotos, Mindmap und Lehrernotizen. Lehrernotizen sind nur für Lehrkräfte sichtbar und erscheinen nie auf der Tafel.</p></div>
+    <div class="karte"><h3>Verwaltung</h3><p>Termine je Woche und Einreichfenster für Bestellungen anlegen, Projekte und Teams anlegen, Team-Link erneuern, Vorlagen speichern, Excel-Import/-Export im Sheet-Layout, PDF-Export, Archiv, Komplett-Sicherung als ZIP. Lehrkräfte verwaltet ein Admin.</p></div>
+  </div>
+
+  <div class="karte">
+    <h3>Kurzzusammenfassung, ohne KI berechnet</h3>
+    <p class="leise">Auf der Tafel liegen diese Bausteine als Post-its in der Zone „Seit letztem Mal“. Im Cockpit und auf der Projektseite stehen sie als Text.</p>
+    <div class="tabelle-rahmen" style="margin-top:10px">
+      <table>
+        <thead><tr><th>Baustein</th><th>Inhalt</th></tr></thead>
+        <tbody>
+          <tr><td>Ampel</td><td>Gesamtstatus jetzt (schlechteste Ampel der Woche, wie im Sheet) und Verlauf der letzten Besprechungen ● ● ● ●</td></tr>
+          <tr><td>Seit letzter Besprechung</td><td>Neue Aufgaben, verschobene Endtermine (alt → neu), Ampelwechsel, verworfene Aufgaben, Meilensteine, Fotos</td></tr>
+          <tr><td>Probleme</td><td>Offene Y/R-Einträge mit Korrekturmaßnahme und Verantwortlichem</td></tr>
+          <tr><td>Aufträge</td><td>Aufträge der letzten Besprechung: abgehakt (wann), offen, überfällig</td></tr>
+          <tr><td>Team</td><td>Vorbereitungstext, Rückfragen mit „in der Besprechung klären“, offene Anfragen</td></tr>
+          <tr><td>Ausblick</td><td>Nächster Meilenstein und wie viele Projektwochen noch bis dahin</td></tr>
+          <tr><td>Basisplan</td><td>Abweichung vom Basisplan, z. B. „3 Endtermine später, 1 Aufgabe neu, 1 verworfen“</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="tabelle-rahmen">
+    <table>
+      <thead><tr><th>Warnung</th><th>Wann</th><th>Wer sieht sie</th></tr></thead>
+      <tbody>
+        <tr><td><b>Kein Termin gebucht</b></td><td>Die Woche hat Termine, das Team hat keinen gebucht. Beim Team sofort als Banner, bei dir ab dem Buchungsschluss</td><td class="wer">Team (Banner) · Lehrkraft</td></tr>
+        <tr><td><b>Nicht aktualisiert</b></td><td>Zum gebuchten Termin gibt es keine Rasteränderung seit der letzten Besprechung</td><td class="wer">Lehrkraft · Team (Erinnerung vorher)</td></tr>
+        <tr><td><b>Auftrag überfällig</b></td><td>Die Frist ist abgelaufen und der Auftrag nicht abgehakt</td><td class="wer">Team · Lehrkraft</td></tr>
+        <tr><td><b>Rote Ampel</b></td><td>Mindestens ein R in der laufenden KW</td><td class="wer">Lehrkraft</td></tr>
+        <tr><td><b>Endtermin überschritten</b></td><td>Der Endtermin <span class="mono">e</span> liegt in einer vergangenen KW, die Aufgabe ist nicht erledigt</td><td class="wer">Team · Lehrkraft</td></tr>
+        <tr><td><b>Verantwortlich fehlt</b></td><td>Die Aufgabe hat <span class="mono">b</span> oder <span class="mono">e</span>, aber keinen Verantwortlichen</td><td class="wer">Team · Lehrkraft</td></tr>
+        <tr><td><b>Anfrage wartet</b></td><td>Eine Anfrage ist seit zwei Schultagen unbearbeitet</td><td class="wer">Lehrkraft</td></tr>
+        <tr><td><b>Bestellfenster schließt</b></td><td>Am Tag vor dem Stichtag hat die Bestellliste Positionen, ist aber nicht eingereicht</td><td class="wer">Team</td></tr>
+        <tr><td><b>Bestelllisten warten</b></td><td>Das Fenster ist zu, eingereichte Positionen sind noch nicht geprüft</td><td class="wer">Lehrkraft</td></tr>
+        <tr><td><b>Rückgabe überfällig</b></td><td>Ausgeliehenes Material ist nach dem Rückgabetag noch nicht zurück</td><td class="wer">Team · Lehrkraft</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2><span class="nr">05</span>Anfragen</h2>
+  <p>Das Team stellt Anfragen an die Lehrkräfte des Projekts und sieht jederzeit, ob und wann sie bearbeitet wurden. Jeder Statuswechsel steht mit Uhrzeit und Kürzel der Lehrkraft im Verlauf. Neue Anfragen aller Teams siehst du im Cockpit.</p>
+  <div class="tabelle-rahmen">
+    <table>
+      <thead><tr><th>Art</th><th>Das Team gibt an</th><th>Status</th><th>Besonderheit</th></tr></thead>
+      <tbody>
+        <tr><td><b>Rückfrage</b></td><td>Frage, optional Bezug zu einer Aufgabe</td><td class="wer">neu → beantwortet</td><td>Häkchen „in der Besprechung klären“ legt sie als Post-it auf die Tafel</td></tr>
+        <tr><td><b>Bestellliste</b></td><td>Positionen sammeln: Artikel, Bestellnummer, Menge, Preis (nur Info), Lieferant/Link, Aufgabe, Begründung</td><td class="wer">sammeln → eingereicht → je Position: bestellen / SchulLager / Firma / ersetzen / ablehnen</td><td>Einreichen nur in Einreichfenstern, die du festlegst (siehe unten)</td></tr>
+        <tr><td><b>Material ausleihen</b></td><td>Was, wie viele, von wann bis wann</td><td class="wer">neu → bereitgelegt → ausgegeben → zurück</td><td>Überfällige Rückgabe erzeugt eine Warnung</td></tr>
+        <tr><td><b>Abnahme / Freigabe</b></td><td>Was geprüft werden soll, Aufgabe, Foto</td><td class="wer">neu → freigegeben / nachbessern</td><td>Die Freigabe steht im Verlauf der Aufgabe, z. B. vor dem ersten Einschalten</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h3>Bestelllisten: sammeln, einreichen, prüfen</h3>
+  <div class="ablauf">
+    <div class="schritt"><div class="wer-t">Team</div><b>Sammeln</b><span>jederzeit Positionen eintragen, ändern, streichen</span></div>
+    <div class="schritt lk"><div class="wer-t">Lehrkraft</div><b>Fenster festlegen</b><span>im Cockpit: von, bis Stichtag, für Klassen oder Teams</span></div>
+    <div class="schritt"><div class="wer-t">Team</div><b>Einreichen</b><span>einmal je Fenster, Liste wird mit Uhrzeit eingefroren</span></div>
+    <div class="schritt lk"><div class="wer-t">Lehrkraft</div><b>Prüfen</b><span>je Position entscheiden, woher der Artikel kommt, Menge ändern</span></div>
+    <div class="schritt lk"><div class="wer-t">Lehrkraft</div><b>Sammelbestellung</b><span>nach Stichtag alle Teams je Lieferant, Excel/PDF</span></div>
+    <div class="schritt"><div class="wer-t">Beide</div><b>Bestellt → geliefert → ausgegeben</b><span>Status je Position, das Team sieht ihn</span></div>
+  </div>
+  <div class="karte">
+    <ul class="liste">
+      <li>Außerhalb eines Fensters ist „Einreichen“ gesperrt. Das Team sieht, wann das nächste Fenster öffnet.</li>
+      <li>Am Tag vor dem Stichtag erinnert das System Teams, deren Liste Positionen hat, aber noch nicht eingereicht ist.</li>
+      <li>Eine nicht eingereichte Liste bleibt erhalten und gilt für das nächste Fenster.</li>
+      <li>Abgelehnte Positionen übernimmt das Team mit einem Klick in die nächste Liste.</li>
+      <li><b>Sonderfenster:</b> Bittet ein Team per Rückfrage darum, öffnest du für dieses eine Team ein Fenster mit eigenem Stichtag. Das steht im Verlauf.</li>
+      <li><b>Preis nur zur Info:</b> Das Team kann ihn eintragen, er hat aber keine Auswirkung. Es gibt keine Summen und kein Budget.</li>
+    </ul>
+  </div>
+  <div class="tabelle-rahmen">
+    <table>
+      <thead><tr><th>Entscheidung je Position</th><th>Was passiert</th><th>Das Team sieht</th></tr></thead>
+      <tbody>
+        <tr><td><b>Bestellen</b></td><td>Kommt nach dem Stichtag in die Sammelbestellung je Lieferant. Danach bestellt, geliefert, ausgegeben.</td><td class="wer">wird bestellt → bestellt → geliefert → ausgegeben</td></tr>
+        <tr><td><b>SchulLager</b></td><td>Du verknüpfst die Position mit dem Eintrag im SchulLager (Ort, Bestand). Ohne SchulLager-Anbindung trägst du den Lagerort als Text ein.</td><td class="wer">liegt im Lager → ausgegeben</td></tr>
+        <tr><td><b>Firma</b></td><td>Wird über die Firma eines Schülers besorgt. Das System vermerkt das nur und verfolgt es nicht weiter.</td><td class="wer">über Firma besorgen</td></tr>
+        <tr><td><b>Ersetzen</b></td><td>Entweder trägst du den Ersatz direkt ein (Artikel, Bestellnummer, Lieferant) und entscheidest dann bestellen oder SchulLager. Oder du gibst die Position mit Hinweis zurück, und das Team schlägt in der nächsten Liste einen Ersatz vor.</td><td class="wer">ersetzt durch … / Ersatz gesucht</td></tr>
+        <tr><td><b>Ablehnen</b></td><td>Mit kurzem Kommentar. Das Team kann die Position in die nächste Liste übernehmen.</td><td class="wer">abgelehnt</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="karte"><h3>SchulLager optional anbinden</h3><p>Bestellungen und Ausleihen laufen vollständig in TrackingDRS. Wenn du in den Einstellungen deinen SchulLager-Container hinterlegst, kommen zwei Knöpfe dazu: die Sammelbestellung eines Fensters als Beschaffung an SchulLager übergeben (Angebote, Preise und Vergabegrenze pflegst du dann dort), und bei einer Ausleihe den Artikel aus dem Bestand wählen und dort ausgeben. Den Status holt TrackingDRS zurück, damit das Team ihn weiter an seiner Anfrage sieht.</p></div>
+</section>
+
+<section>
+  <h2><span class="nr">06</span>Skizzen der Oberfläche</h2>
+  <p class="leise">Die Skizzen zeigen Aufbau und Inhalt, nicht die endgültige Gestaltung. Das Design orientiert sich an der Roboter-Simulation: DRS-Blau, eine große Ecke, Werkzeugleiste und schwebende Panels wie in Onshape. Alle Inhalte sind Beispiele.</p>
+  <div class="skizzen">
+
+    <div class="skizze breit">
+      <div class="skizze-titel"><h3>Cockpit</h3><span class="leise">PC, dein Monitor · links was zu tun ist, rechts was kommt und wie die Projekte stehen</span></div>
+      <div class="rahmen"><div class="geraet pc">
+        <div class="app-kopf"><b>TrackingDRS</b><span class="leise">Di 03.11.2026 · KW 45</span>
+          <span class="reiter" style="margin-left:12px"><span class="an">Cockpit</span><span>Kalender</span><span>Projekte</span><span>Anfragen<i class="zahl">3</i></span><span>Aktivitäten</span><span>Termine &amp; Fenster</span></span>
+          <span class="rechts"><span class="k">Alle Klassen ▾</span></span></div>
+        <div class="ck">
+          <div class="ck-spalte">
+            <div class="ck-block">
+              <div class="ck-titel"><h4>Handlungsbedarf</h4></div>
+              <div class="ck-gruppe"><div class="etikett">Heute <span class="anz">3</span></div>
+                <div class="hb"><span class="ic">08:45</span><span><b>Klimaanlage</b><span class="leise">Besprechung · 2 Fragen, 1 Auftrag überfällig</span></span><span class="k haupt">Besprechen ▶</span></div>
+                <div class="hb"><span class="ic">09:00</span><span><b>Förderband</b><span class="leise">Besprechung · 7 Änderungen</span></span><span class="k">Öffnen</span></div>
+                <div class="hb"><span class="ic">09:15</span><span><b>Hubtisch</b><span class="leise">Besprechung · Raster nicht aktualisiert</span></span><span class="k">Öffnen</span></div>
+              </div>
+              <div class="ck-gruppe"><div class="etikett">Jetzt erledigen <span class="anz w">3</span></div>
+                <div class="hb"><span class="ic w">Abn.</span><span><b>Hubtisch</b><span class="leise">Netzteil-Verdrahtung prüfen · vor 20 min</span></span><span class="k">Ansehen</span></div>
+                <div class="hb"><span class="ic">Frage</span><span><b>Klimaanlage</b><span class="leise">bittet um Sonderfenster für Lüfter</span></span><span class="k">Freigeben</span></div>
+                <div class="hb"><span class="ic">Frage</span><span><b>Solar-Tracker</b><span class="leise">Welcher Servo reicht? · seit gestern</span></span><span class="k">Antworten</span></div>
+              </div>
+              <div class="ck-gruppe"><div class="etikett">Im Blick behalten <span class="anz">3</span></div>
+                <div class="hb"><span class="ic w">!</span><span><b>Sortieranlage, Pneumatik-Greifer</b><span class="leise">kein Termin in KW 45 gebucht</span></span><span></span></div>
+                <div class="hb"><span class="ic w">!</span><span><b>Hubtisch</b><span class="leise">rot seit KW 44: Motor zu schwach</span></span><span></span></div>
+                <div class="hb"><span class="ic">!</span><span><b>Klimaanlage</b><span class="leise">„Lüfter bestellen“ seit 31.10. überfällig</span></span><span></span></div>
+              </div>
+            </div>
+          </div>
+          <div class="ck-spalte">
+            <div class="ck-block">
+              <div class="ck-titel"><h4>Nächste zwei Wochen</h4><span class="leise" style="font-size:.72rem">Dienstkalender abgeglichen 07:30</span><span class="rechts"><span class="k an">2 Wochen</span><span class="k">Monat</span><span class="k">Halbjahr</span></span></div>
+              <div class="kal">
+                <div class="kal-tag"><span class="kal-kopf">KW 45 · Mo 02.</span><span class="ev dienst">14:00 Lehrerkonferenz</span></div>
+                <div class="kal-tag heute"><span class="kal-kopf">Di 03. · heute</span><span class="ev bespr">3 Besprechungen</span><span class="ev dienst">13:30 Aufsicht</span></div>
+                <div class="kal-tag"><span class="kal-kopf">Mi 04.</span><span class="ev dienst">14:00 FK Mechatronik</span></div>
+                <div class="kal-tag"><span class="kal-kopf">Do 05.</span><span class="ev bespr">2 Besprechungen</span><span class="ev ms">Förderband: Mechanik</span></div>
+                <div class="kal-tag"><span class="kal-kopf">Fr 06.</span><span class="ev ms w">Hubtisch: Konstruktion</span></div>
+                <div class="kal-tag"><span class="kal-kopf">KW 46 · Mo 09.</span><span class="ev frist">Bestellfenster auf</span><span class="ev dienst">15:00 Elternsprechtag</span></div>
+                <div class="kal-tag"><span class="kal-kopf">Di 10.</span><span class="ev leer">Termine fehlen</span><span class="ev ms">Klimaanlage: Pflichtenheft</span></div>
+                <div class="kal-tag"><span class="kal-kopf">Mi 11.</span></div>
+                <div class="kal-tag"><span class="kal-kopf">Do 12.</span><span class="ev frist">Bestellungen bis 12:00</span><span class="ev leer">Termine fehlen</span></div>
+                <div class="kal-tag frei"><span class="kal-kopf">Fr 13.</span><span class="ev dienst">Päd. Tag (ganztägig)</span></div>
+              </div>
+              <div class="kal-leg"><span><span class="ev dienst">Dienst</span> aus deinem Outlook</span><span><span class="ev frist">Bestellfenster</span></span><span><span class="ev bespr">Besprechungen</span></span><span>◆ Meilenstein, <span style="color:var(--rot)">◆</span> gefährdet</span><span><span class="ev leer">Termine fehlen</span> Projekttag ohne angelegte Termine</span></div>
+            </div>
+            <div class="ck-block">
+              <div class="ck-titel"><h4>Projekte</h4><span class="leise" style="font-size:.72rem">6 Teams · sortiert nach Handlungsbedarf</span><span class="rechts"><span class="k an">Karten</span><span class="k">Ampel-Matrix</span></span></div>
+              <div class="pk-raster">
+                <div class="pk w"><div class="pk-kopf"><b>Hubtisch</b><span class="leise">BSMT 22b</span><span class="ampel a-r"></span></div>
+                  <div class="trend"><span>Verlauf</span><i class="g"></i><i class="g"></i><i class="y"></i><i class="r"></i><i class="r"></i></div>
+                  <div class="fort"><span style="width:38%"></span></div>
+                  <div class="pk-zeile"><span class="etikett">Meilenstein</span><span>◆ Konstruktion · Fr 06.11.</span></div>
+                  <div class="pk-zeile"><span class="etikett">Termin</span><span>heute 09:15</span></div>
+                  <div class="pk-zeile"><span class="etikett">Seit gestern</span><span class="warn">keine Änderung</span></div></div>
+                <div class="pk"><div class="pk-kopf"><b>Klimaanlage</b><span class="leise">BSMT 22b</span><span class="ampel a-y"></span></div>
+                  <div class="trend"><span>Verlauf</span><i class="g"></i><i class="g"></i><i class="g"></i><i class="y"></i><i class="y"></i></div>
+                  <div class="fort"><span style="width:31%"></span></div>
+                  <div class="pk-zeile"><span class="etikett">Meilenstein</span><span>◆ Pflichtenheft · Di 10.11.</span></div>
+                  <div class="pk-zeile"><span class="etikett">Termin</span><span>heute 08:45</span></div>
+                  <div class="pk-zeile"><span class="etikett">Seit gestern</span><span>4 Änderungen, 1 Anfrage</span></div></div>
+                <div class="pk w"><div class="pk-kopf"><b>Pneumatik-Greifer</b><span class="leise">BSMT 22a</span><span class="ampel a-y"></span></div>
+                  <div class="trend"><span>Verlauf</span><i class="g"></i><i class="y"></i><i class="y"></i><i class="g"></i><i class="y"></i></div>
+                  <div class="fort"><span style="width:45%"></span></div>
+                  <div class="pk-zeile"><span class="etikett">Meilenstein</span><span>◆ Ventilinsel · KW 47</span></div>
+                  <div class="pk-zeile"><span class="etikett">Termin</span><span class="warn">nicht gebucht</span></div>
+                  <div class="pk-zeile"><span class="etikett">Seit gestern</span><span>2 Änderungen</span></div></div>
+                <div class="pk w"><div class="pk-kopf"><b>Sortieranlage</b><span class="leise">BSMT 22a</span><span class="ampel a-g"></span></div>
+                  <div class="trend"><span>Verlauf</span><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i></div>
+                  <div class="fort"><span style="width:52%"></span></div>
+                  <div class="pk-zeile"><span class="etikett">Meilenstein</span><span>◆ Sensorik · KW 48</span></div>
+                  <div class="pk-zeile"><span class="etikett">Termin</span><span class="warn">nicht gebucht</span></div>
+                  <div class="pk-zeile"><span class="etikett">Seit gestern</span><span>3 Änderungen</span></div></div>
+                <div class="pk"><div class="pk-kopf"><b>Förderband</b><span class="leise">BSMT 22b</span><span class="ampel a-g"></span></div>
+                  <div class="trend"><span>Verlauf</span><i class="g"></i><i class="g"></i><i class="y"></i><i class="g"></i><i class="g"></i></div>
+                  <div class="fort"><span style="width:61%"></span></div>
+                  <div class="pk-zeile"><span class="etikett">Meilenstein</span><span>◆ Mechanik · Do 05.11.</span></div>
+                  <div class="pk-zeile"><span class="etikett">Termin</span><span>heute 09:00</span></div>
+                  <div class="pk-zeile"><span class="etikett">Seit gestern</span><span>7 Änderungen, 1 Foto</span></div></div>
+                <div class="pk"><div class="pk-kopf"><b>Solar-Tracker</b><span class="leise">BSMT 22a</span><span class="ampel a-g"></span></div>
+                  <div class="trend"><span>Verlauf</span><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i></div>
+                  <div class="fort"><span style="width:44%"></span></div>
+                  <div class="pk-zeile"><span class="etikett">Meilenstein</span><span>◆ Prototyp · KW 49</span></div>
+                  <div class="pk-zeile"><span class="etikett">Termin</span><span>Do 05.11. 10:00</span></div>
+                  <div class="pk-zeile"><span class="etikett">Seit gestern</span><span>1 Änderung, 1 Anfrage</span></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+      <div class="raster-2">
+        <div class="karte"><h3>Warum diese Aufteilung</h3>
+          <ul class="liste">
+            <li><b>Morgens:</b> Nur die linke Spalte lesen. „Heute“, „Jetzt erledigen“ und „Im Blick behalten“ sind nach Dringlichkeit sortiert und verschwinden, sobald sie erledigt sind.</li>
+            <li><b>Vor Besprechungen:</b> „Besprechen ▶“ startet direkt die Tafel auf dem Board.</li>
+            <li><b>Was passiert ist:</b> Jede Projektkarte zeigt „seit gestern“. Die vollständige Chronik liegt im Reiter „Aktivitäten“.</li>
+            <li><b>Projektkarten</b> mit Ampel, Verlauf der letzten fünf Wochen, Fortschritt (erledigte Aufgaben), nächstem Meilenstein und Termin. Wer Handlungsbedarf hat, steht vorne und ist rot umrandet. Per Umschalter wird daraus die Ampel-Matrix aller Teams.</li>
+          </ul></div>
+        <div class="karte"><h3>Kalender für die langfristige Planung</h3>
+          <ul class="liste">
+            <li><b>Dienstkalender per Abo:</b> In Outlook veröffentlichst du deinen Kalender und trägst den ICS-Link einmal in TrackingDRS ein. Der Container holt ihn alle 30 Minuten neu, nur lesend.</li>
+            <li><b>Im Reiter „Kalender“:</b> Monats- und Halbjahresansicht mit Dienstterminen, Besprechungen, allen Meilensteinen der Teams, Ferien in Rheinland-Pfalz und Rückgabeterminen aus Ausleihen.</li>
+            <li><b>Nur für dich:</b> Jede Lehrkraft hinterlegt ihren eigenen Kalender. Diensttermine sehen weder die Teams noch andere Lehrkräfte, und sie erscheinen nie auf der Tafel.</li>
+            <li>Termine aus TrackingDRS gehen nicht in dein Outlook zurück. Das hast du so entschieden.</li>
+          </ul></div>
+      </div>
+    </div>
+
+    <div class="skizze breit">
+      <div class="skizze-titel"><h3>Tracking-Sheet im Browser</h3><span class="leise">PC, Team-Ansicht · zum Ausprobieren: Zelle anklicken und b, e, g, y oder r tippen · über mehrere Wochen ziehen plant b · Kürzel anklicken wählt den Verantwortlichen</span></div>
+      <div class="rahmen"><div class="geraet pc" id="pc-raster">
+        <div class="app-kopf"><b>TrackingDRS</b><span>Team Klimaanlage</span>
+          <span class="reiter" style="margin-left:12px"><span class="an">Tracking-Sheet</span><span>Anfragen<i class="zahl">1</i></span><span>Termin</span><span>Besprechungen</span><span>Fotos</span><span>Mindmap</span></span>
+          <span class="rechts"><span class="k">Excel-Export</span></span></div>
+        <div class="pc-body">
+          <div class="pc-haupt">
+            <div class="r-leiste">
+              <span class="banner" style="padding:5px 9px">Termin <b>Di 03.11., 08:45</b> gebucht</span>
+              <span class="r-palette" role="toolbar" aria-label="Gewählte Zelle setzen"><span class="etikett">Zelle</span>
+                <button type="button" data-taste="b" title="b: geplante Bearbeitungswoche"><span class="m-b"></span>b</button>
+                <button type="button" data-taste="e" title="e: Endtermin"><span class="e-m">e</span></button>
+                <button type="button" data-taste="g" title="g: alles im Plan" aria-label="Ampel grün"><span class="m-b st-g"></span>g</button>
+                <button type="button" data-taste="y" title="y: Problem mit Lösungsansatz" aria-label="Ampel gelb"><span class="m-b st-y"></span>y</button>
+                <button type="button" data-taste="r" title="r: Erfolg gefährdet" aria-label="Ampel rot"><span class="m-b st-r"></span>r</button>
+                <button type="button" data-taste="Delete" title="Zelle leeren" aria-label="Zelle leeren">✕</button></span>
+              <label class="r-vergl" for="r-vergleich">Vergleichen mit
+                <select id="r-vergleich">
+                  <option value="">kein Vergleich</option>
+                  <option value="basis">Basisplan · Di 20.10.</option>
+                  <option value="kw44">Buchungsschluss KW 44 · Mo 26.10.</option>
+                  <option value="kw45">Buchungsschluss KW 45 · Mo 02.11.</option>
+                </select></label>
+              <span class="r-hinweis" id="r-hinweis" aria-live="polite"></span>
+            </div>
+            <div class="r-scroll"><table class="r-tab" id="r-tab"></table></div>
+          </div>
+          <aside class="pc-panel" id="r-panel" aria-label="Details der Aufgabe"></aside>
+          <div class="r-menue" id="r-menue" hidden></div>
+          <div class="r-dialog" id="r-dialog" hidden role="dialog" aria-labelledby="r-dialog-titel">
+            <b id="r-dialog-titel"></b>
+            <label for="r-problem">Problem</label><textarea id="r-problem" rows="2"></textarea>
+            <label for="r-massnahme">Korrekturmaßnahme</label><textarea id="r-massnahme" rows="2"></textarea>
+            <label for="r-verantw">Verantwortlich für die Maßnahme</label><select id="r-verantw"></select>
+            <div class="r-dialog-knoepfe"><button type="button" id="r-abbrechen" class="r-k">Abbrechen</button><button type="button" id="r-speichern" class="r-k haupt" disabled>Speichern</button></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="legende"><span><span class="m-b"></span>b geplante Woche</span><span><span class="e-m">e</span> Endtermin</span><span><span class="e-m alt">e</span> ursprünglicher Endtermin</span><span><span class="m-b st-g"></span><span class="m-b st-y"></span><span class="m-b st-r"></span>Ampel der Woche</span><span><span class="frei-m"></span>keine Projektwoche</span><span>◆ Meilenstein</span><span>blau hinterlegt: laufende Woche</span><span><span class="m-geist"></span>Plan der Vergleichsversion</span></div>
+    </div>
+
+    <div class="raster-2" style="align-items:start">
+      <div class="skizze">
+        <div class="skizze-titel"><h3>Diese Woche</h3><span class="leise">Handy: Ampeln setzen statt Raster</span></div>
+        <div class="rahmen"><div class="geraet handy">
+          <div class="app-kopf"><b>Klimaanlage</b><span class="rechts"><span class="k">KW 45</span></span></div>
+          <div class="app-flaeche">
+            <div class="reiter"><span class="an">Diese Woche</span><span>Raster</span><span>Anfragen</span><span>Fotos</span></div>
+            <div class="banner">Dein Termin: <b>Di 03.11., 08:45</b>. Bis dahin Ampeln setzen.</div>
+            <div class="hz">
+              <div class="hz-z"><div><b>Marktrecherche Lüfter</b><span class="leise">BW · Ende KW 45</span></div><div class="hz-amp"><span class="an g">g</span><span>y</span><span>r</span></div></div>
+              <div class="hz-z offen"><div><b>Pflichtenheft schreiben</b><span class="leise">MK · Ende KW 46 · noch keine Ampel</span></div><div class="hz-amp"><span>g</span><span>y</span><span>r</span></div></div>
+              <div class="hz-z"><div><b>Lüfter auslegen</b><span class="leise">BW · Ende KW 46</span></div><div class="hz-amp"><span>g</span><span class="an y">y</span><span>r</span></div></div>
+              <div class="hz-z"><div><b>Gehäuse konstruieren</b><span class="leise">TB · Ende KW 48 (war 46)</span></div><div class="hz-amp"><span class="an g">g</span><span>y</span><span>r</span></div></div>
+            </div>
+            <div class="leise" style="font-size:.74rem;text-align:center">Das ganze Raster gibt es auch am Handy, quer scrollbar.</div>
+          </div>
+        </div></div>
+      </div>
+      <div class="karte"><h3>So füllen die Schüler das Sheet</h3>
+        <ol class="schritte">
+          <li><b>Aufgabe anlegen:</b> „+ Aufgabe“ in der Phase, Namen tippen. Ungeplante Ideen dürfen noch ohne Verantwortlichen stehen.</li>
+          <li><b>Planen:</b> Mit der Maus über die Wochen ziehen, das malt den <span class="m-b"></span>b-Balken. Die letzte Woche bekommt automatisch <span class="e-m">e</span>. Den Endtermin verschiebt man, indem man eine andere Zelle wählt und <span class="mono">e</span> tippt. Der alte Termin bleibt gestrichelt sichtbar.</li>
+          <li><b>Verantwortlichen wählen:</b> Sobald die Aufgabe geplant ist, fragt das System nach genau <b>einem</b> Schüler aus der Teamliste. Bis dahin steht ein rotes <span class="vchip fehlt" style="cursor:default">?</span> in der Zeile. Ein Wechsel ist jederzeit möglich und steht im Verlauf.</li>
+          <li><b>Jede Woche vor dem Termin:</b> Für jede laufende Aufgabe die Ampel der aktuellen Woche setzen, am PC per Taste <span class="mono">g y r</span>, am Handy unter „Diese Woche“. Bei y/r sind Problem und Maßnahme Pflicht.</li>
+          <li><b>Excel-Gefühl:</b> Pfeiltasten bewegen die Auswahl, Entf leert die Zelle. Jede Änderung landet mit Uhrzeit im Verlauf rechts.</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="raster-2" style="align-items:start">
+      <div class="skizze">
+        <div class="skizze-titel"><h3>Termine anlegen</h3><span class="leise">Lehrkraft, Reiter „Termine &amp; Fenster“</span></div>
+        <div class="karte" style="display:grid;gap:10px">
+          <div class="feld-reihe">
+            <div class="feld-m"><span class="etikett">Tag</span><span class="eingabe">Di 10.11.</span></div>
+            <div class="feld-m"><span class="etikett">Von – bis</span><span class="eingabe">08:30 – 10:00</span></div>
+            <div class="feld-m"><span class="etikett">Je Termin</span><span class="eingabe">15 min</span></div>
+            <div class="feld-m"><span class="etikett">Für</span><span class="eingabe">BSMT 22b ▾</span></div>
+            <div class="feld-m"><span class="etikett">Buchungsschluss</span><span class="eingabe">Mo 09.11., 18:00</span></div>
+          </div>
+          <div class="hinweis-zeile"><span class="k">Vorwoche übernehmen</span><span class="k haupt">6 Termine anlegen</span></div>
+          <div class="tag-kopf">Di 10.11. · Stand jetzt</div>
+          <div class="slots">
+            <div class="slot belegt">08:30<small>Förderband</small></div>
+            <div class="slot frei">08:45<small>frei</small></div>
+            <div class="slot belegt">09:00<small>Hubtisch</small></div>
+            <div class="slot belegt">09:15<small>Klimaanlage</small></div>
+            <div class="slot belegt">09:30<small>Solar-Tracker · von dir</small></div>
+            <div class="slot frei">09:45<small>frei</small></div>
+          </div>
+          <div class="hinweis-zeile"><span class="chip w">Noch ohne Termin: Sortieranlage, Pneumatik-Greifer</span><span class="k">Team eintragen ▾</span></div>
+        </div>
+        <p class="leise" style="font-size:.88rem">Termine entstehen aus Tag, Zeitraum und Länge. Den Buchungsschluss legst du je Woche fest. Danach können nur noch Lehrkräfte ändern.</p>
+      </div>
+      <div class="skizze">
+        <div class="skizze-titel"><h3>Termin buchen</h3><span class="leise">Team, Handy, Reiter „Termin“</span></div>
+        <div class="rahmen"><div class="geraet handy">
+          <div class="app-kopf"><b>Klimaanlage</b><span class="rechts"><span class="k">KW 46</span></span></div>
+          <div class="app-flaeche">
+            <div class="reiter"><span>Diese Woche</span><span>Raster</span><span class="an">Termin</span><span>Anfragen</span></div>
+            <div class="banner">Euer Termin: <b>Di 10.11., 09:15</b>. Umbuchen bis Mo 09.11., 18:00.</div>
+            <div class="tag-kopf">Di 10.11.</div>
+            <div class="slots">
+              <div class="slot belegt">08:30<small>belegt</small></div>
+              <div class="slot frei">08:45<small>frei</small></div>
+              <div class="slot belegt">09:00<small>belegt</small></div>
+              <div class="slot eigen">09:15<small>✓ euer Termin</small></div>
+              <div class="slot belegt">09:30<small>belegt</small></div>
+              <div class="slot frei">09:45<small>frei</small></div>
+            </div>
+            <div class="tag-kopf">Do 12.11.</div>
+            <div class="slots">
+              <div class="slot frei">10:00<small>frei</small></div>
+              <div class="slot belegt">10:15<small>belegt</small></div>
+              <div class="slot frei">10:30<small>frei</small></div>
+            </div>
+            <div class="leise" style="font-size:.74rem;text-align:center">Freien Termin antippen zum Buchen oder Umbuchen. Je Woche ein Termin.</div>
+          </div>
+        </div></div>
+      </div>
+    </div>
+
+    <div class="skizze breit">
+      <div class="skizze-titel"><h3>Anfragen</h3><span class="leise">PC, Team-Ansicht · neue Anfragen aller Teams siehst du im Cockpit</span></div>
+      <div class="rahmen"><div class="geraet pc">
+        <div class="app-kopf"><b>TrackingDRS</b><span>Team Klimaanlage</span>
+          <span class="reiter" style="margin-left:12px"><span>Tracking-Sheet</span><span class="an">Anfragen</span><span>Termin</span><span>Besprechungen</span><span>Fotos</span><span>Mindmap</span></span>
+          <span class="rechts"><span class="k haupt">+ Neue Anfrage</span></span></div>
+        <div class="app-flaeche anf">
+          <div class="anf-liste">
+            <div class="anf-z an"><span><span class="typ">Bestellliste</span><b>Nächste Liste</b></span><span class="st sammeln">sammeln</span><span class="unter">3 Positionen · Einreichen ab Mo 09.11.</span></div>
+            <div class="anf-z"><span><span class="typ">Abnahme</span><b>Netzteil-Verdrahtung prüfen</b></span><span class="st neu">neu</span><span class="unter">Elektrik verdrahten · vor 20 min</span></div>
+            <div class="anf-z"><span><span class="typ">Bestellliste</span><b>Liste KW 44</b></span><span class="st arbeit">bestellt</span><span class="unter">4 Positionen: 3 genehmigt, 1 abgelehnt</span></div>
+            <div class="anf-z"><span><span class="typ">Ausleihe</span><b>Anemometer und Labornetzgerät</b></span><span class="st fertig">ausgegeben</span><span class="unter">zurück bis Di 10.11.</span></div>
+            <div class="anf-z"><span><span class="typ">Rückfrage</span><b>Dürfen wir 24 V nehmen?</b></span><span class="st fertig">beantwortet</span><span class="unter">in der Besprechung am 03.11. geklärt</span></div>
+          </div>
+          <div class="tk" style="gap:10px;align-content:start">
+            <div class="tk-kopf"><span class="typ">Bestellliste</span><b>Nächste Liste</b><span class="st sammeln" style="margin-left:auto">sammeln</span></div>
+            <div class="banner">Nächstes Einreichfenster: <b>Mo 09.11. bis Do 12.11., 12:00</b>. Bis dahin sammelt ihr hier, dann reicht ihr die Liste einmal ein.</div>
+            <div class="tabelle-rahmen">
+              <table class="pos">
+                <thead><tr><th>Artikel</th><th>Bestellnr.</th><th>Menge</th><th>Preis</th><th>Lieferant</th><th>Aufgabe</th></tr></thead>
+                <tbody>
+                  <tr><td>Axiallüfter 80×80 mm, 24 V, Kugellager</td><td class="mono">FAN 8025-24</td><td><span class="menge">2</span></td><td class="wer">8,90 €</td><td>Elektronikversand</td><td>Lüfter auslegen (BW)</td></tr>
+                  <tr><td>Lüfterschutzgitter 80 mm</td><td class="mono">GRILL 80</td><td><span class="menge">2</span></td><td class="wer">0,95 €</td><td>Elektronikversand</td><td>Lüfter auslegen (BW)</td></tr>
+                  <tr><td>Temperatursensor DS18B20, wasserdicht</td><td class="mono">DS18B20-WP</td><td><span class="menge">1</span></td><td class="wer"></td><td>Elektronikversand</td><td>Steuerung programmieren (MK)</td></tr>
+                  <tr><td>Aluprofil 20×20 Nut 6, 500 mm</td><td class="mono"></td><td><span class="menge">4</span></td><td class="wer"></td><td>Mechanikshop</td><td>Gehäuse konstruieren (TB)</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="eingabe">+ Position: Artikel, Bestellnummer, Menge, Preis, Lieferant oder Link, Aufgabe, Begründung …</div>
+            <div class="hinweis-zeile"><span class="k" style="opacity:.55">Liste einreichen (ab Mo 09.11.)</span><span class="leise">Der Preis ist nur zur Information und hat keinen Einfluss auf die Bestellung.</span></div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="skizze breit">
+      <div class="skizze-titel"><h3>Bestelllisten prüfen</h3><span class="leise">PC, Lehrkraft · Reiter „Anfragen“ während eines Einreichfensters</span></div>
+      <div class="rahmen"><div class="geraet pc">
+        <div class="app-kopf"><b>TrackingDRS</b><span class="leise">Do 12.11.2026 · KW 46</span>
+          <span class="reiter" style="margin-left:12px"><span>Cockpit</span><span>Kalender</span><span>Projekte</span><span class="an">Anfragen<i class="zahl">4</i></span><span>Aktivitäten</span><span>Termine &amp; Fenster</span></span>
+          <span class="rechts"><span class="k">Fenster bearbeiten</span><span class="k">Sonderfenster …</span></span></div>
+        <div class="app-flaeche anf">
+          <div class="anf-liste">
+            <div class="banner">Einreichfenster <b>Mo 09.11. bis Do 12.11., 12:00</b> · BSMT 22a und 22b · noch 2 Stunden</div>
+            <div class="team-st an"><b>Klimaanlage</b><span class="st neu">eingereicht</span><span class="unter">Mi 11.11. 10:14 · 3 Positionen · 1 noch offen</span></div>
+            <div class="team-st"><b>Förderband</b><span class="st fertig">geprüft</span><span class="unter">Di 10.11. 09:02 · 5 Positionen</span></div>
+            <div class="team-st"><b>Hubtisch</b><span class="st neu">eingereicht</span><span class="unter">Do 12.11. 08:40 · 2 Positionen</span></div>
+            <div class="team-st"><b>Pneumatik-Greifer</b><span class="st neu">eingereicht</span><span class="unter">Mo 09.11. 13:30 · 6 Positionen</span></div>
+            <div class="team-st"><b>Sortieranlage</b><span class="st sammeln">sammelt</span><span class="unter">4 Positionen, noch nicht eingereicht · erinnert Mi 12:00</span></div>
+            <div class="team-st"><b>Solar-Tracker</b><span class="st sammeln">leer</span><span class="unter">nichts gesammelt</span></div>
+          </div>
+          <div class="tk" style="gap:10px;align-content:start">
+            <div class="tk-kopf"><b>Klimaanlage · Liste KW 46</b><span class="leise">eingereicht Mi 11.11. 10:14</span><span class="st neu" style="margin-left:auto">in Prüfung</span></div>
+            <div class="tabelle-rahmen"><table class="pos">
+              <thead><tr><th>Artikel</th><th>Menge</th><th>Woher?</th><th>Details</th></tr></thead>
+              <tbody>
+                <tr><td>Axiallüfter 80×80 mm, 24 V<span class="klein">FAN 8025-24 · Elektronikversand · 8,90 €</span></td><td><span class="menge">2</span></td>
+                  <td><span class="wahl"><span class="an">Bestellen</span><span>SchulLager</span><span>Firma</span><span>Ersetzen</span><span>Ablehnen</span></span></td><td>kommt in die Sammelbestellung</td></tr>
+                <tr><td>Lüfterschutzgitter 80 mm<span class="klein">GRILL 80 · Elektronikversand · 0,95 €</span></td><td><span class="menge"><s>2</s>1</span></td>
+                  <td><span class="wahl"><span>Bestellen</span><span class="an">SchulLager</span><span>Firma</span><span>Ersetzen</span><span>Ablehnen</span></span></td><td>verknüpft: Lüftergitter 80 mm, Regal B3, 6 Stück</td></tr>
+                <tr><td>Temperatursensor DS18B20<span class="klein">DS18B20-WP · Elektronikversand</span></td><td><span class="menge">1</span></td>
+                  <td><span class="wahl"><span>Bestellen</span><span>SchulLager</span><span>Firma</span><span class="an">Ersetzen</span><span>Ablehnen</span></span></td><td>durch: DS18B20-Modul mit Pull-up, MOD-DS18B20, wird bestellt</td></tr>
+                <tr><td>Aluprofil 20×20 Nut 6, 500 mm<span class="klein">ohne Bestellnr. · Mechanikshop</span></td><td><span class="menge">4</span></td>
+                  <td><span class="wahl"><span>Bestellen</span><span>SchulLager</span><span class="an">Firma</span><span>Ersetzen</span><span>Ablehnen</span></span></td><td>über die Firma eines Schülers</td></tr>
+              </tbody></table></div>
+            <div class="ck-block" style="background:var(--bg)">
+              <div class="ck-titel"><h4>Nach dem Stichtag: Sammelbestellung</h4><span class="rechts"><span class="k">Excel</span><span class="k">PDF</span></span></div>
+              <div class="leise" style="font-size:.74rem">Nur Positionen mit „Bestellen“ (auch Ersatzartikel), je Lieferant mit Bestellnummern.</div>
+              <div class="zf-zeile"><span class="mono">Elektronikversand</span>9 Positionen aus 4 Teams, gleiche Bestellnummern zusammengefasst</div>
+              <div class="zf-zeile"><span class="mono">Mechanikshop</span>4 Positionen aus 2 Teams</div>
+              <div class="zf-zeile"><span class="mono">ohne Lieferant</span>1 Position, bitte zuordnen</div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="skizze">
+      <div class="skizze-titel"><h3>Besprechungstafel</h3><span class="leise">Smartboard an deinem PC, Klimaanlage · Di 03.11., 08:45 · zum Ausprobieren: Post-its ziehen, mit dem Stift zeichnen, neue Post-its setzen</span></div>
+      <div class="rahmen"><div class="board">
+        <div class="board-kopf">
+          <b>Klimaanlage</b><span>Di 03.11. · 08:45</span><span class="ampel a-y"></span>
+          <span class="live"><span class="live-punkt"></span>2 Geräte des Teams verbunden</span>
+          <span class="board-knoepfe"><button type="button" class="bk">Raster</button><button type="button" class="bk">Fotos</button><button type="button" class="bk">Mindmap</button><button type="button" class="bk haupt">Abschließen</button></span>
+        </div>
+        <div class="tafel" id="tafel" data-werkzeug="hand">
+          <div class="zonen" aria-hidden="true">
+            <div class="zone"><span class="zone-titel">Seit letztem Mal</span></div>
+            <div class="zone"><span class="zone-titel">Skizzen &amp; Ideen</span></div>
+            <div class="zone ergebnis">
+              <div class="unterzone" data-ziel="Absprache"><span class="zone-titel">Absprachen</span></div>
+              <div class="unterzone" data-ziel="Auftrag"><span class="zone-titel">Aufträge</span></div>
+              <div class="unterzone" data-ziel="Meilenstein"><span class="zone-titel">Meilensteine</span><div class="ms-zeile">Konstruktion fertig · KW 47</div></div>
+            </div>
+          </div>
+          <canvas class="tinte" id="tinte"></canvas>
+          <div class="postit blau" style="left:2%;top:9%;--dreh:-2deg"><span class="art">Auftrag</span><span class="text" contenteditable="true" spellcheck="false">Lüfter bestellen</span><span class="fuss rot-t">✕ fällig 31.10.</span></div>
+          <div class="postit orange" style="left:15.6%;top:10.5%;--dreh:1.5deg"><span class="art">Problem</span><span class="text" contenteditable="true" spellcheck="false">Volumenstrom reicht bei 35 °C nicht</span><span class="fuss">Y seit KW 45</span></div>
+          <div class="postit pink" style="left:2.6%;top:39%;--dreh:1deg"><span class="art">Frage</span><span class="text" contenteditable="true" spellcheck="false">Dürfen wir 24 V nehmen?</span><span class="fuss">Team · Mo 16:02</span></div>
+          <div class="postit grau" style="left:16%;top:40%;--dreh:-1deg"><span class="art">Raster</span><span class="text" contenteditable="true" spellcheck="false">Gehäuse: Ende KW 46 → 48</span><span class="fuss">geändert Sa 11:20</span></div>
+          <div class="postit blau" style="left:3.2%;top:69%;--dreh:-1.5deg"><span class="art">Auftrag</span><span class="text" contenteditable="true" spellcheck="false">Datenblatt suchen ✓</span><span class="fuss">abgehakt Do 14:10</span></div>
+          <div class="postit weiss" style="left:33%;top:9%;--dreh:-2.5deg"><span class="art">Foto</span><span class="foto-bild"><svg viewBox="0 0 100 52" aria-hidden="true"><rect width="100" height="52" fill="#3a4350"/><rect x="22" y="6" width="56" height="40" rx="4" fill="#cfd6de"/><circle cx="50" cy="26" r="15" fill="#2c3440"/><path d="M50 26 L50 13 A13 13 0 0 1 61 20 Z M50 26 L61 32 A13 13 0 0 1 50 39 Z M50 26 L39 32 A13 13 0 0 1 39 20 Z" fill="#9aa5b5"/><circle cx="50" cy="26" r="3" fill="#cfd6de"/></svg></span><span class="text" contenteditable="true" spellcheck="false">Gehäuse, 1. Druck</span><span class="fuss">vom Laptop · 08:51</span></div>
+          <div class="postit gelb" style="left:55%;top:63%;--dreh:2deg"><span class="art">Idee</span><span class="text" contenteditable="true" spellcheck="false">2 Lüfter parallel?</span><span class="fuss">Tafel · 08:53</span></div>
+          <div class="postit gruen" style="left:74%;top:9%;--dreh:-1deg"><span class="art">Absprache</span><span class="text" contenteditable="true" spellcheck="false">24 V ist freigegeben</span><span class="fuss">Tafel · 08:55</span><span class="ziel">→ Absprache</span></div>
+          <div class="postit blau" style="left:74%;top:46%;--dreh:1deg"><span class="art">Auftrag</span><span class="text" contenteditable="true" spellcheck="false">2 Lüfter vergleichen</span><span class="fuss">bis 10.11.</span><span class="ziel">→ Auftrag</span></div>
+          <div class="werkzeuge" role="toolbar" aria-label="Werkzeuge">
+            <button type="button" data-w="hand" class="an" title="Verschieben" aria-label="Verschieben">✥</button>
+            <button type="button" data-w="stift" title="Stift" aria-label="Stift">✎</button>
+            <button type="button" data-w="radierer" title="Radierer" aria-label="Radierer">⌫</button>
+            <button type="button" data-w="postit" title="Neues Post-it: auf die Tafel tippen" aria-label="Neues Post-it">▢</button>
+            <span class="trenner"></span>
+            <button type="button" class="farbe an" data-f="tinte" title="Schwarz" aria-label="Stiftfarbe Schwarz"><i style="background:var(--tinte)"></i></button>
+            <button type="button" class="farbe" data-f="blau" title="Blau" aria-label="Stiftfarbe Blau"><i style="background:var(--blau)"></i></button>
+            <button type="button" class="farbe" data-f="rot" title="Rot" aria-label="Stiftfarbe Rot"><i style="background:var(--rot)"></i></button>
+            <span class="trenner"></span>
+            <button type="button" data-aktion="zurueck" title="Rückgängig" aria-label="Rückgängig">↶</button>
+          </div>
+        </div>
+      </div></div>
+      <div class="legende">
+        <span><i class="pi-m blau"></i>Auftrag</span><span><i class="pi-m orange"></i>Problem</span><span><i class="pi-m pink"></i>Frage</span><span><i class="pi-m grau"></i>Änderung im Raster</span><span><i class="pi-m gelb"></i>Idee</span><span><i class="pi-m gruen"></i>Absprache</span><span><i class="pi-m weiss"></i>Foto</span>
+      </div>
+      <div class="raster-2">
+        <div class="karte"><h3>So arbeitet die Tafel</h3>
+          <ul class="liste">
+            <li><b>Links „Seit letztem Mal“:</b> Die Kurzzusammenfassung liegt beim Start als Post-its bereit, also offene und erledigte Aufträge, Probleme, Fragen des Teams und Änderungen im Raster.</li>
+            <li><b>Mitte „Skizzen &amp; Ideen“:</b> Freie Fläche für Stift und neue Post-its. Fotos und Post-its von Schülergeräten erscheinen hier live.</li>
+            <li><b>Rechts „Ergebnis“:</b> Ein Post-it in „Aufträge“ wird beim Abschließen ein Arbeitsauftrag (Frist wählen), eines in „Absprachen“ eine Absprache, eines in „Meilensteine“ ein Meilenstein im Raster.</li>
+            <li><b>Abschließen</b> friert die Tafel als Bild mit Uhrzeit ins Protokoll ein. Nicht erledigte Aufträge, offene Fragen und Ideen wandern auf die nächste Tafel.</li>
+          </ul></div>
+        <div class="karte"><h3>Dein PC am Board</h3>
+          <ul class="liste">
+            <li><b>Zwei Bildschirme:</b> Das Board ist als erweiterter Bildschirm eingerichtet. Cockpit und Lehrernotizen bleiben auf deinem Monitor, den die Klasse nicht sieht.</li>
+            <li>„Besprechen ▶“ öffnet die Tafel im <b>Vollbild auf dem Board</b>. Chrome und Edge können ein Fenster gezielt auf dem zweiten Bildschirm öffnen, das erlaubst du einmal. Auf deinem Monitor erscheint dazu die Lehreransicht dieser Besprechung: Kurzzusammenfassung, Lehrernotizen zum Mitschreiben und eine kleine Live-Vorschau der Tafel.</li>
+            <li>Auf der Tafel erscheinen <b>nie</b> Lehrernotizen, Warnungen zu anderen Teams oder deine Verwaltung.</li>
+            <li>Da du am PC angemeldet bist, brauchst du an der Tafel keine Extra-PIN.</li>
+            <li>Stift mit Druckstufen, Finger und Maus funktionieren gleich. Textzeilen füllt die Windows-Handschrifterkennung per Stift.</li>
+          </ul></div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <h2><span class="nr">07</span>Erreichbarkeit: Schulnetz und VPN</h2>
+  <p>Im Schulnetz ist der Container immer über seine normale Adresse erreichbar. Zusätzlich baut er selbst eine WireGuard-Verbindung zu deinem gemieteten Server auf. Darüber ist von zuhause <b>nur dieser Container</b> erreichbar.</p>
+  <div class="banner w" style="font-size:.95rem"><b>Harte Anforderung:</b> Aus dem Schulnetz darf niemand in dein Heimnetz gelangen, auch nicht über einen übernommenen Container. Deshalb sitzt die Sperre auf dem Server, nicht im Container.</div>
+  <div class="karte netz" style="overflow-x:auto">
+    <svg viewBox="0 0 900 330" role="img" aria-label="Netzskizze: Schulnetz mit Container, VPS mit WireGuard, Heimnetz mit Fritzbox">
+      <defs><marker id="pf" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="pfeil" d="M0 0 L10 5 L0 10 Z"/></marker></defs>
+      <rect class="zone" x="12" y="20" width="300" height="290" rx="14"/>
+      <text class="t-titel" x="30" y="46">Schulnetz</text>
+      <rect class="geraet-k" x="34" y="66" width="120" height="44" rx="6"/><text x="46" y="86" font-size="12">Schul-PCs, iPads</text><text class="t-leise" x="46" y="101">Lehrkräfte + Teams</text>
+      <rect class="ct" x="120" y="170" width="170" height="104" rx="10"/>
+      <text class="t-titel" x="134" y="194">CT TrackingDRS</text>
+      <text class="t-leise" x="134" y="213">eth0 · Schul-IP · 443</text>
+      <text class="t-leise" x="134" y="229">wg0 · 10.8.0.20 · nur 443</text>
+      <text class="t-leise" x="134" y="245">kein Forwarding</text>
+      <text class="t-leise" x="134" y="261">nft: wg0 nur HTTPS</text>
+      <path class="weg" d="M94 110 L94 150 Q94 168 118 190" marker-end="url(#pf)"/>
+      <text class="t-leise" x="24" y="142">HTTPS, immer</text>
+      <rect class="geraet-k" x="34" y="250" width="70" height="40" rx="6"/><text x="44" y="274" font-size="12">übriges</text><text class="t-leise" x="44" y="286">Schulnetz</text>
+      <rect class="zone" x="356" y="20" width="200" height="140" rx="14"/>
+      <text class="t-titel" x="374" y="46">Gemieteter Server</text>
+      <text class="t-leise" x="374" y="66">WireGuard 10.8.0.1</text>
+      <text class="t-leise" x="374" y="84">Peer CT: AllowedIPs 10.8.0.20/32</text>
+      <text class="t-leise" x="374" y="102">Weiterleitung nur Heim → CT:443</text>
+      <text class="t-leise" x="374" y="120">sieht nur verschlüsseltes HTTPS</text>
+      <text class="t-rot" x="374" y="140">vom CT nur Antworten, Neues: DROP</text>
+      <rect class="zone" x="600" y="20" width="288" height="290" rx="14"/>
+      <text class="t-titel" x="618" y="46">Zuhause</text>
+      <rect class="geraet-k" x="624" y="70" width="120" height="44" rx="6"/><text x="636" y="90" font-size="12">Fritzbox</text><text class="t-leise" x="636" y="105">WireGuard-Peer</text>
+      <rect class="geraet-k" x="624" y="200" width="160" height="44" rx="6"/><text x="636" y="220" font-size="12">Laptop / iPad</text><text class="t-leise" x="636" y="235">https://10.8.0.20</text>
+      <path class="tunnel" d="M290 200 C340 200 360 130 380 130"/>
+      <path class="weg" d="M290 200 C340 200 360 130 380 130" marker-end="url(#pf)"/>
+      <text class="t-leise" x="300" y="182">UDP 51820 ausgehend</text>
+      <text class="t-leise" x="300" y="196">Keepalive 25 s</text>
+      <path class="tunnel" d="M556 92 L624 92"/>
+      <path class="weg" d="M624 92 L558 92" marker-end="url(#pf)"/>
+      <path class="weg" d="M684 200 L684 116" marker-end="url(#pf)"/>
+      <path class="sperre" d="M380 150 C330 280 200 290 108 272"/>
+      <line class="x" x1="226" y1="275" x2="242" y2="291"/><line class="x" x1="242" y1="275" x2="226" y2="291"/>
+      <text class="t-rot" x="330" y="262">keine Route ins Schulnetz</text>
+      <path class="sperre" d="M300 250 C460 300 560 300 624 228"/>
+      <line class="x" x1="512" y1="290" x2="528" y2="306"/><line class="x" x1="528" y1="290" x2="512" y2="306"/>
+      <text class="t-rot" x="430" y="320">CT sieht dein Heimnetz nicht</text>
+    </svg>
+  </div>
+  <div class="raster-2">
+    <div class="karte"><h3>Sperre: kein Weg ins Heimnetz</h3>
+      <ul class="liste">
+        <li><b>Grundsatz:</b> Die Sperre sitzt auf dem Server. Sie hält auch dann, wenn jemand den Container als root übernimmt.</li>
+        <li><b>Server, eigene nft-Tabelle:</b> Vom Container (<code>10.8.0.20</code>) kommen nur Antworten auf bestehende Verbindungen durch. Jede neue Verbindung wird verworfen, egal ob ins Heimnetz, zu anderen VPN-Teilnehmern oder zum Server selbst. Kein Accept in einer anderen Regel oder Tabelle hebt diesen Drop auf.</li>
+        <li><b>Server, erlaubt:</b> Neue Verbindungen nur in der Richtung Heimnetz → Container:443.</li>
+        <li><b>WireGuard:</b> Vom Container nimmt der Server nur Pakete mit dem Absender <code>10.8.0.20/32</code> an. Gefälschte Adressen fallen weg.</li>
+        <li><b>Container:</b> Er leitet nichts weiter (<code>ip_forward=0</code>), auf <code>wg0</code> ist nur HTTPS erlaubt. Kein Schul-PC kann ihn als Umweg nutzen.</li>
+        <li><b>Prüfung:</b> Das Repo liefert Sperrregeln und ein Prüfskript für den Server. Im Probelauf versuche ich als root im Container, Heimnetz, Fritzbox und Server zu erreichen, und alles muss scheitern. Der Container wiederholt den Test täglich und zeigt eine rote Warnung, falls doch etwas durchkommt (z. B. nach einer Änderung am Server).</li>
+        <li><b>Ende-zu-Ende:</b> TLS endet erst im Container. Der Server sieht keine Inhalte.</li>
+      </ul></div>
+    <div class="karte"><h3>Einrichtung</h3>
+      <ul class="liste">
+        <li>Das Installationsskript fragt optional nach den WireGuard-Daten (Server, Schlüssel, Adresse) und testet die Verbindung.</li>
+        <li>Der Proxmox-Kernel bringt WireGuard mit. Im Probelauf ist zu prüfen, ob <code>wg0</code> im unprivilegierten CT direkt angelegt werden kann. Sonst weicht das Skript auf <code>wireguard-go</code> mit <code>/dev/net/tun</code> aus.</li>
+        <li>Das HTTPS-Zertifikat gilt für die Schul-IP <i>und</i> die VPN-IP, mit eigener CA wie bei der Roboter-Simulation.</li>
+      </ul></div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="nr">08</span>Technik und Repository</h2>
+  <div class="raster-2">
+    <div class="karte"><h3>Bausteine</h3>
+      <ul class="liste">
+        <li><b>Server:</b> Python 3 mit SQLite, ohne Framework und ohne Build-Kette. Gleiche Bauweise wie die Roboter-Simulation.</li>
+        <li><b>Oberfläche:</b> HTML/CSS/JS, für Touch ausgelegt, als App auf dem Home-Bildschirm nutzbar.</li>
+        <li><b>Übernommen aus der Roboter-Simulation:</b> Benutzerverwaltung (Admin/Lehrkraft), HTTPS mit eigener CA, nft-Firewall, Proxmox-Einzeiler, Update-Befehl.</li>
+        <li><b>Tafel:</b> Zeichnen per Pointer Events (Stift mit Druckstufen, Finger, Maus). Live-Abgleich zwischen Board und Schülergeräten per Server-Sent Events. Ablage als Vektordaten plus Bild.</li>
+        <li><b>Pakete aus apt:</b> openpyxl (Excel), reportlab (PDF), Pillow (Fotos verkleinern).</li>
+        <li><b>Datenhaltung:</b> eine Ereignistabelle, in die nur angehängt wird, plus berechneter aktueller Stand. Daraus kommen Versionen, Vergleich, Verlauf und Zusammenfassung.</li>
+        <li><b>Container:</b> Ubuntu 24.04, unprivilegiert, 1 Kern, 512 MB RAM, 8 GB Platte (Fotos).</li>
+      </ul></div>
+    <div style="display:grid;gap:8px;min-width:0">
+<pre class="baum">TrackingDRS/                  <span class="c"># GitHub mgoebel89/TrackingDRS</span>
+├─ proxmox/
+│  └─ trackingdrs.sh          <span class="c"># Einzeiler auf dem Host: CT anlegen</span>
+├─ deploy/
+│  ├─ install.sh              <span class="c"># im CT: Pakete, Nutzer, Dienste</span>
+│  ├─ trackingdrs.service
+│  ├─ firewall.nft · tls.sh
+│  ├─ wireguard.sh            <span class="c"># optional, testet Verbindung</span>
+│  └─ update.sh               <span class="c"># → Befehl trackingdrs-update</span>
+├─ app/
+│  ├─ server.py · konten.py
+│  ├─ ereignisse.py           <span class="c"># Verlauf, Versionen, Vergleich</span>
+│  ├─ regeln.py               <span class="c"># Warnungen, Zusammenfassung</span>
+│  ├─ tafel.py                <span class="c"># Live-Abgleich, Einfrieren</span>
+│  ├─ anfragen.py             <span class="c"># Rückfrage, Bestellung, Ausleihe, Abnahme</span>
+│  ├─ schullager.py           <span class="c"># optionale Anbindung</span>
+│  ├─ kalender.py             <span class="c"># Dienstkalender-Abo (ICS), Ferien</span>
+│  ├─ excel.py · pdf.py
+│  └─ migrationen/
+├─ web/                       <span class="c"># Seiten, Stil, Symbole</span>
+├─ vps/                       <span class="c"># Sperrregeln + Prüfskript für den Server</span>
+├─ vorlagen/standard.json     <span class="c"># Phasen aus deinem Sheet</span>
+├─ tests/
+├─ docs/
+└─ README.md · LICENSE</pre>
+      <p class="leise" style="font-size:.88rem">Installation später wie ein Helper-Script:<br><code>bash -c "$(curl -fsSL https://raw.githubusercontent.com/mgoebel89/TrackingDRS/main/proxmox/trackingdrs.sh)"</code><br>Dafür muss das Repo öffentlich sein.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="nr">09</span>Datenschutz und Betrieb</h2>
+  <div class="tabelle-rahmen">
+    <table>
+      <tbody>
+        <tr><td><b>Gespeicherte Personendaten</b></td><td>Vor- und Nachname der Teammitglieder, Lehrkraft-Konten. Einträge haben keinen Personenbezug (nur Team).</td></tr>
+        <tr><td><b>Fotos</b></td><td>Hinweis „keine Personen“, verkleinert gespeichert, Aufnahmedaten (EXIF) entfernt</td></tr>
+        <tr><td><b>Lehrernotizen</b></td><td>Nur für Lehrkräfte des Projekts sichtbar, nie im Team-Link, im PDF-Export nur auf Wunsch</td></tr>
+        <tr><td><b>Dienstkalender</b></td><td>Nur für die jeweilige Lehrkraft sichtbar, nie für Teams oder auf der Tafel. Der Abo-Link wird wie ein Passwort behandelt.</td></tr>
+        <tr><td><b>Zugriff</b></td><td>Schulnetz und dein VPN, überall HTTPS. Den Team-Link kannst du jederzeit erneuern, dann ist der alte ungültig.</td></tr>
+        <tr><td><b>Aufbewahrung</b></td><td>Archiv nach Projektende (nur lesbar), Löschen von Hand, davor PDF-Export möglich</td></tr>
+        <tr><td><b>Sicherung</b></td><td>Proxmox-Backup des Containers, zusätzlich Komplett-Sicherung als ZIP im Lehrerbereich</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2><span class="nr">10</span>Bauplan in Stufen</h2>
+  <div class="stufen">
+    <div class="stufe"><span class="s">A</span><div><b>Grundgerüst</b><p>Repo, Proxmox-Skript, Installation, Lehrkraft-Konten, HTTPS, Firewall. Projekte, Teams und Team-Link, Standardvorlage.</p></div></div>
+    <div class="stufe"><span class="s">B</span><div><b>Tracking-Raster</b><p>Raster mit Plan- und Statusebene (Tasten wie in Excel, Ziehen plant b), genau ein Verantwortlicher je Aufgabe, Ereignisprotokoll, Y/R-Pflichtfeld, Verworfen/Verschoben, Meilensteine, Gesamtstatus, Versionen zum Buchungsschluss, Basisplan, Vergleich (überlagert und als Liste), Handyansicht „Diese Woche“.</p></div></div>
+    <div class="stufe"><span class="s">C</span><div><b>Termine &amp; Cockpit</b><p>Termine je Woche aus Tag, Zeitraum und Länge (mit „Vorwoche übernehmen“ und Buchungsschluss), Buchung durch das Team, Warnungen, Cockpit (Handlungsbedarf, Zwei-Wochen-Kalender, Projektkarten, Ampel-Matrix), Kalender-Reiter mit Dienstkalender-Abo (ICS) und Ferien.</p></div></div>
+    <div class="stufe"><span class="s">D</span><div><b>Besprechung</b><p>Vorbereitung, Fragen, Kurzzusammenfassung, Besprechungstafel (Zonen, Stift, Post-its, live von Schülergeräten), Arbeitsaufträge, Tafel einfrieren.</p></div></div>
+    <div class="stufe"><span class="s">E</span><div><b>Anfragen</b><p>Rückfrage, Ausleihe, Abnahme mit Status, Antwortverlauf und Warnungen. Bestelllisten mit Einreichfenstern, Sonderfenstern und Prüfung je Position. Sammelbestellung je Lieferant als Excel/PDF.</p></div></div>
+    <div class="stufe"><span class="s">F</span><div><b>Extras</b><p>Fotos, Mindmap, Lehrernotizen, Vorlagen speichern, Excel-Import/-Export, PDF-Export, Archiv, ZIP-Sicherung.</p></div></div>
+    <div class="stufe"><span class="s">G</span><div><b>VPN &amp; Probelauf</b><p>WireGuard im Installer, Sperrregeln auf dem Server, Sperrtest als root im Container, Test von zuhause, Probelauf mit einer Klasse.</p></div></div>
+    <div class="stufe"><span class="s">H</span><div><b>Optional: SchulLager</b><p>Bestellungen als Beschaffung übergeben, Ausleihen aus dem Bestand, Status zurückholen. Kann jederzeit nachgerüstet werden.</p></div></div>
+  </div>
+  <p class="leise">Für später vorgemerkt: Personenbezug je Eintrag, Moodle-Abgaben vermerken, Pflichtenheft-Anforderungen als Prüfliste, KI-Zusammenfassung, Bewertungshilfe.</p>
+</section>
+
+<section>
+  <h2><span class="nr">11</span>Zur Abstimmung offen</h2>
+  <p>Zu jedem Punkt steht mein Vorschlag. Wenn du einverstanden bist, reicht ein „passt“. Sonst antworte mit der Nummer.</p>
+  <div class="karte">
+    <ol class="offen">
+      <li><b>Wo arbeiten die Schüler?</b> Der Container ist nur im Schulnetz und über dein VPN erreichbar, nicht von zuhause der Schüler oder über mobile Daten.<span class="vorschlag"><b>Vorschlag:</b> So lassen. Für Fotos müssen Handys im Schul-WLAN sein. Bitte bestätigen, dass das passt.</span></li>
+      <li><b>Zertifikatswarnung auf Schülergeräten.</b> Eine eigene CA müsste auf jedem Gerät installiert werden, sonst warnt der Browser beim Team-Link.<span class="vorschlag"><b>Vorschlag:</b> Hast du eine eigene Domain (beim VPS) mit DNS-API? Dann gibt es ein echtes Let's-Encrypt-Zertifikat ohne Warnung. Sonst eigene CA wie bei der Roboter-Simulation, und die Schüler bestätigen die Warnung einmal.</span></li>
+      <li><b>Wann ist eine Aufgabe „erledigt“?</b> Im Sheet gibt es dafür kein Zeichen.<span class="vorschlag"><b>Vorschlag:</b> Häkchen „erledigt“ je Aufgabe mit Zeitstempel. Daraus berechnet sich die Warnung „Endtermin überschritten“.</span></li>
+      <li><b>Sehen Teams andere Projekte?</b><span class="vorschlag"><b>Vorschlag:</b> Nein, jedes Team sieht nur sein eigenes Projekt.</span></li>
+      <li><b>Excel-Import.</b><span class="vorschlag"><b>Vorschlag:</b> Genau das Layout deines Sheets (Phasen, KW-Spalten, Probleme rechts). Andere Layouts werden nicht unterstützt.</span></li>
+      <li><b>Datenschutz: Fernzugriff mit vollen Namen.</b><span class="vorschlag"><b>Vorschlag:</b> Kurz mit Schulleitung oder Datenschutzbeauftragtem abstimmen (Verarbeitungsverzeichnis). Technisch liegen keine Daten auf dem VPS, er leitet nur verschlüsselt weiter.</span></li>
+      <li><b>Klassen und Schuljahre.</b><span class="vorschlag"><b>Vorschlag:</b> Projekte hängen an Klasse und Schuljahr. Das Cockpit filtert danach, das Archiv ist nach Schuljahr gegliedert.</span></li>
+      <li><b>Handschrift auf Post-its.</b><span class="vorschlag"><b>Vorschlag:</b> Post-its bleiben Handschrift (als Bild gespeichert). Aufträge brauchen beim Abschließen nur eine Frist. Eine kurze Textzeile ist freiwillig und lässt sich per Windows-Handschrifterkennung füllen, damit Cockpit und Suche den Auftrag lesbar zeigen.</span></li>
+      <li><b>Wie erfährst du von neuen Anfragen?</b><span class="vorschlag"><b>Vorschlag:</b> Zähler im Cockpit und die Warnung „Anfrage wartet“. Optional einmal täglich eine E-Mail mit allen offenen Anfragen. Dafür bräuchte der Container ein Postfach zum Versenden (SMTP).</span></li>
+      <li><b>Darf dein Schul-Outlook den Kalender veröffentlichen?</b> Das Abo braucht zwei Dinge: Die Schule erlaubt in Microsoft 365 das Veröffentlichen von Kalendern, und der Container darf nach außen auf Outlook zugreifen.<span class="vorschlag"><b>Vorschlag:</b> In Outlook im Web unter Einstellungen → Kalender → Freigegebene Kalender → „Kalender veröffentlichen“ prüfen, ob es angeboten wird. Wenn nicht, gibt es als Ausweg den Upload einer exportierten .ics-Datei.</span></li>
+    </ol>
+  </div>
+</section>
+
+<section>
+  <h2><span class="nr">12</span>Bisher entschieden</h2>
+  <div class="tabelle-rahmen">
+    <table>
+      <thead><tr><th>Thema</th><th>Entscheidung</th></tr></thead>
+      <tbody>
+        <tr><td>Basisumfang</td><td>Tracking-Sheet digital, Besprechungen, Mindmap-Vorgabe. Pflichtenheft bleibt in Word/Moodle.</td></tr>
+        <tr><td>Lehrkräfte</td><td>Mehrere Konten, Teamteaching: ein Projekt kann mehreren Lehrkräften gehören</td></tr>
+        <tr><td>Schülerzugang</td><td>Ein Link je Team, über den Teams-Chat geteilt. Einträge nur dem Team zugeordnet.</td></tr>
+        <tr><td>Zusammenfassung</td><td>Automatisch ohne KI</td></tr>
+        <tr><td>Raster</td><td>Frei wie in Excel, jede Änderung im Hintergrund protokolliert</td></tr>
+        <tr><td>Phasen</td><td>Vorlage anpassbar, Standard = dein Sheet</td></tr>
+        <tr><td>Y/R</td><td>Problem und Maßnahme sind Pflicht</td></tr>
+        <tr><td>Löschen</td><td>Nichts geht verloren (verworfen / verschoben sichtbar)</td></tr>
+        <tr><td>Takt</td><td>Teams buchen wöchentlich einen Termin. Bis dahin ist aktualisiert, sonst Warnung. Termine legst du jede Woche von Hand an.</td></tr>
+        <tr><td>Besprechung</td><td>Schüler bereiten vor. Besprochen wird an einer Zonen-Tafel auf dem Smartboard (dein PC ist angeschlossen), mit Stift, Handskizzen und Post-its. Abschließen friert die Tafel ein.</td></tr>
+        <tr><td>Tafel</td><td>Neu je Besprechung, offene Post-its wandern mit. Schülergeräte schicken live Post-its und Fotos. Lehrernotizen erscheinen nie auf der Tafel.</td></tr>
+        <tr><td>Bildschirme</td><td>Board als erweiterter Bildschirm (schon eingerichtet): Tafel im Vollbild auf dem Board, Cockpit, Lehreransicht und Lehrernotizen auf deinem Monitor</td></tr>
+        <tr><td>Raster</td><td>Spalten = Kalenderwochen. Plan als blauer Balken (b) mit Endtermin-Marke (e), die Ampel (g, y, r) färbt den Balken der jeweiligen Woche. Eingabe per Taste wie in Excel oder durch Ziehen.</td></tr>
+        <tr><td>Versionen</td><td>Automatisch eine Version zu jedem Buchungsschluss, dazu ein Basisplan je Projekt (setzt die Lehrkraft, neu setzen möglich, der alte bleibt erhalten). Vergleich überlagert im Raster und als Änderungsliste. Team und Lehrkraft sehen beides.</td></tr>
+        <tr><td>Verantwortlich</td><td>Genau ein Schüler je Aufgabe, Pflicht sobald die Aufgabe geplant ist</td></tr>
+        <tr><td>Anfragen</td><td>Rückfrage, Bestellliste, Material ausleihen, Abnahme/Freigabe, jeweils mit Status für das Team. SchulLager-Anbindung für Bestellung und Ausleihe optional.</td></tr>
+        <tr><td>Bestellungen</td><td>Teams sammeln in einer Bestellliste und reichen nur in Einreichfenstern ein (von, bis Stichtag, im Cockpit festgelegt). Sonderfenster für einzelne Teams vergibst du. Felder mit Bestellnummer und Preis (nur Info, keine Summen, kein Budget). Entscheidung je Position: bestellen, SchulLager (verknüpft), Firma (nur Vermerk), ersetzen (du trägst ein oder das Team sucht), ablehnen.</td></tr>
+        <tr><td>Terminbuchung</td><td>Du legst Termine aus Tag, Zeitraum und Länge an, mit Buchungsschluss je Woche. Teams buchen einen Termin je Woche per Tipp und sehen andere Buchungen nur als „belegt“.</td></tr>
+        <tr><td>Aufträge / Meilensteine</td><td>Abhaken reicht / Team und Lehrkraft dürfen setzen</td></tr>
+        <tr><td>Schüler-Extras</td><td>Fotos, Aufträge abhaken, Fragen an Lehrkraft</td></tr>
+        <tr><td>Lehrer-Extras</td><td>Cockpit, private Notizen, PDF, Excel-Import/-Export, Projektvorlagen</td></tr>
+        <tr><td>Cockpit</td><td>Drei Bausteine: Handlungsbedarf, Zwei-Wochen-Kalender, Projektkarten (umschaltbar auf Ampel-Matrix). Genutzt für den Morgen-Check, vor Besprechungen, für die langfristige Planung und um nachzusehen, was passiert ist.</td></tr>
+        <tr><td>Kalender</td><td>Dienstkalender per ICS-Abo-Link aus Outlook, automatisch alle 30 Minuten. Kein Rückweg nach Outlook.</td></tr>
+        <tr><td>Mindmap</td><td>Bild/PDF hochladen</td></tr>
+        <tr><td>Netz</td><td>Gemieteter WireGuard-Server, Schul-IT hat ausgehendes UDP freigegeben. Der Container wird Peer im bestehenden Heim-VPN.</td></tr>
+        <tr><td>Heimnetz-Schutz</td><td>Aus dem Schulnetz darf niemand ins Heimnetz, auch nicht über einen übernommenen Container. Die Sperre sitzt auf dem Server: vom Container nur Antworten.</td></tr>
+        <tr><td>Daten</td><td>Vor- und Nachname, Archiv + Löschen von Hand, Proxmox-Backup</td></tr>
+        <tr><td>Name</td><td>TrackingDRS</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+</main>
+
+<script>
+(() => {
+  const tafel = document.getElementById('tafel');
+  if (!tafel) return;
+  const cv = document.getElementById('tinte'), ctx = cv.getContext('2d');
+  const leiste = tafel.querySelector('.werkzeuge');
+  const unter = [...tafel.querySelectorAll('.unterzone')];
+  const striche = [], texte = [], verlauf = [];
+  let werkzeug = 'hand', farbe = 'tinte', aktiv = null, zug = null;
+  const farbWert = f => getComputedStyle(document.documentElement).getPropertyValue('--' + f).trim() || '#1d2433';
+
+  // Vorgezeichnete Handskizze in Tafel-Koordinaten (0..1), leicht verwackelt
+  const zitter = (a, b, n, s) => Array.from({ length: n + 1 }, (_, i) => {
+    const t = i / n;
+    return [a[0] + (b[0] - a[0]) * t + Math.sin(i * 1.7 + s) * 0.0012, a[1] + (b[1] - a[1]) * t + Math.cos(i * 2.3 + s) * 0.002, 0.5];
+  });
+  const kasten = (x1, y1, x2, y2, s) => striche.push({ f: 'tinte', w: 2.4, pts: [
+    ...zitter([x1, y1], [x2, y1], 14, s), ...zitter([x2, y1], [x2, y2], 8, s + 1),
+    ...zitter([x2, y2], [x1, y2], 14, s + 2), ...zitter([x1, y2], [x1, y1 + 0.01], 8, s + 3)] });
+  kasten(0.35, 0.40, 0.45, 0.52, 1);
+  kasten(0.54, 0.38, 0.67, 0.54, 5);
+  striche.push({ f: 'tinte', w: 2.4, pts: zitter([0.455, 0.46], [0.532, 0.46], 12, 9) });
+  striche.push({ f: 'tinte', w: 2.4, pts: [[0.518, 0.443, 0.5], [0.534, 0.46, 0.5], [0.518, 0.478, 0.5]] });
+  striche.push({ f: 'blau', w: 2, pts: Array.from({ length: 21 }, (_, i) => [0.46 + i * 0.0035, 0.425 + Math.sin(i * 0.9) * 0.006, 0.5]) });
+  texte.push({ t: 'Lüfter', x: 0.362, y: 0.478, f: 'tinte' }, { t: 'Gehäuse', x: 0.557, y: 0.478, f: 'tinte' },
+    { t: 'Luftstrom', x: 0.462, y: 0.405, f: 'blau', k: 0.8 }, { t: '?', x: 0.333, y: 0.39, f: 'rot', k: 1.4 });
+
+  function zeichnen() {
+    const W = tafel.clientWidth, H = tafel.clientHeight;
+    ctx.clearRect(0, 0, W, H);
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    for (const s of striche) {
+      ctx.strokeStyle = farbWert(s.f);
+      for (let i = 1; i < s.pts.length; i++) {
+        const a = s.pts[i - 1], b = s.pts[i];
+        ctx.lineWidth = s.w * (0.6 + b[2] * 0.8) * (W / 900);
+        ctx.beginPath(); ctx.moveTo(a[0] * W, a[1] * H); ctx.lineTo(b[0] * W, b[1] * H); ctx.stroke();
+      }
+    }
+    for (const t of texte) {
+      ctx.fillStyle = farbWert(t.f);
+      ctx.font = `600 ${Math.round(H * 0.05 * (t.k || 1))}px Caveat, 'Segoe Print', cursive`;
+      ctx.fillText(t.t, t.x * W, t.y * H);
+    }
+  }
+  function groesse() {
+    const d = window.devicePixelRatio || 1;
+    cv.width = Math.round(tafel.clientWidth * d); cv.height = Math.round(tafel.clientHeight * d);
+    ctx.setTransform(d, 0, 0, d, 0, 0);
+    zeichnen();
+  }
+  new ResizeObserver(groesse).observe(tafel);
+  if (document.fonts) document.fonts.load("600 24px Caveat").then(zeichnen, () => {});
+  try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', zeichnen); } catch (e) {}
+  new MutationObserver(zeichnen).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+  const pos = e => { const r = tafel.getBoundingClientRect(); return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height]; };
+  const begrenzt = (v, max) => Math.min(Math.max(v, 0), max);
+
+  // Stift und Radierer
+  function radieren(x, y) {
+    const W = tafel.clientWidth, H = tafel.clientHeight;
+    for (let i = striche.length - 1; i >= 0; i--) {
+      if (striche[i].pts.some(p => Math.hypot((p[0] - x) * W, (p[1] - y) * H) < 14)) striche.splice(i, 1);
+    }
+    zeichnen();
+  }
+  cv.addEventListener('pointerdown', e => {
+    cv.setPointerCapture(e.pointerId);
+    const [x, y] = pos(e);
+    if (werkzeug === 'stift') {
+      aktiv = { f: farbe, w: 2.4, pts: [[x, y, e.pressure || 0.5]] };
+      striche.push(aktiv); verlauf.push({ art: 'strich', s: aktiv });
+    } else if (werkzeug === 'radierer') { aktiv = { radierer: true }; radieren(x, y); }
+  });
+  cv.addEventListener('pointermove', e => {
+    if (!aktiv) return;
+    const [x, y] = pos(e);
+    if (aktiv.radierer) radieren(x, y);
+    else { aktiv.pts.push([x, y, e.pressure || 0.5]); zeichnen(); }
+  });
+  ['pointerup', 'pointercancel'].forEach(n => cv.addEventListener(n, () => { aktiv = null; }));
+
+  // Post-its: Zone erkennen, verschieben, neu anlegen
+  function zielVon(p) {
+    const cx = (p.offsetLeft + p.offsetWidth / 2) / tafel.clientWidth, cy = (p.offsetTop + p.offsetHeight / 2) / tafel.clientHeight;
+    if (cx < 0.72) return null;
+    return cy < 0.385 ? 0 : cy < 0.77 ? 1 : 2;
+  }
+  function zuordnen(p) {
+    const z = zielVon(p);
+    let b = p.querySelector('.ziel');
+    if (z === null) { if (b) b.remove(); return; }
+    if (!b) { b = document.createElement('span'); b.className = 'ziel'; p.appendChild(b); }
+    b.textContent = '→ ' + unter[z].dataset.ziel;
+  }
+  function neuesPostit(x, y) {
+    const p = document.createElement('div');
+    p.className = 'postit gelb';
+    p.style.left = begrenzt(x - 0.06, 0.86) * 100 + '%';
+    p.style.top = begrenzt(y - 0.06, 0.82) * 100 + '%';
+    p.style.setProperty('--dreh', (Math.random() * 4 - 2).toFixed(1) + 'deg');
+    p.innerHTML = '<span class="art">Idee</span><span class="text" contenteditable="true" spellcheck="false"></span><span class="fuss">Tafel · gerade eben</span>';
+    tafel.insertBefore(p, leiste);
+    verlauf.push({ art: 'postit', p });
+    werkzeugSetzen('hand');
+    zuordnen(p);
+    p.querySelector('.text').focus();
+  }
+  tafel.addEventListener('pointerdown', e => {
+    if (e.target === cv || e.target.closest('.werkzeuge')) return;
+    const [x, y] = pos(e);
+    if (werkzeug === 'postit') { e.preventDefault(); neuesPostit(x, y); return; }
+    const p = e.target.closest('.postit');
+    if (!p || werkzeug !== 'hand') return;
+    if (e.target.isContentEditable && document.activeElement === e.target) return;
+    e.preventDefault();
+    if (document.activeElement && document.activeElement.isContentEditable) document.activeElement.blur();
+    zug = { p, ziel: e.target, x0: x, y0: y, dx: x - parseFloat(p.style.left) / 100, dy: y - parseFloat(p.style.top) / 100, bewegt: false };
+    tafel.setPointerCapture(e.pointerId);
+    p.classList.add('zieht');
+  });
+  tafel.addEventListener('pointermove', e => {
+    if (!zug) return;
+    const [x, y] = pos(e);
+    if (Math.hypot(x - zug.x0, y - zug.y0) > 0.005) zug.bewegt = true;
+    zug.p.style.left = begrenzt(x - zug.dx, 0.86) * 100 + '%';
+    zug.p.style.top = begrenzt(y - zug.dy, 0.82) * 100 + '%';
+    const z = zielVon(zug.p);
+    unter.forEach((u, i) => u.classList.toggle('hier', i === z));
+  });
+  const loslassen = () => {
+    if (!zug) return;
+    zug.p.classList.remove('zieht');
+    unter.forEach(u => u.classList.remove('hier'));
+    if (zug.bewegt) zuordnen(zug.p);
+    else if (zug.ziel.classList.contains('text')) zug.ziel.focus();
+    zug = null;
+  };
+  tafel.addEventListener('pointerup', loslassen);
+  tafel.addEventListener('pointercancel', loslassen);
+
+  // Werkzeugleiste
+  function werkzeugSetzen(w) {
+    werkzeug = w; tafel.dataset.werkzeug = w;
+    leiste.querySelectorAll('[data-w]').forEach(b => b.classList.toggle('an', b.dataset.w === w));
+  }
+  leiste.addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    if (b.dataset.w) werkzeugSetzen(b.dataset.w);
+    else if (b.dataset.f) {
+      farbe = b.dataset.f;
+      leiste.querySelectorAll('[data-f]').forEach(x => x.classList.toggle('an', x === b));
+      werkzeugSetzen('stift');
+    } else if (b.dataset.aktion === 'zurueck') {
+      const v = verlauf.pop();
+      if (!v) return;
+      if (v.art === 'strich') { const i = striche.indexOf(v.s); if (i >= 0) striche.splice(i, 1); zeichnen(); }
+      else v.p.remove();
+    }
+  });
+
+  // Live-Beispiel: ein Schülerhandy schickt eine Frage auf die Tafel
+  setTimeout(() => {
+    const p = document.createElement('div');
+    p.className = 'postit pink neu-live';
+    p.style.cssText = 'left:16.5%;top:69%;--dreh:2deg';
+    p.innerHTML = '<span class="art">Frage</span><span class="text" contenteditable="true" spellcheck="false">Reicht ein 12-V-Netzteil?</span><span class="fuss">vom Handy · gerade eben</span>';
+    tafel.insertBefore(p, leiste);
+  }, 3500);
+})();
+</script>
+
+<script>
+(() => {
+  const tab = document.getElementById('r-tab');
+  if (!tab) return;
+  const wurzel = document.getElementById('pc-raster'), koerper = wurzel.querySelector('.pc-body');
+  const panel = document.getElementById('r-panel'), menue = document.getElementById('r-menue'), dialog = document.getElementById('r-dialog');
+  const hinweis = document.getElementById('r-hinweis');
+  const KW = [43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 1, 2, 3, 4, 5, 6], JETZT = 2, FREI = new Set([9, 10]);
+  const TEAM = [{ k: 'LS', n: 'Lena Schmitt' }, { k: 'BW', n: 'Ben Weber' }, { k: 'MK', n: 'Mia Klein' }, { k: 'TB', n: 'Tim Becker' }];
+  const name = k => (TEAM.find(t => t.k === k) || {}).n || '';
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const jetzt = () => 'heute ' + new Date().toTimeString().slice(0, 5);
+  let nr = 0;
+  const auf = (t, v, b, e, s, extra) => Object.assign({ nr: ++nr, t, v, b: new Set(b), e, eAlt: null, s: s || {}, probleme: [], log: [], verworfen: false }, extra || {});
+  const phasen = [
+    { n: 'Informieren', a: [auf('Anforderungen klären', 'LS', [0, 1], 1, { 0: 'g', 1: 'g' }), auf('Marktrecherche Lüfter', 'BW', [1, 2], 2, { 1: 'g', 2: 'g' })] },
+    { n: 'Planen', a: [auf('Pflichtenheft schreiben', 'MK', [1, 2, 3], 3, { 1: 'g' }), auf('Lüfter auslegen', 'BW', [2, 3], 3, { 2: 'y' }),
+      auf('Gehäuse konstruieren', 'TB', [2, 3, 4, 5], 5, { 2: 'g' }, { eAlt: 3 }), auf('Peltier-Element prüfen', null, [1, 2], null, {}, { verworfen: true })] },
+    { n: 'Realisieren', a: [auf('Gehäuse drucken', 'TB', [5, 6, 7], 7), auf('Elektrik verdrahten', 'LS', [6, 7, 8, 11], 11),
+      auf('Steuerung programmieren', 'MK', [7, 8, 11, 12, 13], 13), auf('Display ergänzen?', null, [], null)] },
+    { n: 'Kontrollieren', a: [auf('Dokumentation vollständig vorhanden?', null, [14, 15], 15), auf('Auftrag ausgeführt?', null, [], null), auf('Mit fachlicher Arbeit zufrieden?', null, [], null)] }
+  ];
+  const MS = { 3: 'Pflichtenheft abgegeben', 4: 'Konstruktion fertig', 15: 'Demonstrator fertig' };
+  const alle = () => phasen.flatMap(p => p.a);
+  const perNr = n => alle().find(a => a.nr === +n);
+  const finde = t => alle().find(a => a.t === t);
+
+  // Beispielverlauf
+  alle().forEach(a => a.log.push(['Di 20.10. 10:02', 'Angelegt' + (a.v ? ', verantwortlich ' + name(a.v) : '')]));
+  finde('Lüfter auslegen').probleme.push({ kw: 2, f: 'y', p: 'Volumenstrom reicht bei 35 °C nicht', m: 'Zweiten Lüfter prüfen, Datenblatt vergleichen', v: 'BW' });
+  finde('Lüfter auslegen').log.unshift(['Mo 02.11. 16:05', 'Ampel KW 45: y – Volumenstrom reicht bei 35 °C nicht']);
+  finde('Gehäuse konstruieren').log.unshift(['Mo 02.11. 15:30', 'Ampel KW 45: g'], ['Sa 31.10. 11:20', 'Endtermin KW 46 → KW 48']);
+  finde('Peltier-Element prüfen').log.unshift(['Do 29.10. 14:40', 'Verworfen']);
+
+  let gew = finde('Gehäuse konstruieren'), sel = null, zieh = null, menueSeit = 0;
+
+  // Versionen: Stand zum Buchungsschluss und Basisplan (Beispieldaten), Schlüssel = Aufgabennummer
+  const kopie = st => Object.fromEntries(Object.entries(st).map(([n, x]) => [n, { ...x, b: new Set(x.b), s: { ...x.s } }]));
+  const stand = () => Object.fromEntries(alle().map(a => [a.nr, { b: new Set(a.b), e: a.e, v: a.v, verworfen: a.verworfen, s: { ...a.s } }]));
+  const nrVon = t => finde(t).nr;
+  const kw45 = stand();
+  const kw44 = kopie(kw45);
+  Object.assign(kw44[nrVon('Gehäuse konstruieren')], { b: new Set([2, 3]), e: 3, s: {} });
+  Object.assign(kw44[nrVon('Peltier-Element prüfen')], { verworfen: false, v: 'BW', e: 2 });
+  Object.assign(kw44[nrVon('Elektrik verdrahten')], { b: new Set([6, 7, 8]), e: 8 });
+  Object.assign(kw44[nrVon('Steuerung programmieren')], { b: new Set([7, 8, 11, 12]), e: 12 });
+  for (const n in kw44) for (const k of Object.keys(kw44[n].s)) if (+k > 0) delete kw44[n].s[k];
+  const basis = kopie(kw44);
+  delete basis[nrVon('Display ergänzen?')];
+  Object.assign(basis[nrVon('Gehäuse drucken')], { b: new Set([4, 5, 6]), e: 6 });
+  basis[nrVon('Lüfter auslegen')].v = 'LS';
+  for (const n in basis) basis[n].s = {};
+  const VERS = { basis, kw44, kw45 };
+  const LABEL = { neu: 'neu', weg: 'verworfen', verschoben: 'verschoben', person: 'Person', ampel: 'Ampel' };
+  let vgl = null, vglName = '', diffListe = [];
+
+  function unterschiede(alt) {
+    const liste = [];
+    const gleich = (x, y) => [...x].sort((p, q) => p - q).join() === [...y].sort((p, q) => p - q).join();
+    for (const a of alle()) {
+      const v = alt[a.nr];
+      if (!v) { liste.push({ a, art: 'neu', t: 'neu angelegt' }); continue; }
+      if (a.verworfen && !v.verworfen) liste.push({ a, art: 'weg', t: 'verworfen' });
+      if (v.e !== a.e) liste.push({ a, art: 'verschoben', t: v.e === null ? `Endtermin KW ${KW[a.e]} gesetzt` : a.e === null ? 'Endtermin entfernt' : `Ende KW ${KW[v.e]} → KW ${KW[a.e]}` });
+      else if (!gleich(v.b, a.b)) liste.push({ a, art: 'verschoben', t: 'Zeitraum geändert' });
+      if (v.v !== a.v) liste.push({ a, art: 'person', t: `Verantwortlich ${v.v ? name(v.v) : 'niemand'} → ${a.v ? name(a.v) : 'niemand'}` });
+      for (const k of Object.keys(a.s)) if (v.s[k] !== a.s[k]) liste.push({ a, art: 'ampel', t: `KW ${KW[k]}: ${{ g: 'grün', y: 'gelb', r: 'rot' }[a.s[k]]}` });
+    }
+    return liste;
+  }
+  const marken = a => [...new Set(diffListe.filter(x => x.a === a && x.art !== 'ampel').map(x => x.art))]
+    .map(art => `<span class="d-tag ${art}">${LABEL[art]}</span>`).join('');
+  const vglBlock = () => !vgl ? '' :
+    `<div><div class="etikett">Änderungen seit ${esc(vglName)}</div><div class="diff-liste">` +
+    (diffListe.length ? diffListe.map(x => `<div><span class="d-tag ${x.art}">${LABEL[x.art]}</span><b>${esc(x.a.t)}</b>: ${esc(x.t)}</div>`).join('') : '<div class="leise">keine Änderungen</div>') +
+    '</div></div>';
+  const braucht = a => !a.verworfen && !a.v && (a.b.size > 0 || a.e !== null);
+  const protokoll = (a, t) => a.log.unshift([jetzt(), t]);
+  function sag(t, ok) {
+    hinweis.textContent = t; hinweis.className = 'r-hinweis' + (ok ? ' ok' : '');
+    clearTimeout(sag.t); sag.t = setTimeout(() => { hinweis.textContent = ''; }, 5000);
+  }
+
+  function zelle(a, k) {
+    // Balken: geplante Woche blau, mit Ampel in deren Farbe (blasser, wenn die Woche nicht geplant war)
+    const cls = ['c']; let innen = '';
+    const balken = j => a.b.has(j) || !!a.s[j];
+    if (balken(k)) {
+      cls.push('b');
+      if (a.s[k]) cls.push('st-' + a.s[k]);
+      if (a.s[k] && !a.b.has(k)) cls.push('ungeplant');
+      if (!balken(k - 1)) cls.push('b-anf');
+      if (!balken(k + 1)) cls.push('b-end');
+    }
+    // Im Vergleich: Plan der alten Version als grauer Schatten, deren Endtermin gestrichelt
+    const alt = vgl && vgl[a.nr];
+    if (alt && alt.b.has(k)) innen += `<span class="geist${alt.b.has(k - 1) ? '' : ' g-anf'}${alt.b.has(k + 1) ? '' : ' g-end'}"></span>`;
+    const eAlt = vgl ? (alt ? alt.e : null) : a.eAlt;
+    if (eAlt !== null && eAlt === k && a.e !== k) innen += `<span class="e-m alt" title="${vgl ? 'Endtermin in der Vergleichsversion' : 'ursprünglicher Endtermin'}">e</span>`;
+    if (a.e === k) innen += '<span class="e-m" title="Endtermin">e</span>';
+    const titel = a.s[k] ? ` title="KW ${KW[k]}: ${{ g: 'grün', y: 'gelb', r: 'rot' }[a.s[k]]}"` : '';
+    return `<div class="${cls.join(' ')}"${titel}>${innen}</div>`;
+  }
+  function gesamt(k) {
+    const s = alle().filter(a => !a.verworfen).map(a => a.s[k]);
+    return s.includes('r') ? 'r' : s.includes('y') ? 'y' : s.includes('g') ? 'g' : '';
+  }
+  const spalte = k => 'w' + (k === JETZT ? ' jetzt' : '') + (FREI.has(k) ? ' frei' : '');
+  function imZug(a, k) {
+    if (!zieh || zieh.a !== a) return false;
+    return k >= Math.min(zieh.von, zieh.bis) && k <= Math.max(zieh.von, zieh.bis);
+  }
+
+  function render() {
+    const breite = 3 + KW.length;
+    diffListe = vgl ? unterschiede(vgl) : [];
+    let h = '<thead><tr><th></th><th class="links">Aufgabe</th><th class="links">Verantw.</th>' +
+      KW.map((w, k) => `<th class="${k === JETZT ? 'jetzt' : ''}" title="KW ${w}">${w}</th>`).join('') + '</tr></thead><tbody>';
+    for (const p of phasen) {
+      h += `<tr class="phase"><td colspan="${breite}">${p.n}<button type="button" class="neu-auf" data-neu="${p.n}">+ Aufgabe</button></td></tr>`;
+      for (const a of p.a) {
+        const chip = a.v ? `<button type="button" class="vchip" data-v="${a.nr}" title="${name(a.v)}">${a.v}</button>`
+          : braucht(a) ? `<button type="button" class="vchip fehlt" data-v="${a.nr}" title="Verantwortlich fehlt">?</button>`
+          : `<button type="button" class="vchip leer" data-v="${a.nr}" title="Noch nicht geplant">–</button>`;
+        h += `<tr data-a="${a.nr}" class="${a.verworfen ? 'verworfen' : ''}${a === gew ? ' gewaehlt' : ''}"><td class="nr">${a.nr}</td>` +
+          `<td class="name" title="${esc(a.t)}"><span class="nm">${marken(a)}${esc(a.t)}</span></td><td class="vw">${chip}</td>` +
+          KW.map((_, k) => `<td class="${spalte(k)}${sel && sel.a === a && sel.k === k ? ' sel' : ''}${imZug(a, k) ? ' vor' : ''}" data-k="${k}">${zelle(a, k)}</td>`).join('') + '</tr>';
+      }
+    }
+    h += `<tr class="ms-r"><td></td><td class="name">◆ Meilensteine</td><td></td>` +
+      KW.map((_, k) => `<td class="${spalte(k)}"><div class="c">${MS[k] ? `<span class="ms" title="${MS[k]}">◆</span>` : ''}</div></td>`).join('') + '</tr>';
+    h += `<tr class="gesamt"><td></td><td class="name">Gesamtstatus</td><td></td>` +
+      KW.map((_, k) => {
+        const g = gesamt(k);
+        const c = g ? `c b st-${g}${gesamt(k - 1) ? '' : ' b-anf'}${gesamt(k + 1) ? '' : ' b-end'}` : 'c';
+        return `<td class="${spalte(k)}"><div class="${c}"></div></td>`;
+      }).join('') + '</tr></tbody>';
+    tab.innerHTML = h;
+    panelZeigen();
+  }
+
+  function panelZeigen() {
+    const a = gew;
+    if (!a) { panel.innerHTML = '<p class="leise">Aufgabe anklicken, um Details zu sehen.</p>'; return; }
+    const bs = [...a.b].sort((x, y) => x - y);
+    const plan = bs.length ? `KW ${KW[bs[0]]} bis KW ${KW[bs[bs.length - 1]]}` : 'noch nicht geplant';
+    const ende = a.e !== null ? `KW ${KW[a.e]}` + (a.eAlt !== null && a.eAlt !== a.e ? ` <span class="leise">(ursprünglich KW ${KW[a.eAlt]})</span>` : '') : 'kein Endtermin';
+    panel.innerHTML = vglBlock() +
+      `<div><div class="etikett">Aufgabe ${a.nr}${a.verworfen ? ' · verworfen' : ''}</div><input class="titel" id="r-name" value="${esc(a.t)}" aria-label="Name der Aufgabe"${a.verworfen ? ' disabled' : ''}></div>` +
+      `<div><div class="etikett">Verantwortlich · genau einer</div><div class="v-wahl${braucht(a) ? ' pflicht' : ''}">` +
+      TEAM.map(t => `<button type="button" data-pv="${t.k}" class="${a.v === t.k ? 'an' : ''}" aria-pressed="${a.v === t.k}"${a.verworfen ? ' disabled' : ''}>${t.n}</button>`).join('') + '</div>' +
+      (braucht(a) ? '<div class="r-hinweis" style="margin-top:4px">Pflicht, weil die Aufgabe geplant ist</div>' : '') + '</div>' +
+      `<div><div class="etikett">Plan</div>${plan}<br>Ende: ${ende}</div>` +
+      (a.probleme.length ? `<div><div class="etikett">Probleme</div>` + a.probleme.map(p =>
+        `<div><span class="dot ${p.f}" style="vertical-align:-3px"></span> KW ${KW[p.kw]}: ${esc(p.p)}<br><span class="leise">→ ${esc(p.m)} (${p.v})</span></div>`).join('') + '</div>' : '') +
+      `<div><div class="etikett">Verlauf</div><div class="log">` + a.log.map(([z, t]) => `<div><span class="mono">${z}</span><span>${esc(t)}</span></div>`).join('') + '</div></div>';
+    const feld = document.getElementById('r-name');
+    feld.addEventListener('input', () => {
+      a.t = feld.value;
+      const td = tab.querySelector(`tr[data-a="${a.nr}"] td.name`);
+      if (td) { td.innerHTML = `<span class="nm">${marken(a)}${esc(a.t)}</span>`; td.title = a.t; }
+    });
+    feld.addEventListener('change', () => { protokoll(a, 'Umbenannt in „' + a.t + '“'); panelZeigen(); });
+  }
+
+  function menueOeffnen(a) {
+    const knopf = tab.querySelector(`tr[data-a="${a.nr}"] .vchip`);
+    if (!knopf || a.verworfen) return;
+    const bb = koerper.getBoundingClientRect(), kb = knopf.getBoundingClientRect();
+    menue.style.left = (kb.left - bb.left) + 'px';
+    menue.style.top = (kb.bottom - bb.top + 4) + 'px';
+    menue.innerHTML = '<div class="etikett">Verantwortlich · genau einer</div>' + (braucht(a) ? '<div class="pflicht-t">Pflicht, weil die Aufgabe geplant ist</div>' : '') +
+      TEAM.map(t => `<button type="button" data-mv="${t.k}" class="${a.v === t.k ? 'an' : ''}"><span class="vchip">${t.k}</span>${t.n}</button>`).join('');
+    menue.dataset.a = a.nr;
+    menue.hidden = false;
+    menueSeit = Date.now();
+  }
+  function verantwortlich(a, k) {
+    menue.hidden = true;
+    if (!a || a.v === k) return;
+    protokoll(a, a.v ? `Verantwortlich ${name(a.v)} → ${name(k)}` : `Verantwortlich: ${name(k)}`);
+    a.v = k; gew = a; render();
+    sag('Gespeichert: ' + name(k) + ' ist verantwortlich.', true);
+  }
+  function nachAenderung(a) {
+    gew = a; render();
+    if (braucht(a)) { sag('Wer ist verantwortlich? Bitte genau einen Schüler wählen.'); menueOeffnen(a); }
+  }
+
+  function setzen(a, k, taste) {
+    if (a.verworfen) return sag('Verworfene Aufgaben sind gesperrt.');
+    if (FREI.has(k) && taste !== 'Delete') return sag('KW ' + KW[k] + ' ist keine Projektwoche.');
+    const kw = 'KW ' + KW[k];
+    if (taste === 'b') {
+      if (a.b.has(k)) { a.b.delete(k); protokoll(a, kw + ': b entfernt'); } else { a.b.add(k); protokoll(a, kw + ': b geplant'); }
+    } else if (taste === 'e') {
+      if (a.e === k) return;
+      if (a.e !== null) { if (a.eAlt === null) a.eAlt = a.e; protokoll(a, 'Endtermin KW ' + KW[a.e] + ' → ' + kw); } else protokoll(a, 'Endtermin ' + kw);
+      a.e = k;
+    } else if ('gyr'.includes(taste)) {
+      if (k > JETZT) return sag('Ampeln gibt es nur für die laufende und vergangene Wochen.');
+      if (taste !== 'g') return dialogOeffnen(a, k, taste);
+      a.s[k] = 'g'; protokoll(a, 'Ampel ' + kw + ': g');
+    } else if (taste === 'Delete') {
+      if (a.s[k]) { delete a.s[k]; protokoll(a, 'Ampel ' + kw + ' gelöscht'); }
+      else if (a.e === k) { a.e = null; protokoll(a, 'Endtermin gelöscht'); }
+      else if (a.b.has(k)) { a.b.delete(k); protokoll(a, kw + ': b entfernt'); }
+      else return;
+    }
+    nachAenderung(a);
+  }
+
+  // Pflichtfeld bei y/r
+  const dTitel = document.getElementById('r-dialog-titel'), dP = document.getElementById('r-problem'), dM = document.getElementById('r-massnahme');
+  const dV = document.getElementById('r-verantw'), dOk = document.getElementById('r-speichern');
+  let dZiel = null;
+  dV.innerHTML = TEAM.map(t => `<option value="${t.k}">${t.n}</option>`).join('');
+  function dialogOeffnen(a, k, f) {
+    dZiel = { a, k, f };
+    dTitel.textContent = `${a.t} · KW ${KW[k]} · ${f === 'y' ? 'Gelb' : 'Rot'}`;
+    dP.value = ''; dM.value = ''; dV.value = a.v || TEAM[0].k; dOk.disabled = true;
+    menue.hidden = true; dialog.hidden = false; dP.focus();
+  }
+  const pruefen = () => { dOk.disabled = !(dP.value.trim() && dM.value.trim()); };
+  dP.addEventListener('input', pruefen); dM.addEventListener('input', pruefen);
+  document.getElementById('r-abbrechen').addEventListener('click', () => {
+    dialog.hidden = true; sag('Ohne Problem und Maßnahme wird keine gelbe oder rote Ampel gespeichert.');
+  });
+  dOk.addEventListener('click', () => {
+    const { a, k, f } = dZiel;
+    a.s[k] = f;
+    a.probleme.push({ kw: k, f, p: dP.value.trim(), m: dM.value.trim(), v: dV.value });
+    protokoll(a, `Ampel KW ${KW[k]}: ${f} – ${dP.value.trim()}`);
+    dialog.hidden = true;
+    nachAenderung(a);
+  });
+
+  // Zellen wählen und b durch Ziehen planen
+  tab.addEventListener('pointerdown', e => {
+    const td = e.target.closest('td[data-k]'), tr = td && td.closest('tr[data-a]');
+    if (!tr || !dialog.hidden) return;
+    if (e.target.hasPointerCapture && e.target.hasPointerCapture(e.pointerId)) e.target.releasePointerCapture(e.pointerId);
+    e.preventDefault();
+    const a = perNr(tr.dataset.a), k = +td.dataset.k;
+    zieh = { a, von: k, bis: k };
+    sel = { a, k }; gew = a; menue.hidden = true;
+    render();
+  });
+  tab.addEventListener('pointerover', e => {
+    if (!zieh) return;
+    const td = e.target.closest('td[data-k]'), tr = td && td.closest('tr[data-a]');
+    if (!tr || +tr.dataset.a !== zieh.a.nr || +td.dataset.k === zieh.bis) return;
+    zieh.bis = +td.dataset.k; render();
+  });
+  document.addEventListener('pointerup', () => {
+    if (!zieh) return;
+    const z = zieh; zieh = null;
+    if (z.von === z.bis) { render(); return; }
+    if (z.a.verworfen) { render(); return sag('Verworfene Aufgaben sind gesperrt.'); }
+    const l = Math.min(z.von, z.bis), h = Math.max(z.von, z.bis), ks = [];
+    for (let k = l; k <= h; k++) if (!FREI.has(k)) { z.a.b.add(k); ks.push(k); }
+    if (!ks.length) { render(); return; }
+    protokoll(z.a, `b geplant: KW ${KW[ks[0]]} bis KW ${KW[ks[ks.length - 1]]}`);
+    if (z.a.e === null) { z.a.e = ks[ks.length - 1]; protokoll(z.a, 'Endtermin KW ' + KW[z.a.e]); }
+    sel = { a: z.a, k: h };
+    nachAenderung(z.a);
+  });
+
+  tab.addEventListener('click', e => {
+    const v = e.target.closest('[data-v]');
+    if (v) { gew = perNr(v.dataset.v); render(); menueOeffnen(gew); return; }
+    const neu = e.target.closest('[data-neu]');
+    if (neu) {
+      const p = phasen.find(x => x.n === neu.dataset.neu);
+      const a = auf('Neue Aufgabe', null, [], null);
+      a.log.push([jetzt(), 'Angelegt']);
+      p.a.push(a); gew = a; sel = null; render();
+      const feld = document.getElementById('r-name'); feld.focus(); feld.select();
+      return sag('Namen rechts eintragen, dann über die Wochen ziehen.', true);
+    }
+    const n = e.target.closest('td.name'), tr = n && n.closest('tr[data-a]');
+    if (tr) { gew = perNr(tr.dataset.a); sel = null; render(); }
+  });
+  menue.addEventListener('click', e => { const b = e.target.closest('[data-mv]'); if (b) verantwortlich(perNr(menue.dataset.a), b.dataset.mv); });
+  panel.addEventListener('click', e => { const b = e.target.closest('[data-pv]'); if (b) verantwortlich(gew, b.dataset.pv); });
+  wurzel.querySelector('.r-palette').addEventListener('click', e => {
+    const b = e.target.closest('[data-taste]');
+    if (!b) return;
+    if (!sel) return sag('Erst eine Zelle im Raster anklicken.');
+    setzen(sel.a, sel.k, b.dataset.taste);
+  });
+  document.addEventListener('click', e => {
+    if (!menue.hidden && Date.now() - menueSeit > 300 && !menue.contains(e.target) && !e.target.closest('[data-v]')) menue.hidden = true;
+  });
+  document.addEventListener('pointerdown', e => {
+    // composedPath statt contains: die angeklickte Zelle ist nach render() schon ersetzt
+    if (sel && !e.composedPath().includes(wurzel)) { sel = null; menue.hidden = true; render(); }
+  });
+
+  const vglWahl = document.getElementById('r-vergleich');
+  vglWahl.addEventListener('change', () => {
+    vgl = VERS[vglWahl.value] || null;
+    vglName = vglWahl.selectedOptions[0].textContent;
+    render();
+  });
+
+  // Tastatur wie in Excel
+  document.addEventListener('keydown', e => {
+    if (!sel || !dialog.hidden || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.target.closest && e.target.closest('input, textarea, select, [contenteditable="true"]')) return;
+    const liste = alle(), i = liste.indexOf(sel.a);
+    const pfeil = { ArrowLeft: [0, -1], ArrowRight: [0, 1], ArrowUp: [-1, 0], ArrowDown: [1, 0] }[e.key];
+    if (pfeil) {
+      e.preventDefault();
+      const ni = Math.min(Math.max(i + pfeil[0], 0), liste.length - 1), nk = Math.min(Math.max(sel.k + pfeil[1], 0), KW.length - 1);
+      sel = { a: liste[ni], k: nk }; gew = sel.a; render();
+      return;
+    }
+    if (e.key === 'Escape') { menue.hidden = true; return; }
+    const taste = (e.key === 'Backspace' || e.key === 'Delete') ? 'Delete' : e.key.toLowerCase();
+    if (!['b', 'e', 'g', 'y', 'r', 'Delete'].includes(taste)) return;
+    e.preventDefault();
+    setzen(sel.a, sel.k, taste);
+  });
+
+  render();
+})();
+</script>
