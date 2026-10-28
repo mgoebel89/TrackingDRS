@@ -362,6 +362,26 @@ table.matrix tr.achtung td:first-child { box-shadow: inset 3px 0 0 var(--rot); }
   .monat .ke { display: none; }
 }
 
+/* Besprechung */
+.bespr { display: grid; gap: 16px; grid-template-columns: minmax(0, 1.3fr) minmax(300px, 1fr); align-items: start; }
+@media (max-width: 1000px) { .bespr { grid-template-columns: minmax(0, 1fr); } }
+.zf { display: grid; gap: 4px; padding-top: 8px; border-top: 1px solid var(--linie); }
+.ez { display: flex; gap: 8px; align-items: baseline; font-size: .92em; flex-wrap: wrap; }
+.ez .punkt { flex: none; align-self: center; }
+.ez input[type=checkbox] { align-self: center; flex: none; }
+.ez-m { width: 14px; text-align: center; flex: none; color: var(--blau); font-weight: 700; }
+.ez-m.ms { color: var(--blau); }
+.ez-text { flex: 1 1 200px; min-width: 0; }
+.ez.erl .ez-text { color: var(--leise); text-decoration: line-through; }
+.ez button.leicht { min-height: 26px; padding: 0 8px; }
+.vortext { white-space: pre-wrap; margin: 0; }
+.protokoll { border: 1px solid var(--linie); border-radius: 10px 4px 4px 4px; padding: 8px 12px; }
+.protokoll summary { cursor: pointer; }
+.protokoll[open] summary { margin-bottom: 8px; }
+.notiz-alt { background: #fffbea; border-radius: 6px; padding: 6px 8px; }
+.neu-eintrag { display: flex; gap: 6px; flex-wrap: wrap; }
+.neu-eintrag input { flex: 1 1 220px; width: auto; }
+
 /* Team-Uebersicht */
 .uebersicht { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); align-items: start; }
 .dem-gruppe { display: grid; gap: 4px; }

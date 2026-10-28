@@ -173,6 +173,13 @@ const T = {
         : 'Termin gebucht: ') + T.kurzTag(d.datum) + ' ' + d.uhrzeit,
       termin_storniert: () => 'Termin ' + T.kurzTag(d.datum) + ' ' + d.uhrzeit + ' abgesagt',
       termin_entfallen: () => 'Termin ' + T.kurzTag(d.datum) + ' ' + d.uhrzeit + ' entfällt: ' + d.grund,
+      vorbereitung: () => 'Stand für die Besprechung ' + T.kwText(d.woche) + ' eingetragen',
+      eintrag_neu: () => ({ frage: 'Frage', thema: 'Thema', idee: 'Idee', auftrag: 'Auftrag', absprache: 'Absprache' })[d.eintragsart] +
+        ': „' + d.text + '“' + (d.frist ? ' bis ' + d.frist.slice(8, 10) + '.' + d.frist.slice(5, 7) + '.' : ''),
+      eintrag_erledigt: () => (d.eintragsart === 'auftrag' ? 'Auftrag erledigt' : 'Geklärt') + ': „' + d.text + '“',
+      eintrag_offen: () => 'Wieder offen: „' + d.text + '“',
+      eintrag_verworfen: () => 'Verworfen: „' + d.text + '“',
+      besprechung_abgeschlossen: () => 'Besprechung ' + T.kwText(d.woche) + ' abgeschlossen (' + d.ergebnisse + ' Ergebnisse)',
       version: () => (d.versionsart === 'basisplan' ? 'Basisplan festgelegt' : 'Version gespeichert') + ': ' + d.name,
     };
     try { return (texte[e.art] || (() => e.art))(); } catch (f) { return e.art; }

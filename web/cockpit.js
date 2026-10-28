@@ -61,7 +61,7 @@ const Cockpit = (() => {
         el('span', { class: 'mono', text: h.uhrzeit }),
         el('div', {}, el('b', { text: h.titel }), el('div', { class: 'leise', text: 'Besprechung · ' + h.text +
           (h.warnungen ? ' · ' + zahl(h.warnungen, 'Warnung', 'Warnungen') : '') })),
-        el('button', { type: 'button', onclick: zuProjekt(h.projekt_id) }, 'Öffnen')), 'Heute keine Besprechungen.'),
+        el('a', { class: 'knopf haupt', href: '#besprechung/' + h.projekt_id }, 'Besprechen ▶')), 'Heute keine Besprechungen.'),
       gruppe('Jetzt erledigen', c.erledigen, e => el('div', { class: 'hb' },
         el('span', { class: 'hb-m', text: '›' }),
         el('div', {}, el('b', { text: e.titel }), el('div', { class: 'leise', text: e.text })),

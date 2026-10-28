@@ -15,7 +15,7 @@ RANG = {"g": 1, "y": 2, "r": 3}
 # Aenderungen am Tracking-Sheet (fuer "seit der letzten Besprechung")
 SHEET = ("aufgabe_neu", "titel", "verantwortlich", "verworfen", "wiederhergestellt", "reihenfolge", "plan", "ende", "ampel",
          "erledigt", "nicht_erledigt", "meilenstein_neu", "meilenstein_geaendert", "meilenstein_verworfen", "meilenstein_zurueck")
-WICHTIG = {"rote_ampel": 0, "termin_fehlt": 1, "nicht_aktualisiert": 2, "endtermin": 3}
+WICHTIG = {"rote_ampel": 0, "termin_fehlt": 1, "nicht_aktualisiert": 2, "auftrag_ueberfaellig": 3, "endtermin": 4}
 VERLAUF_WOCHEN = 10
 
 

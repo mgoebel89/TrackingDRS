@@ -630,6 +630,10 @@ def warnungen(con, pid):
         liste.append({"art": "rote_ampel", "stufe": "intern", "woche": diese,
                       "text": "Rot in %s: „%s“%s%s." % (kw_text(diese), rot[0]["titel"], ": " + problem[0] if problem else "",
                                                        " und %d weitere" % (len(rot) - 1) if len(rot) > 1 else "")})
+    for e in con.execute("SELECT * FROM eintrag WHERE projekt_id = ? AND art = 'auftrag' AND verworfen = 0 AND erledigt IS NULL "
+                         "AND frist < ? ORDER BY frist", (pid, heute.isoformat())):
+        liste.append({"art": "auftrag_ueberfaellig", "stufe": "warnung", "eintrag_id": e["id"],
+                      "text": "Auftrag „%s“ seit %s überfällig." % (e["text"], tag_text(e["frist"]))})
     for a in aufgaben:
         if a["ende"] and not a["erledigt"] and a["ende"] < diese:
             liste.append({"art": "endtermin", "stufe": "warnung", "aufgabe_id": a["id"],

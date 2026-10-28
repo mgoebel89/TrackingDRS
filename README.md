@@ -15,7 +15,8 @@ Besprechung werden daraus berechnet.
 | B | Tracking-Sheet: Raster mit Plan und Ampel, Verantwortliche, Meilensteine, Basisplan, Vergleich, Handyansicht „Diese Woche“, Schul-Logo | fertig (Versionen zum Buchungsschluss kommen mit C) |
 | C1 | Projektzeiten als Regeln (Wochentag, jede/gerade/ungerade KW), Ferien, Ausfälle, einzelne Tage anpassen, Termine buchen und umbuchen bis zum Buchungsschluss, Version zum Buchungsschluss, Häkchen „erledigt“, Warnungen, Team-Links über HTTP | fertig |
 | C2 | Cockpit (Handlungsbedarf, zwei Wochen, Projektkarten, Ampel-Matrix), Kalender (Monat, Halbjahr), Aktivitäten, Dienstkalender je Lehrkraft und Schulkalender (Ferien) als ICS-Abo | fertig |
-| D | Besprechungstafel (Smartboard), Kurzzusammenfassung, Arbeitsaufträge | geplant |
+| D1 | Besprechung: Vorbereitung des Teams (Stand, Fragen, Themen, Ideen), Kurzzusammenfassung ohne KI, Lehrernotizen, Ergebnis (Absprachen, Aufträge mit Frist, Meilensteine), Abschließen mit Protokoll, Aufträge abhaken, Warnung „Auftrag überfällig“ | fertig |
+| D2 | Besprechungstafel (Smartboard): Zonen, Stift, Post-its, live von Schülergeräten | geplant |
 | E | Anfragen: Rückfrage, Bestellliste mit Einreichfenstern, Ausleihe, Abnahme | geplant |
 | F | Fotos, Mindmap, Lehrernotizen, Vorlagen, Excel/PDF, Archiv, Sicherung | geplant |
 | G | WireGuard-Anbindung (Zugriff von zuhause), Probelauf | geplant |

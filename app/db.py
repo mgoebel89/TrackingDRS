@@ -244,6 +244,38 @@ MIGRATIONEN = [
         ort TEXT NOT NULL DEFAULT '');
     CREATE INDEX kalender_termin_zeit ON kalender_termin (abo_id, beginn)
     """,
+    # 5: Besprechungen (Stufe D). Eine je Projekt und Woche. Eintraege sind die Post-its: Fragen und Themen des Teams,
+    # Ideen, Ergebnisse (Absprache, Auftrag mit Frist, Meilenstein). zone/x/y sind fuer die Tafel (D2).
+    """
+    CREATE TABLE besprechung (
+        id INTEGER PRIMARY KEY,
+        projekt_id INTEGER NOT NULL REFERENCES projekt(id) ON DELETE CASCADE,
+        woche TEXT NOT NULL,
+        vorbereitung TEXT NOT NULL DEFAULT '',
+        vorbereitet TEXT,
+        notizen TEXT NOT NULL DEFAULT '',
+        abgeschlossen TEXT,
+        abgeschlossen_von TEXT,
+        protokoll TEXT,
+        UNIQUE (projekt_id, woche));
+    CREATE TABLE eintrag (
+        id INTEGER PRIMARY KEY,
+        projekt_id INTEGER NOT NULL REFERENCES projekt(id) ON DELETE CASCADE,
+        besprechung_id INTEGER REFERENCES besprechung(id),
+        art TEXT NOT NULL CHECK (art IN ('frage', 'thema', 'idee', 'auftrag', 'absprache', 'meilenstein')),
+        text TEXT NOT NULL,
+        frist TEXT,
+        verantwortlich_id INTEGER REFERENCES mitglied(id),
+        erledigt TEXT,
+        verworfen INTEGER NOT NULL DEFAULT 0,
+        zone TEXT,
+        x REAL,
+        y REAL,
+        erstellt TEXT NOT NULL,
+        wer_art TEXT NOT NULL,
+        wer TEXT NOT NULL);
+    CREATE INDEX eintrag_projekt ON eintrag (projekt_id, id)
+    """,
 ]
 
 

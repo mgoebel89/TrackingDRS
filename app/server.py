@@ -23,7 +23,7 @@ import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import VERSION, cockpit, db, einstellungen, kalender, konten, projekte, sheet, termine
+from . import VERSION, besprechung, cockpit, db, einstellungen, kalender, konten, projekte, sheet, termine
 
 BASIS = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WEB_DIR = os.path.join(BASIS, "web")
@@ -570,6 +570,29 @@ def api_dienstkalender_entfernen(h, con, daten):
     h.antwort(200, {"dienst": None})
 
 
+# --- Besprechung ---
+
+def api_team_besprechung(h, con, daten, token):
+    h.antwort(200, {"besprechung": besprechung.lesen(con, _team_projekt(con, token))})
+
+
+def api_team_besprechung_aendern(h, con, daten, token):
+    pid = _team_projekt(con, token)
+    ergebnis = besprechung.aendern(con, pid, "team", "Team", daten)
+    h.antwort(200, {"ergebnis": ergebnis, "besprechung": besprechung.lesen(con, pid)})
+
+
+def api_besprechung(h, con, daten, pid):
+    _k, pid = _projekt(h, con, pid)
+    h.antwort(200, {"besprechung": besprechung.lesen(con, pid, lehrkraft=True)})
+
+
+def api_besprechung_aendern(h, con, daten, pid):
+    k, pid = _projekt(h, con, pid)
+    ergebnis = besprechung.aendern(con, pid, "lehrkraft", k["kuerzel"], daten)
+    h.antwort(200, {"ergebnis": ergebnis, "besprechung": besprechung.lesen(con, pid, lehrkraft=True)})
+
+
 # --- Termine ---
 
 def _termin_aendern(h, con, pid, wer_art, wer, daten):
@@ -686,6 +709,8 @@ ROUTEN = [(m, re.compile(p), f) for m, p, f in [
     ("GET", r"/api/projekte/(\d+)/aufgabe/(\d+)/verlauf", api_verlauf),
     ("POST", r"/api/projekte/(\d+)/basisplan", api_basisplan),
     ("GET", r"/api/projekte/(\d+)/termine", api_projekt_termine),
+    ("GET", r"/api/projekte/(\d+)/besprechung", api_besprechung),
+    ("POST", r"/api/projekte/(\d+)/besprechung", api_besprechung_aendern),
     ("POST", r"/api/projekte/(\d+)/termin", api_projekt_termin),
     ("GET", r"/api/termine", api_termine),
     ("POST", r"/api/termine/regeln", api_regel_anlegen),
@@ -701,6 +726,8 @@ ROUTEN = [(m, re.compile(p), f) for m, p, f in [
     ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/version/(\d+)", api_team_version),
     ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/aufgabe/(\d+)/verlauf", api_team_verlauf),
     ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/termine", api_team_termine),
+    ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/besprechung", api_team_besprechung),
+    ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/besprechung", api_team_besprechung_aendern),
     ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/termin", api_team_termin),
 ]]
 

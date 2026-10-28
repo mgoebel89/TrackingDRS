@@ -52,12 +52,13 @@ async function start() {
 
 async function zeigen() {
   const [ansicht, id] = (location.hash.slice(1) || 'cockpit').split('/');
-  const nav = ansicht === 'projekt' ? 'projekte' : ansicht;
+  const nav = ansicht === 'projekt' ? 'projekte' : ansicht === 'besprechung' ? 'cockpit' : ansicht;
   document.querySelectorAll('nav.seite a').forEach(a => a.classList.toggle('an', a.dataset.ansicht === nav));
   try {
     if (ansicht === 'cockpit') await Cockpit.cockpitZeigen();
     else if (ansicht === 'kalender') await Cockpit.kalenderZeigen(id);
     else if (ansicht === 'aktivitaeten') await Cockpit.aktivitaetenZeigen();
+    else if (ansicht === 'besprechung') await Besprechung.lehrerZeigen(Number(id));
     else if (ansicht === 'projekte') await projekteZeigen(false);
     else if (ansicht === 'archiv') await projekteZeigen(true);
     else if (ansicht === 'termine') await termineZeigen();
@@ -211,6 +212,7 @@ async function projektZeigen(id) {
   T.setzen(inhalt, 
     el('div', { class: 'werkzeug' },
       el('h1', { class: 'dreieck', text: p.titel }),
+      p.archiviert ? null : el('a', { class: 'knopf', href: '#besprechung/' + p.id }, 'Besprechung ▶'),
       el('button', { type: 'button', onclick: () => projektBearbeiten(p) }, 'Bearbeiten'),
       el('button', { type: 'button', class: p.archiviert ? '' : 'warnen', onclick: () => archivieren(p) },
         p.archiviert ? 'Wieder aktivieren' : 'Archivieren')),
