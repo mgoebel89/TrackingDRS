@@ -179,11 +179,36 @@ def projekt_tage(con, p, von=None, bis=None):
     return [t for t in tage(con, projekt_regeln(con, p), von, bis) if not t["entfaellt"]]
 
 
+def wochen_info(con, p):
+    """(projektwochen, ausfallwochen): Wochen (Montage) mit mindestens einem Projekttag, und Wochen, in denen alle
+    Projekttage entfallen, mit Grund ({woche: 'Herbstferien'}). (None, {}) solange keine Projektzeit gilt."""
+    regeln = projekt_regeln(con, p)
+    if not regeln:
+        return None, {}
+    alle = tage(con, regeln, datetime.date.fromisoformat(p["start"]), _projekt_ende(p))
+    statt = {t["woche"] for t in alle if not t["entfaellt"]}
+    ausfall = {}
+    for t in alle:
+        if t["entfaellt"] and t["woche"] not in statt and t["entfaellt"] not in ausfall.setdefault(t["woche"], []):
+            ausfall[t["woche"]].append(t["entfaellt"])
+    return sorted(statt), {w: ", ".join(g) for w, g in ausfall.items()}
+
+
 def projektwochen(con, p):
     """Wochen (Montage) mit mindestens einem Projekttag; None, solange fuer das Projekt keine Projektzeit gilt."""
-    if not projekt_regeln(con, p):
-        return None
-    return sorted({t["woche"] for t in projekt_tage(con, p)})
+    return wochen_info(con, p)[0]
+
+
+def entfallende_tage(con, pid, tage_voraus=21):
+    """Projekttage von heute an, die wegen Ferien, Ausfall oder Streichung wegfallen (fuer die Team-Uebersicht)."""
+    p = _projekt(con, pid)
+    heute = _heute()
+    bis = min(heute + tage_voraus * TAG, _projekt_ende(p))
+    liste = []
+    for t in tage(con, projekt_regeln(con, p), max(heute, datetime.date.fromisoformat(p["start"])), bis):
+        if t["entfaellt"] and not any(x["datum"] == t["datum"] for x in liste):
+            liste.append({"datum": t["datum"], "woche": t["woche"], "grund": t["entfaellt"]})
+    return liste
 
 
 def _wochen_schluss(tage_woche, buchung):
@@ -209,8 +234,9 @@ def _kuerzel(con):
 
 # --- Sicht fuer Team und Lehrkraft auf die Termine eines Projekts ---
 
-def termin_sicht(con, pid, lehrkraft=False, wochen=4):
-    """Die naechsten Projektwochen mit ihren Tagen und Terminen. Das Team sieht fremde Buchungen nur als 'belegt'."""
+def termin_sicht(con, pid, lehrkraft=False, wochen=4, aktuell=False):
+    """Die naechsten Projektwochen mit ihren Tagen und Terminen. Das Team sieht fremde Buchungen nur als 'belegt'.
+    aktuell: nur eine Woche, die laufende, solange sie noch einen Projekttag hat, sonst die naechste Projektwoche."""
     p = _projekt(con, pid)
     jetzt = db.jetzt()
     heute = _heute()
@@ -251,6 +277,8 @@ def termin_sicht(con, pid, lehrkraft=False, wochen=4):
             "woche": w, "schluss": schluss, "fest": fest, "tage": tage_aus,
             "buchung": {"regel_id": b["projektzeit_id"], "datum": b["datum"], "uhrzeit": b["uhrzeit"],
                         "wer_art": b["wer_art"], "wer": b["wer"]} if b is not None else None})
+    if aktuell:
+        ergebnis = [w for w in ergebnis if any(t["datum"] >= heute.isoformat() for t in w["tage"])][:1]
     return {"wochen": ergebnis, "regeln": bool(projekt_regeln(con, p)), "jetzt": jetzt}
 
 

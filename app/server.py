@@ -477,8 +477,8 @@ def api_sheet(h, con, daten, pid):
 
 
 def api_sheet_aendern(h, con, daten, pid):
-    k, pid = _projekt(h, con, pid)
-    _sheet_aendern(h, con, pid, "lehrkraft", k["kuerzel"], daten)
+    _projekt(h, con, pid)
+    raise Fehler(403, "Das Tracking-Sheet bearbeitet nur das Team. Lehrkräfte können es nur ansehen.")
 
 
 def api_version(h, con, daten, pid, vid):
@@ -504,14 +504,19 @@ def _termin_aendern(h, con, pid, wer_art, wer, daten):
         termine.stornieren(con, pid, wer_art, wer, daten.get("woche"))
     else:
         termine.buchen(con, pid, wer_art, wer, daten.get("regel_id"), daten.get("datum"), daten.get("uhrzeit"))
-    lehrkraft = wer_art == "lehrkraft"
-    h.antwort(200, {"termine": termine.termin_sicht(con, pid, lehrkraft=lehrkraft, wochen=6 if lehrkraft else 4),
-                    "warnungen": termine.warnungen(con, pid)})
+    if wer_art == "team":
+        return h.antwort(200, _team_termine(con, pid))
+    h.antwort(200, {"termine": termine.termin_sicht(con, pid, lehrkraft=True, wochen=6), "warnungen": termine.warnungen(con, pid)})
+
+
+def _team_termine(con, pid):
+    """Was die Team-Uebersicht braucht: Termine nur der aktuellen Woche, Warnungen, entfallende Projekttage."""
+    return {"termine": termine.termin_sicht(con, pid, wochen=6, aktuell=True), "warnungen": termine.warnungen(con, pid),
+            "entfallen": termine.entfallende_tage(con, pid)}
 
 
 def api_team_termine(h, con, daten, token):
-    pid = _team_projekt(con, token)
-    h.antwort(200, {"termine": termine.termin_sicht(con, pid), "warnungen": termine.warnungen(con, pid)})
+    h.antwort(200, _team_termine(con, _team_projekt(con, token)))
 
 
 def api_team_termin(h, con, daten, token):

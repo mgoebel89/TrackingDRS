@@ -1,5 +1,5 @@
-// Tracking-Sheet: Raster (PC, Tablet) und "Diese Woche" (Handy). Wird vom Team (ueber den Link) und von der
-// Lehrkraft (Projektseite) gleich benutzt; nur die Adresse der Schnittstelle und die Rolle unterscheiden sich.
+// Tracking-Sheet: Raster (PC, Tablet) und "Diese Woche" (Handy). Das Team bearbeitet es ueber seinen Link, die
+// Lehrkraft sieht es auf der Projektseite nur an (lesen, vergleichen, Verlauf, Basisplan festlegen).
 //
 // Ebenen je Zelle: Plan (b = geplante Woche, als blauer Balken), Endtermin (e, Marke) und Ampel (g/y/r faerbt den
 // Balken der Woche). Eingabe: Zelle anklicken und Taste druecken (wie in Excel), ueber Wochen ziehen plant b.
@@ -11,9 +11,10 @@ const Raster = (() => {
   const AMPEL = { g: 'grün', y: 'gelb', r: 'rot' };
   const LABEL = { neu: 'neu', weg: 'verworfen', verschoben: 'verschoben', person: 'Person', ampel: 'Ampel' };
 
-  function erzeugen({ ort, basis, rolle, ansicht = 'raster', beiAenderung }) {
+  function erzeugen({ ort, basis, rolle, ansicht = 'raster', beiAenderung, beiLaden }) {
     const S = { sheet: null, gew: null, sel: null, zieh: null, vgl: null, vglId: '', diff: [], verlauf: {}, menue: null };
     const lehrkraft = rolle === 'lehrkraft';
+    const nurLesen = () => lehrkraft || S.sheet.projekt.archiviert;
 
     // --- Hilfen ---
     const wochen = () => S.sheet.wochen;
@@ -24,6 +25,7 @@ const Raster = (() => {
     const name = id => { const m = mitglied(id); return m ? m.vorname + ' ' + m.nachname : 'niemand'; };
     const braucht = a => !a.verworfen && !a.verantwortlich_id && (a.plan.length > 0 || a.ende !== null);
     const frei = w => S.sheet.projektwochen !== null && !S.sheet.projektwochen.includes(w);
+    const ausfall = w => (S.sheet.ausfallwochen || {})[w];
     const offenerDialog = () => document.querySelector('dialog[open]') !== null;
 
     async function senden(aktion, daten) {
@@ -32,6 +34,7 @@ const Raster = (() => {
         S.sheet = antwort.sheet;
         S.verlauf = {};
         zeichnen();
+        if (beiLaden) beiLaden(S.sheet);
         if (beiAenderung) beiAenderung();
         return antwort.ergebnis || {};
       } catch (e) {
@@ -50,6 +53,7 @@ const Raster = (() => {
         S.verlauf = {};
         if (S.gew && !aufgabe(S.gew)) S.gew = null;
         zeichnen();
+        if (beiLaden) beiLaden(S.sheet);
       } catch (e) {
         if (!nurWennNeu) T.setzen(ort, el('div', { class: 'leer', text: e.message }));
       }
@@ -71,7 +75,7 @@ const Raster = (() => {
         S.sheet.versionen.map(v => el('option', { value: String(v.id), text: v.name + (v.art === 'basisplan' && !v.aktiv ? ' (abgelöst)' : '') })));
       auswahl.value = S.vglId;
       return el('div', { class: 'r-leiste' },
-        el('span', { class: 'r-palette', role: 'toolbar', 'aria-label': 'Gewählte Zelle setzen' },
+        nurLesen() ? null : el('span', { class: 'r-palette', role: 'toolbar', 'aria-label': 'Gewählte Zelle setzen' },
           el('span', { class: 'etikett', text: 'Zelle' }),
           [['b', 'b: geplante Woche', el('span', { class: 'm-b' }), 'b'],
             ['e', 'e: Endtermin', el('span', { class: 'e-m', text: 'e' })],
@@ -82,7 +86,8 @@ const Raster = (() => {
             el('button', { type: 'button', title: titel, 'aria-label': titel, onclick: () => tasteAnZelle(taste) }, inhalt))),
         el('label', { class: 'r-vergl' }, 'Vergleichen mit', auswahl),
         lehrkraft ? el('button', { type: 'button', onclick: basisplanSetzen }, 'Als Basisplan festlegen') : null,
-        el('button', { type: 'button', onclick: () => meilensteinDialog() }, '+ Meilenstein'));
+        nurLesen() ? null : el('button', { type: 'button', onclick: () => meilensteinDialog() }, '+ Meilenstein'),
+        lehrkraft ? el('span', { class: 'leise', text: 'Nur ansehen: Das Sheet bearbeitet das Team.' }) : null);
     }
 
     function legende() {
@@ -94,7 +99,8 @@ const Raster = (() => {
         el('span', { text: '◆ Meilenstein' }),
         el('span', { text: 'blau hinterlegt: laufende Woche' }),
         el('span', { text: '✓ erledigt' }),
-        S.sheet.projektwochen !== null ? el('span', {}, el('span', { class: 'm-frei' }), 'keine Projektwoche') : null,
+        S.sheet.projektwochen !== null ? el('span', {}, el('span', { class: 'm-frei' }), 'kein Projekttag') : null,
+        Object.keys(S.sheet.ausfallwochen || {}).length ? el('span', {}, el('span', { class: 'm-frei m-ausfall' }), 'Ferien / Ausfall') : null,
         S.vgl ? el('span', {}, el('span', { class: 'm-geist' }), 'Plan der Vergleichsversion') : null);
     }
 
@@ -128,7 +134,7 @@ const Raster = (() => {
       const titel = a.ampel[w] ? T.kwText(w) + ': ' + AMPEL[a.ampel[w]] : T.kwText(w);
       const klassen = ['w'];
       if (w === S.sheet.jetzt) klassen.push('jetzt');
-      if (frei(w)) klassen.push('frei');
+      if (frei(w)) klassen.push(ausfall(w) ? 'frei ausfall' : 'frei');
       if (S.sel && S.sel.a === a.id && S.sel.k === k) klassen.push('sel');
       return el('td', { class: klassen.join(' '), 'data-k': String(k), title: titel },
         el('div', { class: zelleKlassen(a, k) }, inhalt));
@@ -150,12 +156,12 @@ const Raster = (() => {
       const breite = 3 + W.length;
       let nr = 0;
       const kopf = el('tr', {}, el('th', {}), el('th', { class: 'links', text: 'Aufgabe' }), el('th', { class: 'links', text: 'Verantw.' }),
-        W.map(w => el('th', { class: (w === S.sheet.jetzt ? 'jetzt' : '') + (frei(w) ? ' frei' : ''),
-          title: T.tagText(w) + (frei(w) ? ' · kein Projekttag' : ''), text: String(T.kw(T.datum(w))) })));
+        W.map(w => el('th', { class: (w === S.sheet.jetzt ? 'jetzt' : '') + (frei(w) ? (ausfall(w) ? ' frei ausfall' : ' frei') : ''),
+          title: T.tagText(w) + (ausfall(w) ? ' · ' + ausfall(w) : frei(w) ? ' · kein Projekttag' : ''), text: String(T.kw(T.datum(w))) })));
       const zeilen = [];
       for (const ph of S.sheet.phasen) {
         zeilen.push(el('tr', { class: 'phase' }, el('td', { colspan: String(breite) }, ph.name,
-          S.sheet.projekt.archiviert ? null : el('button', { type: 'button', class: 'neu-auf', onclick: () => aufgabeNeu(ph) }, '+ Aufgabe'))));
+          nurLesen() ? null : el('button', { type: 'button', class: 'neu-auf', onclick: () => aufgabeNeu(ph) }, '+ Aufgabe'))));
         for (const a of ph.aufgaben) {
           nr += 1;
           const klassen = [a.verworfen ? 'verworfen' : '', a.erledigt ? 'erledigt' : '', a.id === S.gew ? 'gewaehlt' : ''].join(' ').trim();
@@ -205,10 +211,11 @@ const Raster = (() => {
       }
       const a = S.gew ? aufgabe(S.gew) : null;
       if (!a) {
-        teile.push(el('p', { class: 'leise', text: 'Aufgabe oder Zelle anklicken, um Details zu sehen. Tasten: b, e, g, y, r, Entf, Pfeile.' }));
+        teile.push(el('p', { class: 'leise', text: nurLesen() ? 'Aufgabe oder Zelle anklicken, um Details und Verlauf zu sehen.'
+          : 'Aufgabe oder Zelle anklicken, um Details zu sehen. Tasten: b, e, g, y, r, Entf, Pfeile.' }));
         return teile;
       }
-      const darfTitel = !a.verworfen && (!a.aus_vorlage || lehrkraft);
+      const darfTitel = !nurLesen() && !a.verworfen && !a.aus_vorlage;
       const titel = el('input', { class: 'titel', value: a.titel, maxlength: '120', 'aria-label': 'Name der Aufgabe', readonly: !darfTitel });
       titel.addEventListener('change', () => { if (titel.value.trim() && titel.value !== a.titel) senden('titel', { aufgabe_id: a.id, titel: titel.value }); });
       titel.addEventListener('keydown', ev => { if (ev.key === 'Enter') titel.blur(); });
@@ -219,11 +226,11 @@ const Raster = (() => {
         el('div', { class: 'v-wahl' + (braucht(a) ? ' pflicht' : '') },
           S.sheet.mitglieder.filter(m => m.aktiv || m.id === a.verantwortlich_id).map(m => el('button', {
             type: 'button', class: a.verantwortlich_id === m.id ? 'an' : '', 'aria-pressed': String(a.verantwortlich_id === m.id),
-            disabled: a.verworfen, onclick: () => verantwortlichSetzen(a, m.id) }, m.vorname + ' ' + m.nachname))),
+            disabled: a.verworfen || nurLesen(), onclick: () => verantwortlichSetzen(a, m.id) }, m.vorname + ' ' + m.nachname))),
         braucht(a) ? el('div', { class: 'r-hinweis', text: 'Pflicht, weil die Aufgabe geplant ist' }) : null,
         S.sheet.mitglieder.length ? null : el('div', { class: 'leise', text: 'Noch keine Teammitglieder eingetragen.' })));
       teile.push(el('div', {}, el('div', { class: 'etikett', text: 'Plan' }), plan, el('br'), 'Ende: ' + ende));
-      if (!a.verworfen && !S.sheet.projekt.archiviert) {
+      if (!a.verworfen && !nurLesen()) {
         teile.push(el('div', {}, el('div', { class: 'etikett', text: 'Erledigt' }),
           el('label', { class: 'haken' }, el('input', { type: 'checkbox', checked: !!a.erledigt,
             onchange: ev => senden('erledigt', { aufgabe_id: a.id, erledigt: ev.target.checked }) }),
@@ -236,8 +243,8 @@ const Raster = (() => {
           el('span', { class: 'm-b st-' + p.ampel }), T.kwText(p.woche) + ': ' + p.problem,
           el('div', { class: 'leise', text: '→ ' + p.massnahme + ' (' + kuerzel(p.verantwortlich_id) + ')' })))));
       }
-      if (!S.sheet.projekt.archiviert) {
-        const darfVerwerfen = !a.aus_vorlage || lehrkraft;
+      if (!nurLesen()) {
+        const darfVerwerfen = !a.aus_vorlage;
         teile.push(el('div', { class: 'zeile' },
           a.verworfen ? null : el('button', { type: 'button', title: 'nach oben', 'aria-label': 'nach oben', onclick: () => senden('verschieben', { aufgabe_id: a.id, richtung: -1 }) }, '↑'),
           a.verworfen ? null : el('button', { type: 'button', title: 'nach unten', 'aria-label': 'nach unten', onclick: () => senden('verschieben', { aufgabe_id: a.id, richtung: 1 }) }, '↓'),
@@ -426,7 +433,8 @@ const Raster = (() => {
     function ereignisse(tab) {
       tab.addEventListener('pointerdown', ev => {
         const td = ev.target.closest('td[data-k]'), tr = td && td.closest('tr[data-a]');
-        if (!tr || offenerDialog() || S.sheet.projekt.archiviert) return;
+        if (!tr || offenerDialog()) return;
+        if (nurLesen()) { auswaehlen(Number(tr.dataset.a), Number(td.dataset.k)); return; }
         if (ev.target.hasPointerCapture && ev.target.hasPointerCapture(ev.pointerId)) ev.target.releasePointerCapture(ev.pointerId);
         ev.preventDefault();
         const aid = Number(tr.dataset.a), k = Number(td.dataset.k);
@@ -444,11 +452,11 @@ const Raster = (() => {
       });
       tab.addEventListener('click', ev => {
         const v = ev.target.closest('[data-v]');
-        if (v) { const a = aufgabe(Number(v.dataset.v)); S.gew = a.id; zeichnen(); menueAuf(a); return; }
+        if (v) { const a = aufgabe(Number(v.dataset.v)); S.gew = a.id; zeichnen(); if (!nurLesen()) menueAuf(a); return; }
         const n = ev.target.closest('td.name'), tr = n && n.closest('tr[data-a]');
         if (tr) { S.gew = Number(tr.dataset.a); S.sel = null; zeichnen(); return; }
         const ms = ev.target.closest('td[data-mk]');
-        if (ms && !S.sheet.projekt.archiviert) {
+        if (ms && !nurLesen()) {
           const w = wochen()[Number(ms.dataset.mk)];
           const hier = S.sheet.meilensteine.filter(m => !m.verworfen && m.woche === w);
           meilensteinDialog(hier[0], w);
@@ -499,6 +507,7 @@ const Raster = (() => {
         return;
       }
       if (ev.key === 'Escape') { menueZu(); return; }
+      if (nurLesen()) return;
       const taste = (ev.key === 'Backspace' || ev.key === 'Delete') ? 'Delete' : ev.key.toLowerCase();
       if (!['b', 'e', 'g', 'y', 'r', 'Delete'].includes(taste)) return;
       ev.preventDefault();
@@ -518,10 +527,10 @@ const Raster = (() => {
             (a.verantwortlich_id ? kuerzel(a.verantwortlich_id) : 'ohne Verantwortlichen') + (a.ende ? ' · Ende ' + T.kwText(a.ende) : '') +
             (a.erledigt ? ' · erledigt' : a.ampel[w] ? '' : ' · noch keine Ampel') })),
           el('div', { class: 'hz-amp' }, ['g', 'y', 'r'].map(f => el('button', {
-            type: 'button', class: f + (a.ampel[w] === f ? ' an' : ''), 'aria-label': AMPEL[f], 'aria-pressed': String(a.ampel[w] === f),
+            type: 'button', class: f + (a.ampel[w] === f ? ' an' : ''), 'aria-label': AMPEL[f], 'aria-pressed': String(a.ampel[w] === f), disabled: nurLesen(),
             onclick: () => f === 'g' ? ampelSetzen(a, w, 'g') : problemDialog(a, w, f) }, f)),
           el('button', { type: 'button', class: 'erl' + (a.erledigt ? ' an' : ''), 'aria-label': 'erledigt', title: a.erledigt ? 'doch nicht erledigt' : 'erledigt',
-            'aria-pressed': String(!!a.erledigt), onclick: () => senden('erledigt', { aufgabe_id: a.id, erledigt: !a.erledigt }) }, '✓'))))) : null,
+            'aria-pressed': String(!!a.erledigt), disabled: nurLesen(), onclick: () => senden('erledigt', { aufgabe_id: a.id, erledigt: !a.erledigt }) }, '✓'))))) : null,
         el('p', { class: 'leise', text: 'Planen und Aufgaben anlegen geht im Reiter „Tracking-Sheet“, am besten am PC oder Tablet.' }));
     }
 

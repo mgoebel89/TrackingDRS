@@ -16,7 +16,7 @@ const Termine = (() => {
         const antwort = await T.api('GET', basis + '/termine');
         S.daten = antwort.termine;
         zeichnen();
-        if (beiAenderung) beiAenderung(antwort.warnungen);
+        if (beiAenderung) beiAenderung(antwort);
       } catch (e) { T.setzen(ort, el('div', { class: 'leer', text: e.message })); }
     }
 
@@ -26,7 +26,7 @@ const Termine = (() => {
         S.daten = antwort.termine;
         zeichnen();
         T.meldung(meldung);
-        if (beiAenderung) beiAenderung(antwort.warnungen);
+        if (beiAenderung) beiAenderung(antwort);
       } catch (e) { T.meldung(e.message, true); laden(); }
     }
 
@@ -66,7 +66,7 @@ const Termine = (() => {
       const b = w.buchung;
       const status = b ? el('span', { class: 'chip blau', text: '✓ gebucht' })
         : w.schluss > S.daten.jetzt ? el('span', { class: 'chip', text: 'noch offen' }) : el('span', { class: 'chip rot', text: 'kein Termin' });
-      return el('section', { class: 'karte termin-woche' },
+      return el('div', { class: 'termin-woche' + (lehrkraft ? ' karte' : '') },
         el('div', { class: 'zeile' }, el('h3', { text: T.kwText(w.woche) }), status,
           el('span', { class: 'leise', text: 'Buchungsschluss ' + T.zeitpunkt(w.schluss) })),
         b ? el('div', { class: 'banner' }, ihr + ': ', el('b', { text: T.kurzTag(b.datum) + ', ' + b.uhrzeit }),
@@ -88,6 +88,10 @@ const Termine = (() => {
       }
       if (!d.wochen.length) {
         return T.setzen(ort, el('div', { class: 'leer', text: 'In den nächsten Wochen gibt es keine Projekttage (Ferien oder Projektende).' }));
+      }
+      if (!lehrkraft) {   // Team: nur die aktuelle Woche, kompakt fuer die Uebersicht
+        return T.setzen(ort, el('div', { class: 'stapel' }, woche(d.wochen[0]),
+          el('p', { class: 'leise', text: 'Freien Termin antippen zum Buchen oder Umbuchen. Je Woche ein Termin.' })));
       }
       T.setzen(ort, el('div', { class: 'stapel' }, d.wochen.map(woche),
         el('p', { class: 'leise', text: lehrkraft ? 'Freien Termin anklicken, um ihn für das Team einzutragen oder umzubuchen. Du darfst auch nach dem Buchungsschluss ändern.'

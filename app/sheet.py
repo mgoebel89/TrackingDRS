@@ -98,6 +98,7 @@ def stand(con, pid):
 def lesen(con, pid):
     from . import termine   # hier, weil termine seinerseits sheet braucht
     p = _projekt(con, pid)
+    projektwochen, ausfallwochen = termine.wochen_info(con, p)
     plan, ampel = _zellen(con, pid)
     probleme = {}
     for pr in con.execute("SELECT pr.* FROM problem pr JOIN aufgabe a ON a.id = pr.aufgabe_id WHERE a.projekt_id = ? "
@@ -120,7 +121,8 @@ def lesen(con, pid):
         "projekt": {"id": p["id"], "titel": p["titel"], "klasse": p["klasse"], "start": p["start"], "ende": p["ende"],
                     "archiviert": bool(p["archiviert"])},
         "wochen": wochen(p["start"], p["ende"]),
-        "projektwochen": termine.projektwochen(con, p),
+        "projektwochen": projektwochen,
+        "ausfallwochen": ausfallwochen,
         "jetzt": diese_woche(),
         "phasen": phasen,
         "mitglieder": [{"id": m["id"], "vorname": m["vorname"], "nachname": m["nachname"], "kuerzel": m["kuerzel"],

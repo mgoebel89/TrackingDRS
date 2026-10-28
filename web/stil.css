@@ -163,6 +163,11 @@ table.r-tab th.links { text-align: left; padding-left: 8px; font-family: var(--s
 /* Woche ohne Projekttag: schraffiert */
 .r-tab td.w.frei, .r-tab th.frei, .m-frei { background-image: repeating-linear-gradient(135deg, transparent 0 4px, rgba(93,103,121,.13) 4px 5px); }
 .m-frei { display: inline-block; width: 14px; height: 12px; border: 1px solid var(--linie-stark); border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
+/* Ferien und Ausfaelle: kraeftiger, gelb hinterlegt */
+.r-tab td.w.ausfall, .r-tab th.ausfall, .m-ausfall { background-color: #fdf1dc;
+  background-image: repeating-linear-gradient(135deg, transparent 0 3px, rgba(200,130,20,.28) 3px 5px); }
+.r-tab th.ausfall { color: #9a5b00; }
+.m-ausfall { border-color: var(--gelb); }
 .r-tab tr.erledigt td.name { color: var(--leise); }
 .erl { color: var(--gruen); font-weight: 700; margin-right: 4px; }
 .r-tab td.w.vor { box-shadow: inset 0 -3px 0 var(--blau); }
@@ -251,7 +256,7 @@ table.r-tab th.links { text-align: left; padding-left: 8px; font-family: var(--s
 .termin-woche .banner button { margin-left: auto; min-height: 30px; }
 .termin-tag { display: grid; gap: 6px; }
 .plaetze { display: grid; grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); gap: 6px; }
-.platz { justify-content: flex-start; gap: 10px; min-height: 44px; font-weight: 600; }
+.platz { justify-content: flex-start; gap: 8px; min-height: 44px; font-weight: 600; white-space: normal; text-align: left; }
 .platz.frei { border-color: var(--blau-mittel); color: var(--blau); }
 .platz.belegt { background: var(--knopf); color: var(--leise); font-weight: 500; }
 .platz.eigen { background: var(--blau); border-color: var(--blau); color: #fff; opacity: 1; }
@@ -272,6 +277,16 @@ table.r-tab th.links { text-align: left; padding-left: 8px; font-family: var(--s
 .termin-tag .ohne { font-size: .85em; color: var(--rot); }
 .eintraege { display: grid; gap: 6px; font-size: .92em; }
 .zwei-spalten { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+
+/* Team-Uebersicht */
+.uebersicht { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); align-items: start; }
+.dem-gruppe { display: grid; gap: 4px; }
+.dem-gruppe + .dem-gruppe { margin-top: 10px; }
+.dem { display: flex; gap: 8px; align-items: baseline; font-size: .92em; }
+.dem-m { width: 16px; text-align: center; flex: none; }
+.dem-m.ms { color: var(--blau); }
+.dem.entfall { color: #9a5b00; }
+.dem .e-m { flex: none; }
 @media (max-width: 1100px) {
   .sheet { grid-template-columns: minmax(0, 1fr); }
   .pc-panel { position: static; }

@@ -188,7 +188,24 @@ class Termine(unittest.TestCase):
     def test_projektwochen_im_sheet(self):
         d = sheet.lesen(self.con, self.klima)
         self.assertEqual(d["projektwochen"][:2], ["2026-11-02", "2026-11-16"])
+        self.assertEqual(d["ausfallwochen"], {})
         self.assertIsNone(sheet.lesen(self.con, self.fremd)["projektwochen"])   # ohne Regel: nichts schraffieren
+        termine.ferien_anlegen(self.con, self.gob, {"von": "2026-12-21", "bis": "2027-01-02", "name": "Weihnachtsferien"})
+        d = sheet.lesen(self.con, self.klima)
+        self.assertEqual(d["ausfallwochen"], {"2026-12-28": "Weihnachtsferien"})   # KW 52 hat ohnehin keinen Projekttag
+        self.assertNotIn("2026-12-28", d["projektwochen"])
+
+    def test_team_sieht_nur_aktuelle_woche(self):
+        termine.ferien_anlegen(self.con, self.gob, {"von": "2026-11-16", "bis": "2026-11-20", "name": "Herbstferien"})
+        wochen = lambda: [w["woche"] for w in termine.termin_sicht(self.con, self.klima, wochen=6, aktuell=True)["wochen"]]
+        self.assertEqual(wochen(), ["2026-11-02"])        # Montag: der Dienstag kommt noch
+        self.uhr("2026-11-03T12:00:00")
+        self.assertEqual(wochen(), ["2026-11-02"])        # am Projekttag selbst noch dieselbe Woche
+        self.uhr("2026-11-04T08:00:00")
+        self.assertEqual(wochen(), ["2026-11-30"])        # KW 47 sind Ferien, also KW 49
+        self.assertEqual(termine.entfallende_tage(self.con, self.klima),
+                         [{"datum": "2026-11-17", "woche": "2026-11-16", "grund": "Herbstferien"}])
+        self.assertEqual(len(termine.termin_sicht(self.con, self.klima, wochen=6)["wochen"]), 2)   # Lehrkraft: alle
 
 
 class TeamUeberHTTP(unittest.TestCase):

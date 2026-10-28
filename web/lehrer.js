@@ -215,7 +215,9 @@ async function projektZeigen(id) {
     try { warnungenZeigen((await T.api('GET', '/api/projekte/' + p.id + '/termine')).warnungen); } catch (e) { /* bleibt */ }
   };
   Raster.erzeugen({ ort: sheetOrt, basis: '/api/projekte/' + p.id, rolle: 'lehrkraft', beiAenderung: warnungenLaden }).laden();
-  if (!p.archiviert) Termine.erzeugen({ ort: terminOrt, basis: '/api/projekte/' + p.id, rolle: 'lehrkraft', beiAenderung: warnungenZeigen }).laden();
+  if (!p.archiviert) {
+    Termine.erzeugen({ ort: terminOrt, basis: '/api/projekte/' + p.id, rolle: 'lehrkraft', beiAenderung: a => warnungenZeigen(a.warnungen) }).laden();
+  }
 }
 
 async function projektBearbeiten(p) {
@@ -484,7 +486,7 @@ async function ausfallDialog(d) {
     titel: 'Ausfall eintragen', knopf: 'Eintragen',
     inhalt: el('div', { class: 'felder' },
       el('div', { class: 'felder zwei' }, T.feld('Von', f.von), T.feld('Bis', f.bis, 'leer = nur ein Tag')),
-      T.feld('Für', f.klasse), T.feld('Grund', f.grund)),
+      T.feld('Für', f.klasse), T.feld('Grund', f.grund, 'Die Teams sehen den Grund in ihrer Übersicht.')),
     speichern: () => T.api('POST', '/api/termine/ausfaelle', { von: f.von.value, bis: f.bis.value || f.von.value, klasse: f.klasse.value, grund: f.grund.value }),
   });
   if (ok) { T.meldung('Ausfall eingetragen.'); zeigen(); }
