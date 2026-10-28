@@ -476,9 +476,15 @@ def api_sheet(h, con, daten, pid):
     _sheet_antwort(h, con, pid)
 
 
+LEHRKRAFT_AKTIONEN = ("meilenstein_neu", "meilenstein_aendern", "meilenstein_verwerfen")
+
+
 def api_sheet_aendern(h, con, daten, pid):
-    _projekt(h, con, pid)
-    raise Fehler(403, "Das Tracking-Sheet bearbeitet nur das Team. Lehrkräfte können es nur ansehen.")
+    """Das Tracking-Sheet bearbeitet das Team; die Lehrkraft setzt nur Meilensteine."""
+    k, pid = _projekt(h, con, pid)
+    if daten.get("aktion") not in LEHRKRAFT_AKTIONEN:
+        raise Fehler(403, "Das Tracking-Sheet bearbeitet nur das Team. Lehrkräfte setzen hier nur Meilensteine.")
+    _sheet_aendern(h, con, pid, "lehrkraft", k["kuerzel"], daten)
 
 
 def api_version(h, con, daten, pid, vid):

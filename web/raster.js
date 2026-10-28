@@ -1,5 +1,5 @@
 // Tracking-Sheet: Raster (PC, Tablet) und "Diese Woche" (Handy). Das Team bearbeitet es ueber seinen Link, die
-// Lehrkraft sieht es auf der Projektseite nur an (lesen, vergleichen, Verlauf, Basisplan festlegen).
+// Lehrkraft sieht es auf der Projektseite nur an (lesen, vergleichen, Verlauf, Basisplan festlegen) und setzt Meilensteine.
 //
 // Ebenen je Zelle: Plan (b = geplante Woche, als blauer Balken), Endtermin (e, Marke) und Ampel (g/y/r faerbt den
 // Balken der Woche). Eingabe: Zelle anklicken und Taste druecken (wie in Excel), ueber Wochen ziehen plant b.
@@ -15,6 +15,7 @@ const Raster = (() => {
     const S = { sheet: null, gew: null, sel: null, zieh: null, vgl: null, vglId: '', diff: [], verlauf: {}, menue: null };
     const lehrkraft = rolle === 'lehrkraft';
     const nurLesen = () => lehrkraft || S.sheet.projekt.archiviert;
+    const meilensteineAendern = () => !S.sheet.projekt.archiviert;   // Team und Lehrkraft
 
     // --- Hilfen ---
     const wochen = () => S.sheet.wochen;
@@ -86,8 +87,8 @@ const Raster = (() => {
             el('button', { type: 'button', title: titel, 'aria-label': titel, onclick: () => tasteAnZelle(taste) }, inhalt))),
         el('label', { class: 'r-vergl' }, 'Vergleichen mit', auswahl),
         lehrkraft ? el('button', { type: 'button', onclick: basisplanSetzen }, 'Als Basisplan festlegen') : null,
-        nurLesen() ? null : el('button', { type: 'button', onclick: () => meilensteinDialog() }, '+ Meilenstein'),
-        lehrkraft ? el('span', { class: 'leise', text: 'Nur ansehen: Das Sheet bearbeitet das Team.' }) : null);
+        meilensteineAendern() ? el('button', { type: 'button', onclick: () => meilensteinDialog() }, '+ Meilenstein') : null,
+        lehrkraft ? el('span', { class: 'leise', text: 'Das Sheet bearbeitet das Team. Du setzt hier nur Meilensteine.' }) : null);
     }
 
     function legende() {
@@ -456,7 +457,7 @@ const Raster = (() => {
         const n = ev.target.closest('td.name'), tr = n && n.closest('tr[data-a]');
         if (tr) { S.gew = Number(tr.dataset.a); S.sel = null; zeichnen(); return; }
         const ms = ev.target.closest('td[data-mk]');
-        if (ms && !nurLesen()) {
+        if (ms && meilensteineAendern()) {
           const w = wochen()[Number(ms.dataset.mk)];
           const hier = S.sheet.meilensteine.filter(m => !m.verworfen && m.woche === w);
           meilensteinDialog(hier[0], w);

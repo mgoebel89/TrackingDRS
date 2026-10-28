@@ -250,12 +250,16 @@ class Webserver(unittest.TestCase):
         a, d = self.anfrage("GET", "/api/t/" + "x" * 32, cookie=False)
         self.assertEqual(a.status, 404)
 
-        # das Tracking-Sheet bearbeitet nur das Team, die Lehrkraft liest
+        # das Tracking-Sheet bearbeitet nur das Team, die Lehrkraft liest und setzt Meilensteine
         a, d = self.anfrage("GET", "/api/projekte/%d/sheet" % pid)
         self.assertEqual(a.status, 200)
         phase = d["sheet"]["phasen"][0]["id"]
         a, d = self.anfrage("POST", "/api/projekte/%d/sheet" % pid, {"aktion": "aufgabe_neu", "phase_id": phase, "titel": "X"})
         self.assertEqual(a.status, 403)
+        a, d = self.anfrage("POST", "/api/projekte/%d/sheet" % pid, {"aktion": "meilenstein_neu", "woche": "2026-11-16",
+                                                                   "titel": "Konstruktion fertig"})
+        self.assertEqual(a.status, 200, d)
+        self.assertEqual(d["sheet"]["meilensteine"][0]["titel"], "Konstruktion fertig")
         a, d = self.anfrage("POST", "/api/t/%s/sheet" % token, {"aktion": "aufgabe_neu", "phase_id": phase, "titel": "X"}, cookie=False)
         self.assertEqual(a.status, 200, d)
 
