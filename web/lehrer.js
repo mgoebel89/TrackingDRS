@@ -51,7 +51,7 @@ async function start() {
 }
 
 async function zeigen() {
-  const [ansicht, id] = (location.hash.slice(1) || 'cockpit').split('/');
+  const [ansicht, id, id2] = (location.hash.slice(1) || 'cockpit').split('/');
   const nav = ansicht === 'projekt' ? 'projekte' : ansicht === 'besprechung' ? 'cockpit' : ansicht;
   document.querySelectorAll('nav.seite a').forEach(a => a.classList.toggle('an', a.dataset.ansicht === nav));
   try {
@@ -59,6 +59,7 @@ async function zeigen() {
     else if (ansicht === 'kalender') await Cockpit.kalenderZeigen(id);
     else if (ansicht === 'aktivitaeten') await Cockpit.aktivitaetenZeigen();
     else if (ansicht === 'besprechung') await Besprechung.lehrerZeigen(Number(id));
+    else if (ansicht === 'anfragen') await Anfragen.lehrerZeigen(id, id2);
     else if (ansicht === 'projekte') await projekteZeigen(false);
     else if (ansicht === 'archiv') await projekteZeigen(true);
     else if (ansicht === 'termine') await termineZeigen();

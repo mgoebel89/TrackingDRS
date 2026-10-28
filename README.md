@@ -17,7 +17,7 @@ Besprechung werden daraus berechnet.
 | C2 | Cockpit (Handlungsbedarf, zwei Wochen, Projektkarten, Ampel-Matrix), Kalender (Monat, Halbjahr), Aktivitäten, Dienstkalender je Lehrkraft und Schulkalender (Ferien) als ICS-Abo | fertig |
 | D1 | Besprechung: Vorbereitung des Teams (Stand, Fragen, Themen, Ideen), Kurzzusammenfassung ohne KI, Lehrernotizen, Ergebnis (Absprachen, Aufträge mit Frist, Meilensteine), Abschließen mit Protokoll, Aufträge abhaken, Warnung „Auftrag überfällig“ | fertig |
 | D2 | Besprechungstafel (Smartboard): Zonen, Stift mit Druckstufen, Radierer, Post-its ziehen (in Ergebnis-Zonen werden sie zu Absprache, Auftrag, Meilenstein), live von Schülergeräten (Post-its, Fotos), Fenster auf dem zweiten Bildschirm, beim Abschließen eingefroren | fertig |
-| E | Anfragen: Rückfrage, Bestellliste mit Einreichfenstern, Ausleihe, Abnahme | geplant |
+| E | Anfragen (Rückfrage, auch über die Tafel; Material ausleihen; Abnahme mit Foto) mit Status und Verlauf; Bestellliste: sammeln, im Einreichfenster einreichen (auch Sonderfenster), Prüfung je Position (bestellen, SchulLager, Firma, ersetzen, ablehnen), Status bis ausgegeben, Sammelbestellung je Lieferant als CSV und Druckansicht | fertig |
 | F | Fotos, Mindmap, Lehrernotizen, Vorlagen, Excel/PDF, Archiv, Sicherung | geplant |
 | G | WireGuard-Anbindung (Zugriff von zuhause), Probelauf | geplant |
 | H | optional: Anbindung an SchulLager | geplant |

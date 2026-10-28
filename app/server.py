@@ -23,7 +23,7 @@ import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import VERSION, besprechung, cockpit, db, einstellungen, kalender, konten, projekte, sheet, tafel, termine
+from . import VERSION, anfragen, besprechung, bestellung, cockpit, db, einstellungen, kalender, konten, projekte, sheet, tafel, termine
 
 BASIS = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WEB_DIR = os.path.join(BASIS, "web")
@@ -659,6 +659,77 @@ def api_team_bild(h, con, daten, token, name):
     _bild(h, con, _team_projekt(con, token), name)
 
 
+# --- Anfragen und Bestelllisten ---
+
+def _team_anfragen(con, pid):
+    return {"anfragen": anfragen.liste(con, pid), "bestellung": bestellung.team_sicht(con, pid)}
+
+
+def api_team_anfragen(h, con, daten, token):
+    h.antwort(200, _team_anfragen(con, _team_projekt(con, token)))
+
+
+def api_team_anfragen_aendern(h, con, daten, token):
+    pid = _team_projekt(con, token)
+    if daten.get("aktion") == "neu":
+        bild = tafel.bild_speichern(_daten_dir(h), daten["bild"]) if daten.get("bild") else None
+        anfragen.anlegen(con, pid, daten, bild)
+    else:
+        anfragen.team_aendern(con, pid, daten)
+    h.antwort(200, _team_anfragen(con, pid))
+
+
+def api_team_bestellung(h, con, daten, token):
+    pid = _team_projekt(con, token)
+    ergebnis = bestellung.team_aendern(con, pid, daten)
+    h.antwort(200, dict(_team_anfragen(con, pid), ergebnis=ergebnis))
+
+
+def api_anfragen(h, con, daten):
+    k = h.konto(con)
+    h.antwort(200, {"anfragen": anfragen.uebersicht(con, k), "bestellung": bestellung.uebersicht(con, k)})
+
+
+def api_anfrage_bearbeiten(h, con, daten, pid):
+    k, pid = _projekt(h, con, pid)
+    anfragen.bearbeiten(con, pid, k["kuerzel"], daten)
+    h.antwort(200, {"anfragen": anfragen.uebersicht(con, k)})
+
+
+def api_bestellfenster(h, con, daten):
+    k = h.konto(con)
+    bestellung.fenster_anlegen(con, k, daten)
+    h.antwort(200, {"bestellung": bestellung.uebersicht(con, k)})
+
+
+def api_bestellfenster_aendern(h, con, daten, fid):
+    k = h.konto(con)
+    bestellung.fenster_aendern(con, k, _ganzzahl(fid), daten)
+    h.antwort(200, {"bestellung": bestellung.uebersicht(con, k)})
+
+
+def api_bestellliste(h, con, daten, lid):
+    h.antwort(200, {"liste": bestellung.liste_lesen(con, h.konto(con), _ganzzahl(lid))})
+
+
+def api_bestellung_pruefen(h, con, daten, pid):
+    k, pid = _projekt(h, con, pid)
+    bestellung.pruefen(con, pid, k["kuerzel"], daten)
+    z = con.execute("SELECT liste_id FROM position WHERE id = ?", (_ganzzahl(daten.get("position_id")),)).fetchone()
+    h.antwort(200, {"liste": bestellung.liste_lesen(con, k, z[0])})
+
+
+def api_sammelbestellung(h, con, daten, fid):
+    h.antwort(200, {"sammelbestellung": bestellung.sammelbestellung(con, h.konto(con), _ganzzahl(fid))})
+
+
+def api_sammelbestellung_csv(h, con, daten, fid):
+    d = bestellung.sammelbestellung(con, h.konto(con), _ganzzahl(fid))
+    name = "sammelbestellung-%s.csv" % d["fenster"]["bis"][:10]
+    h.antwort(200, bestellung.sammelbestellung_csv(d), "text/csv; charset=utf-8",
+              extra=[("Content-Disposition", 'attachment; filename="%s"' % name)])
+
+
 # --- Termine ---
 
 def _termin_aendern(h, con, pid, wer_art, wer, daten):
@@ -775,6 +846,14 @@ ROUTEN = [(m, re.compile(p), f) for m, p, f in [
     ("GET", r"/api/projekte/(\d+)/aufgabe/(\d+)/verlauf", api_verlauf),
     ("POST", r"/api/projekte/(\d+)/basisplan", api_basisplan),
     ("GET", r"/api/projekte/(\d+)/termine", api_projekt_termine),
+    ("POST", r"/api/projekte/(\d+)/anfragen", api_anfrage_bearbeiten),
+    ("POST", r"/api/projekte/(\d+)/bestellung", api_bestellung_pruefen),
+    ("GET", r"/api/anfragen", api_anfragen),
+    ("POST", r"/api/bestellfenster", api_bestellfenster),
+    ("POST", r"/api/bestellfenster/(\d+)", api_bestellfenster_aendern),
+    ("GET", r"/api/bestellfenster/(\d+)/sammelbestellung", api_sammelbestellung),
+    ("GET", r"/api/bestellfenster/(\d+)/sammelbestellung\.csv", api_sammelbestellung_csv),
+    ("GET", r"/api/bestellliste/(\d+)", api_bestellliste),
     ("GET", r"/api/projekte/(\d+)/besprechung", api_besprechung),
     ("POST", r"/api/projekte/(\d+)/besprechung", api_besprechung_aendern),
     ("GET", r"/api/projekte/(\d+)/tafel", api_tafel),
@@ -796,6 +875,9 @@ ROUTEN = [(m, re.compile(p), f) for m, p, f in [
     ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/version/(\d+)", api_team_version),
     ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/aufgabe/(\d+)/verlauf", api_team_verlauf),
     ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/termine", api_team_termine),
+    ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/anfragen", api_team_anfragen),
+    ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/anfragen", api_team_anfragen_aendern),
+    ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/bestellung", api_team_bestellung),
     ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/besprechung", api_team_besprechung),
     ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/besprechung", api_team_besprechung_aendern),
     ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/tafel", api_team_tafel),

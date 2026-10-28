@@ -15,7 +15,9 @@ RANG = {"g": 1, "y": 2, "r": 3}
 # Aenderungen am Tracking-Sheet (fuer "seit der letzten Besprechung")
 SHEET = ("aufgabe_neu", "titel", "verantwortlich", "verworfen", "wiederhergestellt", "reihenfolge", "plan", "ende", "ampel",
          "erledigt", "nicht_erledigt", "meilenstein_neu", "meilenstein_geaendert", "meilenstein_verworfen", "meilenstein_zurueck")
-WICHTIG = {"rote_ampel": 0, "termin_fehlt": 1, "nicht_aktualisiert": 2, "auftrag_ueberfaellig": 3, "endtermin": 4}
+WICHTIG = {"rote_ampel": 0, "termin_fehlt": 1, "nicht_aktualisiert": 2, "rueckgabe_ueberfaellig": 3, "anfrage_wartet": 4,
+           "auftrag_ueberfaellig": 5, "listen_warten": 6, "endtermin": 7}
+NAMEN = {"rueckfrage": "Rückfrage", "ausleihe": "Ausleihe", "abnahme": "Abnahme"}
 VERLAUF_WOCHEN = 10
 
 
@@ -87,6 +89,13 @@ def cockpit(con, konto, klasse=None):
                                 "warnungen": len(k["warnungen"])})
         for w in k["warnungen"]:
             blick.append({"projekt_id": p["id"], "titel": p["titel"], "art": w["art"], "text": w["text"]})
+        for a in con.execute("SELECT * FROM anfrage WHERE projekt_id = ? AND status = 'neu' ORDER BY id", (p["id"],)):
+            erledigen.append({"projekt_id": p["id"], "titel": p["titel"], "art": "anfrage", "anfrage_id": a["id"],
+                              "text": "%s: %s" % (NAMEN[a["art"]], a["titel"])})
+        for l in con.execute("SELECT l.* FROM bestellliste l WHERE l.projekt_id = ? AND l.eingereicht IS NOT NULL AND l.geprueft IS NULL",
+                             (p["id"],)):
+            erledigen.append({"projekt_id": p["id"], "titel": p["titel"], "art": "liste", "liste_id": l["id"],
+                              "text": "Bestellliste prüfen (eingereicht %s)" % l["eingereicht"][8:10] + "." + l["eingereicht"][5:7] + "."})
         if not con.execute("SELECT 1 FROM mitglied WHERE projekt_id = ? AND aktiv = 1", (p["id"],)).fetchone():
             erledigen.append({"projekt_id": p["id"], "titel": p["titel"], "art": "mitglieder", "text": "Teammitglieder eintragen"})
         if not termine.projekt_regeln(con, p):

@@ -1,4 +1,5 @@
-// Team-Ansicht ueber den geheimen Link /t/<token>: Uebersicht (Startseite), Tracking-Sheet, Besprechung, Projekt.
+// Team-Ansicht ueber den geheimen Link /t/<token>: Uebersicht (Startseite), Tracking-Sheet, Besprechung, Anfragen,
+// Projekt.
 // Uebersicht = Hinweise, Besprechungstermin der aktuellen Woche (buchen), Ampeln dieser Woche und "Demnaechst"
 // (entfallende Projekttage, Meilensteine, Endtermine). Ueber dem Inhalt stehen die Warnungen und Hinweise.
 'use strict';
@@ -6,7 +7,8 @@ const { el } = T;
 const inhalt = document.getElementById('inhalt');
 const token = location.pathname.split('/')[2] || '';
 const basis = '/api/t/' + encodeURIComponent(token);
-const REITER = [['uebersicht', 'Übersicht'], ['sheet', 'Tracking-Sheet'], ['besprechung', 'Besprechung'], ['projekt', 'Projekt']];
+const REITER = [['uebersicht', 'Übersicht'], ['sheet', 'Tracking-Sheet'], ['besprechung', 'Besprechung'], ['anfragen', 'Anfragen'],
+  ['projekt', 'Projekt']];
 const U = { sheet: null, entfallen: [] };   // was "Demnaechst" braucht
 let projekt = null;
 const bereich = el('div', { class: 'stapel' });
@@ -94,6 +96,12 @@ function zeigen() {
     Besprechung.teamErzeugen({ ort, basis, beiAenderung: warnungenLaden }).laden();
     return;
   }
+  if (wahl === 'anfragen') {
+    const ort = el('div');
+    T.setzen(bereich, ort);
+    Anfragen.teamErzeugen({ ort, basis, beiAenderung: warnungenLaden }).laden();
+    return;
+  }
   const ort = el('div');
   T.setzen(bereich, ort);
   Raster.erzeugen({ ort, basis, rolle: 'team', ansicht: 'raster', beiAenderung: warnungenLaden }).laden();
@@ -116,8 +124,7 @@ async function start() {
       el('h1', { class: 'dreieck', text: projekt.titel }),
       el('div', { class: 'leise', text: T.zeitraum(projekt.start, projekt.ende) + ' · betreut von ' + projekt.lehrkraefte.map(l => l.name).join(', ') })),
     el('nav', { class: 'reiter', 'aria-label': 'Bereiche' },
-      REITER.map(([k, t]) => el('a', { href: '#' + k, 'data-reiter': k, text: t })),
-      ['Anfragen'].map(t => el('span', { class: 'spaeter', title: 'folgt in einer der nächsten Stufen', text: t }))),
+      REITER.map(([k, t]) => el('a', { href: '#' + k, 'data-reiter': k, text: t }))),
     hinweise, bereich);
   window.addEventListener('hashchange', zeigen);
   zeigen();

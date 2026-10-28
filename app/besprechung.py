@@ -340,6 +340,9 @@ def aendern(con, pid, wer_art, wer, d):
                 erledigt = bool(d.get("erledigt", True))
                 if erledigt != bool(e["erledigt"]):
                     con.execute("UPDATE eintrag SET erledigt = ? WHERE id = ?", (jetzt if erledigt else None, e["id"]))
+                    if erledigt and e["anfrage_id"] and lehrkraft:   # Rueckfrage an der Tafel geklaert
+                        from . import anfragen
+                        anfragen.in_besprechung_geklaert(con, e["anfrage_id"], wer)
                     ereignis("eintrag_erledigt" if erledigt else "eintrag_offen", eintrag_id=e["id"], eintragsart=e["art"], text=e["text"])
             else:
                 if not lehrkraft and (e["wer_art"] != "team" or e["art"] not in TEAM_ARTEN):

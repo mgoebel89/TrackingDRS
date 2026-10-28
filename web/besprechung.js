@@ -337,5 +337,5 @@ const Besprechung = (() => {
     return { laden };
   }
 
-  return { lehrerZeigen, teamErzeugen };
+  return { lehrerZeigen, teamErzeugen, verkleinern };
 })();

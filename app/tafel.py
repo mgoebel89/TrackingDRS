@@ -305,7 +305,8 @@ def bild_pfad(con, daten_dir, pid, name):
     """Datei eines Fotos, nur wenn es zu diesem Projekt gehoert."""
     if not (isinstance(name, str) and len(name) == 24 and all(c in "0123456789abcdef" for c in name)):
         return None, None
-    if not con.execute("SELECT 1 FROM eintrag WHERE projekt_id = ? AND bild = ?", (pid, name)).fetchone():
+    if not (con.execute("SELECT 1 FROM eintrag WHERE projekt_id = ? AND bild = ?", (pid, name)).fetchone()
+            or con.execute("SELECT 1 FROM anfrage WHERE projekt_id = ? AND bild = ?", (pid, name)).fetchone()):
         return None, None
     for endung, typ in ((".jpg", "image/jpeg"), (".png", "image/png")):
         pfad = os.path.join(daten_dir, "bilder", name + endung)

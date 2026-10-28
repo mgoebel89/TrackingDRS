@@ -287,6 +287,66 @@ MIGRATIONEN = [
         stand INTEGER NOT NULL DEFAULT 0,
         aktualisiert TEXT)
     """,
+    # 7: Anfragen und Bestelllisten (Stufe E). Status-Wechsel stehen im Ereignisprotokoll.
+    """
+    CREATE TABLE anfrage (
+        id INTEGER PRIMARY KEY,
+        projekt_id INTEGER NOT NULL REFERENCES projekt(id) ON DELETE CASCADE,
+        art TEXT NOT NULL CHECK (art IN ('rueckfrage', 'ausleihe', 'abnahme')),
+        titel TEXT NOT NULL,
+        text TEXT NOT NULL DEFAULT '',
+        aufgabe_id INTEGER REFERENCES aufgabe(id),
+        menge TEXT NOT NULL DEFAULT '',
+        von TEXT,
+        bis TEXT,
+        bild TEXT,
+        in_besprechung INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL,
+        antwort TEXT NOT NULL DEFAULT '',
+        erstellt TEXT NOT NULL,
+        geaendert TEXT NOT NULL,
+        geaendert_von TEXT);
+    CREATE INDEX anfrage_projekt ON anfrage (projekt_id, id);
+    ALTER TABLE eintrag ADD COLUMN anfrage_id INTEGER REFERENCES anfrage(id);
+    CREATE TABLE bestellfenster (
+        id INTEGER PRIMARY KEY,
+        lehrkraft_id INTEGER NOT NULL REFERENCES lehrkraft(id),
+        klasse TEXT NOT NULL DEFAULT '',
+        projekt_id INTEGER REFERENCES projekt(id),
+        von TEXT NOT NULL,
+        bis TEXT NOT NULL,
+        aktiv INTEGER NOT NULL DEFAULT 1,
+        erstellt TEXT NOT NULL);
+    CREATE TABLE bestellliste (
+        id INTEGER PRIMARY KEY,
+        projekt_id INTEGER NOT NULL REFERENCES projekt(id) ON DELETE CASCADE,
+        fenster_id INTEGER REFERENCES bestellfenster(id),
+        eingereicht TEXT,
+        geprueft TEXT,
+        geprueft_von TEXT);
+    CREATE TABLE position (
+        id INTEGER PRIMARY KEY,
+        liste_id INTEGER NOT NULL REFERENCES bestellliste(id) ON DELETE CASCADE,
+        artikel TEXT NOT NULL,
+        bestellnr TEXT NOT NULL DEFAULT '',
+        menge INTEGER NOT NULL DEFAULT 1,
+        preis TEXT NOT NULL DEFAULT '',
+        lieferant TEXT NOT NULL DEFAULT '',
+        aufgabe_id INTEGER REFERENCES aufgabe(id),
+        begruendung TEXT NOT NULL DEFAULT '',
+        gestrichen INTEGER NOT NULL DEFAULT 0,
+        entscheidung TEXT CHECK (entscheidung IN ('bestellen', 'lager', 'firma', 'ersetzen', 'ablehnen')),
+        menge_genehmigt INTEGER,
+        kommentar TEXT NOT NULL DEFAULT '',
+        ersatz_artikel TEXT,
+        ersatz_bestellnr TEXT,
+        ersatz_lieferant TEXT,
+        ersatz_weg TEXT CHECK (ersatz_weg IN ('bestellen', 'lager')),
+        status TEXT,
+        aus_position INTEGER REFERENCES position(id),
+        erstellt TEXT NOT NULL);
+    CREATE INDEX position_liste ON position (liste_id, id)
+    """,
 ]
 
 

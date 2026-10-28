@@ -638,6 +638,8 @@ def warnungen(con, pid):
         if a["ende"] and not a["erledigt"] and a["ende"] < diese:
             liste.append({"art": "endtermin", "stufe": "warnung", "aufgabe_id": a["id"],
                           "text": "„%s“: Endtermin %s überschritten, nicht erledigt." % (a["titel"], kw_text(a["ende"]))})
+    from . import anfragen, bestellung   # hier, weil beide ueber besprechung wieder termine brauchen
+    liste += anfragen.warnungen(con, pid) + bestellung.warnungen(con, pid)
     ohne = [a for a in aufgaben if not a["verantwortlich_id"] and (a["ende"] or any(
         k[0] == a["id"] and z["plan"] for k, z in zellen.items()))]
     if ohne:
