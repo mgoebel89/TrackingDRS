@@ -23,7 +23,7 @@ import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import VERSION, besprechung, cockpit, db, einstellungen, kalender, konten, projekte, sheet, termine
+from . import VERSION, besprechung, cockpit, db, einstellungen, kalender, konten, projekte, sheet, tafel, termine
 
 BASIS = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WEB_DIR = os.path.join(BASIS, "web")
@@ -36,7 +36,7 @@ OHNE_TLS = os.environ.get("TRACKINGDRS_OHNE_TLS") == "1"
 
 COOKIE = "tdrs"
 MAX_BODY = 2 * 1024 * 1024   # Logo als Base64
-SEITEN = {"/anmelden": "anmelden.html", "/lehrer": "lehrer.html", "/einrichtung": "einrichtung.html"}
+SEITEN = {"/anmelden": "anmelden.html", "/lehrer": "lehrer.html", "/einrichtung": "einrichtung.html", "/tafel": "tafel.html"}
 STATISCH = re.compile(r"/static/([a-z0-9_-]+\.(css|js|svg|png|ico))")
 TEAM_SEITE = re.compile(r"/t/[A-Za-z0-9_-]{20,64}")
 # was ueber HTTP erreichbar ist, wenn HTTPS laeuft
@@ -593,6 +593,72 @@ def api_besprechung_aendern(h, con, daten, pid):
     h.antwort(200, {"ergebnis": ergebnis, "besprechung": besprechung.lesen(con, pid, lehrkraft=True)})
 
 
+# --- Besprechungstafel ---
+
+def _daten_dir(h):
+    return os.path.dirname(h.server.db_pfad)
+
+
+def _tafel_antwort(h, con, pid):
+    tafel.melden(pid, "tafel")
+    bekannt = _abfrage(h, "stand")
+    z = besprechung._zeile(con, pid, besprechung.aktuelle_woche(con, pid))
+    if bekannt and bekannt == tafel.stand(con, pid, z["id"] if z else None):
+        return h.antwort(200, {"unveraendert": True, "anwesend": tafel.anwesend(pid)})
+    h.antwort(200, {"tafel": tafel.lesen(con, pid)})
+
+
+def api_tafel(h, con, daten, pid):
+    _k, pid = _projekt(h, con, pid)
+    _tafel_antwort(h, con, pid)
+
+
+def api_tafel_aendern(h, con, daten, pid):
+    k, pid = _projekt(h, con, pid)
+    ergebnis = tafel.aendern(con, pid, k["kuerzel"], daten)
+    h.antwort(200, {"ergebnis": ergebnis, "tafel": tafel.lesen(con, pid)})
+
+
+def api_tafel_alt(h, con, daten, pid, bid):
+    _k, pid = _projekt(h, con, pid)
+    h.antwort(200, {"tafel": tafel.eingefroren(con, pid, _ganzzahl(bid))})
+
+
+def _bild(h, con, pid, name):
+    pfad, typ = tafel.bild_pfad(con, _daten_dir(h), pid, name)
+    if pfad is None:
+        raise Fehler(404, "Dieses Foto gibt es nicht.")
+    h.datei(pfad, typ, cache=True)
+
+
+def api_bild(h, con, daten, pid, name):
+    _k, pid = _projekt(h, con, pid)
+    _bild(h, con, pid, name)
+
+
+def api_team_tafel(h, con, daten, token):
+    """Geraet des Teams meldet sich (Anwesenheit an der Tafel) und erfaehrt, ob die Tafel gerade offen ist."""
+    pid = _team_projekt(con, token)
+    geraet = _abfrage(h, "geraet")
+    if geraet:
+        tafel.melden(pid, "g-" + geraet)
+    h.antwort(200, {"anwesend": tafel.anwesend(pid)})
+
+
+def api_team_tafel_senden(h, con, daten, token):
+    pid = _team_projekt(con, token)
+    tafel.team_senden(con, pid, _daten_dir(h), daten)
+    h.antwort(200, {"besprechung": besprechung.lesen(con, pid)})
+
+
+def api_team_tafel_alt(h, con, daten, token, bid):
+    h.antwort(200, {"tafel": tafel.eingefroren(con, _team_projekt(con, token), _ganzzahl(bid))})
+
+
+def api_team_bild(h, con, daten, token, name):
+    _bild(h, con, _team_projekt(con, token), name)
+
+
 # --- Termine ---
 
 def _termin_aendern(h, con, pid, wer_art, wer, daten):
@@ -711,6 +777,10 @@ ROUTEN = [(m, re.compile(p), f) for m, p, f in [
     ("GET", r"/api/projekte/(\d+)/termine", api_projekt_termine),
     ("GET", r"/api/projekte/(\d+)/besprechung", api_besprechung),
     ("POST", r"/api/projekte/(\d+)/besprechung", api_besprechung_aendern),
+    ("GET", r"/api/projekte/(\d+)/tafel", api_tafel),
+    ("POST", r"/api/projekte/(\d+)/tafel", api_tafel_aendern),
+    ("GET", r"/api/projekte/(\d+)/tafel/(\d+)", api_tafel_alt),
+    ("GET", r"/api/projekte/(\d+)/bild/([0-9a-f]{24})", api_bild),
     ("POST", r"/api/projekte/(\d+)/termin", api_projekt_termin),
     ("GET", r"/api/termine", api_termine),
     ("POST", r"/api/termine/regeln", api_regel_anlegen),
@@ -728,6 +798,10 @@ ROUTEN = [(m, re.compile(p), f) for m, p, f in [
     ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/termine", api_team_termine),
     ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/besprechung", api_team_besprechung),
     ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/besprechung", api_team_besprechung_aendern),
+    ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/tafel", api_team_tafel),
+    ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/tafel", api_team_tafel_senden),
+    ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/tafel/(\d+)", api_team_tafel_alt),
+    ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/bild/([0-9a-f]{24})", api_team_bild),
     ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/termin", api_team_termin),
 ]]
 

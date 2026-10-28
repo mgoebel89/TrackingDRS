@@ -1,5 +1,6 @@
 // Besprechung: Lehreransicht (#besprechung/<projekt>: Kurzzusammenfassung, Ergebnis, Lehrernotizen, Abschliessen) und
-// Team-Reiter "Besprechung" (Stand vorbereiten, Fragen und Themen, Auftraege abhaken, Protokolle).
+// Team-Reiter "Besprechung" (Stand vorbereiten, Fragen und Themen, Post-its und Fotos an die Tafel, Auftraege
+// abhaken, Protokolle mit eingefrorener Tafel).
 // Lehrernotizen kommen nur ueber die Lehrer-Schnittstelle und erscheinen nie beim Team.
 'use strict';
 
@@ -22,14 +23,14 @@ const Besprechung = (() => {
       el('span', { class: 'ez-text' }, e.text, e.verantwortlich ? el('span', { class: 'chip', text: e.verantwortlich }) : null), status);
   }
 
-  function protokolle(liste, lehrkraft) {
+  function protokolle(liste, lehrkraft, basis) {
     if (!liste.length) return el('div', { class: 'leise', text: 'Noch keine abgeschlossene Besprechung.' });
     return el('div', { class: 'stapel-eng' }, liste.map(p => {
       const nach = art => (p.ergebnis || []).filter(e => e.art === art);
       const teil = (titel, eintraege, f) => eintraege.length ? el('div', {}, el('div', { class: 'etikett', text: titel }), eintraege.map(f)) : null;
       return el('details', { class: 'protokoll' },
         el('summary', {}, el('b', { text: T.kwText(p.woche) }), ' · ' + (p.termin ? T.kurzTag(p.termin.datum) + ', ' + p.termin.uhrzeit : 'ohne Termin') +
-          ' · ' + (p.ergebnis || []).length + ' Ergebnisse'),
+          ' · ' + (p.ergebnis || []).length + ((p.ergebnis || []).length === 1 ? ' Ergebnis' : ' Ergebnisse')),
         el('div', { class: 'stapel-eng' },
           teil('Absprachen', nach('absprache'), e => el('div', { class: 'ez' }, el('span', { class: 'ez-m', text: '•' }), el('span', { text: e.text }))),
           teil('Aufträge', nach('auftrag'), e => auftragZeile(e)),
@@ -40,6 +41,7 @@ const Besprechung = (() => {
           p.vorbereitung ? el('div', {}, el('div', { class: 'etikett', text: 'Stand des Teams' }), el('p', { class: 'vortext', text: p.vorbereitung })) : null,
           lehrkraft && p.notizen ? el('div', { class: 'notiz-alt' }, el('div', { class: 'etikett', text: 'Lehrernotizen (nur Lehrkräfte)' }),
             el('p', { class: 'vortext', text: p.notizen })) : null,
+          p.tafel ? el('div', {}, el('button', { type: 'button', onclick: () => Tafel.ansehen(basis + '/tafel/' + p.id, basis) }, 'Tafel ansehen')) : null,
           el('div', { class: 'leise klein-text', text: 'abgeschlossen ' + T.zeitText(p.abgeschlossen) + (p.von ? ' von ' + p.von.toUpperCase() : '') })));
     }));
   }
@@ -169,7 +171,7 @@ const Besprechung = (() => {
       if (notizTimer) await notizenSpeichern();
       const ok = await T.dialog({
         titel: 'Besprechung abschließen?', knopf: 'Abschließen',
-        inhalt: el('p', { text: B.ergebnis.length + ' Ergebnisse gehen ins Protokoll, das auch das Team sieht (ohne Lehrernotizen). ' +
+        inhalt: el('p', { text: B.ergebnis.length + (B.ergebnis.length === 1 ? ' Ergebnis geht' : ' Ergebnisse gehen') + ' ins Protokoll, das auch das Team sieht (ohne Lehrernotizen). ' +
           'Offene Aufträge, Fragen und Ideen wandern zur nächsten Besprechung.' }),
         speichern: async () => {
           const r = await T.api('POST', basis + '/besprechung', { aktion: 'abschliessen', woche: B.woche });
@@ -185,12 +187,13 @@ const Besprechung = (() => {
       T.setzen(links, zusammenfassung());
       T.setzen(ergebnisOrt, ergebnis());
       T.setzen(frueher, el('section', { class: 'karte stapel-eng' }, el('h2', { class: 'dreieck', text: 'Frühere Besprechungen' }),
-        protokolle(B.protokolle, true)));
+        protokolle(B.protokolle, true, basis)));
     }
 
     T.setzen(inhalt,
       el('div', { class: 'werkzeug' }, el('h1', { class: 'dreieck', text: 'Besprechung · ' + projekt.titel }), unter,
         el('a', { class: 'knopf', href: '#projekt/' + pid }, 'Zum Projekt'),
+        el('button', { type: 'button', onclick: () => Tafel.aufsBoard(pid) }, 'Tafel aufs Board ▶'),
         el('button', { type: 'button', class: 'haupt', onclick: abschliessen }, 'Abschließen')),
       el('div', { class: 'bespr' }, links, el('div', { class: 'stapel' }, ergebnisOrt,
         el('section', { class: 'karte stapel-eng' }, el('h2', { class: 'dreieck', text: 'Lehrernotizen' }),
@@ -209,8 +212,52 @@ const Besprechung = (() => {
 
   // --- Team ---
 
+  // Foto vom Handy verkleinern (hoechstens 1600 px, JPEG), damit es schnell und klein ankommt
+  async function verkleinern(datei) {
+    const bild = await createImageBitmap(datei);
+    const s = Math.min(1, 1600 / Math.max(bild.width, bild.height));
+    const c = document.createElement('canvas');
+    c.width = Math.round(bild.width * s);
+    c.height = Math.round(bild.height * s);
+    c.getContext('2d').drawImage(bild, 0, 0, c.width, c.height);
+    return c.toDataURL('image/jpeg', 0.8).split(',')[1];
+  }
+
+  function geraetKennung() {
+    try {
+      let k = sessionStorage.getItem('tdrs-geraet');
+      if (!k) { k = Math.random().toString(36).slice(2, 12); sessionStorage.setItem('tdrs-geraet', k); }
+      return k;
+    } catch (e) { return 'x' + Math.random().toString(36).slice(2, 10); }
+  }
+
   function teamErzeugen({ ort, basis, beiAenderung }) {
     let B = null;
+    const kennung = geraetKennung();
+    const tafelStatus = el('div', { class: 'leise klein-text' });
+
+    // Anwesenheit an der Tafel melden, solange der Reiter offen ist
+    const melden = async () => {
+      if (!ort.isConnected) { clearInterval(timer); return; }
+      if (document.visibilityState !== 'visible') return;
+      try {
+        const a = (await T.api('GET', basis + '/tafel?geraet=' + kennung)).anwesend;
+        tafelStatus.textContent = a.tafel ? 'Die Tafel ist gerade offen: Post-its und Fotos erscheinen sofort.'
+          : 'Post-its und Fotos landen in der nächsten Besprechung bei den Ideen.';
+        tafelStatus.classList.toggle('live', a.tafel);
+      } catch (e) { /* naechster Versuch */ }
+    };
+    const timer = setInterval(melden, 5000);
+    setTimeout(melden, 300);
+
+    async function anTafel(daten, meldung) {
+      try {
+        B = (await T.api('POST', basis + '/tafel', daten)).besprechung;
+        zeichnen();
+        T.meldung(meldung);
+        return true;
+      } catch (e) { T.meldung(e.message, true); return false; }
+    }
 
     async function senden(daten, meldung) {
       try {
@@ -254,12 +301,37 @@ const Besprechung = (() => {
               onclick: () => senden({ aktion: 'verwerfen', eintrag_id: e.id }, 'Zurückgezogen.') }, '✕') : null))
             : el('div', { class: 'leise klein-text', text: 'Noch nichts für die Besprechung notiert.' }),
           el('div', { class: 'neu-eintrag' }, art, text, el('button', { type: 'button', onclick: hinzu }, 'Hinzufügen'))),
+        tafelKarte(),
         el('section', { class: 'karte stapel-eng' },
           el('h2', { class: 'dreieck', text: 'Aufträge' }),
           auftraege.length ? auftraege.map(e => auftragZeile(e, (x, wert) => senden({ aktion: 'erledigt', eintrag_id: x.id, erledigt: wert },
             wert ? 'Abgehakt.' : 'Wieder offen.'))) : el('div', { class: 'leise klein-text', text: 'Keine Aufträge offen.' })),
         el('section', { class: 'karte stapel-eng' },
-          el('h2', { class: 'dreieck', text: 'Protokolle' }), protokolle(B.protokolle, false))));
+          el('h2', { class: 'dreieck', text: 'Protokolle' }), protokolle(B.protokolle, false, basis))));
+    }
+
+    function tafelKarte() {
+      const art = el('select', { class: 'klein', 'aria-label': 'Art' }, ['idee', 'frage'].map(a => el('option', { value: a, text: ARTEN[a] })));
+      const text = el('input', { maxlength: '200', placeholder: 'z. B. 2 Lüfter parallel?', 'aria-label': 'Text für die Tafel' });
+      const foto = el('input', { type: 'file', accept: 'image/*', capture: 'environment', hidden: true });
+      const senden = async () => {
+        if (!text.value.trim()) { text.focus(); return; }
+        if (await anTafel({ art: art.value, text: text.value }, 'An die Tafel geschickt.')) text.value = '';
+      };
+      text.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); senden(); } });
+      foto.addEventListener('change', async () => {
+        if (!foto.files.length) return;
+        try {
+          const bild = await verkleinern(foto.files[0]);
+          if (await anTafel({ bild, text: text.value }, 'Foto an die Tafel geschickt.')) text.value = '';
+        } catch (e) { T.meldung('Das Foto konnte nicht gelesen werden.', true); }
+        foto.value = '';
+      });
+      return el('section', { class: 'karte stapel-eng' },
+        el('h2', { class: 'dreieck', text: 'An die Tafel' }), tafelStatus,
+        el('div', { class: 'neu-eintrag' }, art, text, el('button', { type: 'button', onclick: senden }, 'Senden')),
+        el('div', { class: 'zeile' }, el('button', { type: 'button', onclick: () => foto.click() }, '📷 Foto'), foto,
+          el('span', { class: 'leise klein-text', text: 'Aufbau fotografieren, keine Personen.' })));
     }
 
     return { laden };

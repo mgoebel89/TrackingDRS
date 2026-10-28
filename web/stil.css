@@ -382,6 +382,55 @@ table.matrix tr.achtung td:first-child { box-shadow: inset 3px 0 0 var(--rot); }
 .neu-eintrag { display: flex; gap: 6px; flex-wrap: wrap; }
 .neu-eintrag input { flex: 1 1 220px; width: auto; }
 
+/* Besprechungstafel (Smartboard) */
+body.tafel-seite { background: #e9edf2; overflow: hidden; }
+.tafel-seite-inhalt { height: 100vh; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
+.tafel-leiste { display: flex; gap: 14px; align-items: center; padding: 8px 16px; background: var(--karte); border-bottom: 2px solid var(--blau); }
+.tafel-leiste .rechts { margin-left: auto; display: flex; gap: 8px; }
+.tafel-leiste .rechts-btn { margin-left: auto; }
+.tafel-rahmen { position: relative; overflow: hidden; min-height: 0; }
+.tafel { position: absolute; width: 1600px; height: 900px; transform-origin: 0 0; background: #fff; box-shadow: var(--schatten-3);
+  touch-action: none; user-select: none; -webkit-user-select: none; }
+.tafel[data-werkzeug="stift"] { cursor: crosshair; } .tafel[data-werkzeug="postit"] { cursor: copy; }
+.tafel[data-werkzeug="radierer"] { cursor: cell; }
+.tz { position: absolute; border-right: 2px dashed #c9d2dc; }
+.tz.seit { background: #f6f8fb; } .tz.ergebnis { background: #f3f9ef; border-right: none; border-bottom: 2px dashed #c9d2dc; }
+.tz.ergebnis.meilensteine { border-bottom: none; }
+.tz-kopf { position: absolute; font-size: 15px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #6b7686; pointer-events: none; }
+.tafel-canvas { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+.tafel-zettel { position: absolute; inset: 0; z-index: 2; }
+.pi { position: absolute; min-height: 86px; padding: 6px 9px; border-radius: 3px 3px 3px 14px; box-shadow: 0 2px 6px rgba(16,24,40,.18);
+  font-size: 15px; line-height: 1.25; display: grid; gap: 2px; align-content: start; cursor: grab; background: #fff7c2; touch-action: none; }
+.pi.zieht { cursor: grabbing; box-shadow: 0 10px 24px rgba(16,24,40,.3); z-index: 5; }
+.pi-art { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: rgba(29,36,51,.6); }
+.pi-text { font-weight: 600; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+.pi-unter { font-size: 12px; color: rgba(29,36,51,.7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pi-bild { width: 100%; max-height: 110px; object-fit: cover; border-radius: 2px; pointer-events: none; }
+.pi.auftrag { background: #fff3b0; } .pi.auftrag.ueber { box-shadow: inset 0 0 0 2px var(--rot), 0 2px 6px rgba(16,24,40,.18); }
+.pi.problem { background: #ffe0ec; } .pi.problem.amp-y { background: #ffefcc; }
+.pi.frage { background: #dbeefa; } .pi.thema { background: #e6e9fb; } .pi.idee { background: #e7f4c8; }
+.pi.aenderung { background: #eef0f3; } .pi.absprache { background: #d6f0cf; } .pi.meilenstein { background: #fff; box-shadow: inset 0 0 0 2px var(--blau), 0 2px 6px rgba(16,24,40,.18); }
+.pi.erl { opacity: .6; } .pi.erl .pi-text { text-decoration: line-through; }
+.pi-menue { position: absolute; z-index: 6; display: flex; gap: 6px; background: var(--karte); padding: 6px; border-radius: 10px; box-shadow: var(--schatten-3); }
+.pi-menue button { font-size: 16px; min-height: 44px; padding: 6px 14px; }
+.tafel-werkzeuge { display: flex; gap: 8px; align-items: center; justify-content: center; padding: 8px; background: var(--karte); border-top: 1px solid var(--linie); flex-wrap: wrap; }
+.tafel-werkzeuge .wz { width: 56px; height: 52px; font-size: 24px; padding: 0; }
+.tafel-werkzeuge .wz.an { background: var(--blau); border-color: var(--blau); color: #fff; }
+.farben { display: inline-flex; gap: 6px; padding: 0 6px; border-left: 1px solid var(--linie); border-right: 1px solid var(--linie); }
+.farbe { width: 36px; height: 36px; min-height: 36px; padding: 0; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 0 1px var(--linie-stark); }
+.farbe.an { box-shadow: 0 0 0 3px var(--blau-mittel); }
+.dicke { width: 40px; height: 40px; min-height: 40px; padding: 0; }
+.dicke span { display: block; border-radius: 50%; background: var(--text); }
+.dicke.an { background: var(--blau-hell); border-color: var(--blau-mittel); }
+.tafel-ansicht { position: fixed; inset: 0; z-index: 60; background: #e9edf2; display: grid; grid-template-rows: auto minmax(0, 1fr); }
+.tafel-ansicht.bild { background: rgba(16,24,40,.85); place-items: center; grid-template-rows: minmax(0, 1fr) auto; }
+.tafel-ansicht.bild img { max-width: 94vw; max-height: 86vh; object-fit: contain; }
+.tafel-ansicht .tafel { pointer-events: none; }
+.tafel-ansicht .pi { cursor: default; }
+.tafel-raster { overflow: auto; padding: 12px; background: var(--bg); }
+.tafel-fertig { display: grid; place-content: center; gap: 12px; height: 100vh; text-align: center; }
+.leise.live { color: var(--gruen); font-weight: 600; }
+
 /* Team-Uebersicht */
 .uebersicht { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); align-items: start; }
 .dem-gruppe { display: grid; gap: 4px; }

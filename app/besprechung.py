@@ -77,7 +77,7 @@ def _eintrag(e, kuerzel):
             "verantwortlich": kuerzel.get(e["verantwortlich_id"]), "verantwortlich_id": e["verantwortlich_id"],
             "ueberfaellig": e["art"] == "auftrag" and not e["erledigt"] and bool(e["frist"]) and e["frist"] < heute,
             "erstellt": e["erstellt"], "wer_art": e["wer_art"], "wer": e["wer"], "besprechung_id": e["besprechung_id"],
-            "zone": e["zone"], "x": e["x"], "y": e["y"]}
+            "bild": e["bild"]}
 
 
 def _seit(con, pid, woche):
@@ -211,7 +211,8 @@ def _protokolle(con, pid, lehrkraft):
     liste = []
     for z in con.execute("SELECT * FROM besprechung WHERE projekt_id = ? AND abgeschlossen IS NOT NULL ORDER BY woche DESC", (pid,)):
         p = json.loads(z["protokoll"] or "{}")
-        p.update({"id": z["id"], "woche": z["woche"], "abgeschlossen": z["abgeschlossen"], "von": z["abgeschlossen_von"]})
+        p.update({"id": z["id"], "woche": z["woche"], "abgeschlossen": z["abgeschlossen"], "von": z["abgeschlossen_von"],
+                  "tafel": bool(p.get("tafel") and (p["tafel"]["striche"] or p["tafel"]["positionen"]))})   # Tafel einzeln laden
         if lehrkraft:
             p["notizen"] = z["notizen"]
         else:
@@ -357,8 +358,10 @@ def aendern(con, pid, wer_art, wer, d):
             geklaert = [_eintrag(e, kuerzel) for e in con.execute(
                 "SELECT * FROM eintrag WHERE projekt_id = ? AND art IN ('frage', 'thema', 'idee') AND verworfen = 0 AND erledigt > ? "
                 "ORDER BY id", (pid, seit))]
+            from . import tafel   # hier, weil tafel seinerseits besprechung braucht
             protokoll = {"termin": _termin(con, pid, woche), "vorbereitung": b["vorbereitung"],
-                         "zusammenfassung": zusammenfassung(con, pid, woche), "ergebnis": ergebnis, "geklaert": geklaert}
+                         "zusammenfassung": zusammenfassung(con, pid, woche), "ergebnis": ergebnis, "geklaert": geklaert,
+                         "tafel": tafel.momentaufnahme(con, pid, woche)}
             con.execute("UPDATE besprechung SET abgeschlossen = ?, abgeschlossen_von = ?, protokoll = ? WHERE id = ?",
                         (jetzt, wer, json.dumps(protokoll, ensure_ascii=False), b["id"]))
             ereignis("besprechung_abgeschlossen", woche=woche, ergebnisse=len(ergebnis))

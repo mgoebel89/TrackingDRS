@@ -179,6 +179,7 @@ const T = {
       eintrag_erledigt: () => (d.eintragsart === 'auftrag' ? 'Auftrag erledigt' : 'Geklärt') + ': „' + d.text + '“',
       eintrag_offen: () => 'Wieder offen: „' + d.text + '“',
       eintrag_verworfen: () => 'Verworfen: „' + d.text + '“',
+      eintrag_umgewandelt: () => '„' + d.text + '“ an der Tafel: ' + ({ idee: 'Idee', auftrag: 'Auftrag', absprache: 'Absprache' })[d.eintragsart],
       besprechung_abgeschlossen: () => 'Besprechung ' + T.kwText(d.woche) + ' abgeschlossen (' + d.ergebnisse + ' Ergebnisse)',
       version: () => (d.versionsart === 'basisplan' ? 'Basisplan festgelegt' : 'Version gespeichert') + ': ' + d.name,
     };

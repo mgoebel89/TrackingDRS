@@ -276,6 +276,17 @@ MIGRATIONEN = [
         wer TEXT NOT NULL);
     CREATE INDEX eintrag_projekt ON eintrag (projekt_id, id)
     """,
+    # 6: Besprechungstafel (Stufe D2). Striche und Positionen der Post-its je Besprechung; Fotos als Datei im Ordner
+    # bilder/ (eintrag.bild = Dateiname ohne Endung).
+    """
+    ALTER TABLE eintrag ADD COLUMN bild TEXT;
+    CREATE TABLE tafel (
+        besprechung_id INTEGER PRIMARY KEY REFERENCES besprechung(id) ON DELETE CASCADE,
+        striche TEXT NOT NULL DEFAULT '[]',
+        positionen TEXT NOT NULL DEFAULT '{}',
+        stand INTEGER NOT NULL DEFAULT 0,
+        aktualisiert TEXT)
+    """,
 ]
 
 

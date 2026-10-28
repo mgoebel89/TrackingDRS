@@ -16,7 +16,7 @@ Besprechung werden daraus berechnet.
 | C1 | Projektzeiten als Regeln (Wochentag, jede/gerade/ungerade KW), Ferien, Ausfälle, einzelne Tage anpassen, Termine buchen und umbuchen bis zum Buchungsschluss, Version zum Buchungsschluss, Häkchen „erledigt“, Warnungen, Team-Links über HTTP | fertig |
 | C2 | Cockpit (Handlungsbedarf, zwei Wochen, Projektkarten, Ampel-Matrix), Kalender (Monat, Halbjahr), Aktivitäten, Dienstkalender je Lehrkraft und Schulkalender (Ferien) als ICS-Abo | fertig |
 | D1 | Besprechung: Vorbereitung des Teams (Stand, Fragen, Themen, Ideen), Kurzzusammenfassung ohne KI, Lehrernotizen, Ergebnis (Absprachen, Aufträge mit Frist, Meilensteine), Abschließen mit Protokoll, Aufträge abhaken, Warnung „Auftrag überfällig“ | fertig |
-| D2 | Besprechungstafel (Smartboard): Zonen, Stift, Post-its, live von Schülergeräten | geplant |
+| D2 | Besprechungstafel (Smartboard): Zonen, Stift mit Druckstufen, Radierer, Post-its ziehen (in Ergebnis-Zonen werden sie zu Absprache, Auftrag, Meilenstein), live von Schülergeräten (Post-its, Fotos), Fenster auf dem zweiten Bildschirm, beim Abschließen eingefroren | fertig |
 | E | Anfragen: Rückfrage, Bestellliste mit Einreichfenstern, Ausleihe, Abnahme | geplant |
 | F | Fotos, Mindmap, Lehrernotizen, Vorlagen, Excel/PDF, Archiv, Sicherung | geplant |
 | G | WireGuard-Anbindung (Zugriff von zuhause), Probelauf | geplant |
