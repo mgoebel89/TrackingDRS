@@ -1,4 +1,6 @@
-"""Webserver: HTTPS fuer alles (Port 443), HTTP (Port 80) leitet um und liefert nur das Stammzertifikat aus.
+"""Webserver: HTTPS fuer den Lehrerbereich (Port 443). HTTP (Port 80) bedient nur die Team-Seiten, ihre Schnittstelle,
+die Dateien unter /static, das Logo und das Stammzertifikat (Schuelergeraete haben das Zertifikat nicht, die Team-Links
+sollen ohne Warnung aufgehen); alles andere leitet nach HTTPS um.
 
 Ohne Zertifikat (oder mit TRACKINGDRS_OHNE_TLS=1 zum lokalen Testen) laeuft die ganze Seite ueber HTTP.
 Umgebungsvariablen: TRACKINGDRS_DATEN, TRACKINGDRS_TLS_DIR, TRACKINGDRS_HTTPS_PORT, TRACKINGDRS_HTTP_PORT,
@@ -17,10 +19,11 @@ import socket
 import ssl
 import sys
 import threading
+import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import VERSION, db, einstellungen, konten, projekte, sheet
+from . import VERSION, db, einstellungen, konten, projekte, sheet, termine
 
 BASIS = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WEB_DIR = os.path.join(BASIS, "web")
@@ -36,6 +39,9 @@ MAX_BODY = 2 * 1024 * 1024   # Logo als Base64
 SEITEN = {"/anmelden": "anmelden.html", "/lehrer": "lehrer.html", "/einrichtung": "einrichtung.html"}
 STATISCH = re.compile(r"/static/([a-z0-9_-]+\.(css|js|svg|png|ico))")
 TEAM_SEITE = re.compile(r"/t/[A-Za-z0-9_-]{20,64}")
+# was ueber HTTP erreichbar ist, wenn HTTPS laeuft
+TEAM_PFADE = re.compile(r"/t/[A-Za-z0-9_-]{20,64}|/api/t/[A-Za-z0-9_-]{20,64}(/[a-z0-9/_-]*)?"
+                        r"|/static/[a-z0-9_-]+\.(css|js|svg|png|ico)|/logo|/ca\.crt")
 CSP = ("default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; "
        "connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'")
 
@@ -61,6 +67,7 @@ class Handler(BaseHTTPRequestHandler):
     sys_version = ""
     timeout = 30
     protocol_version = "HTTP/1.1"
+    nur_team = False   # True: HTTP-Port neben HTTPS, nur Team-Pfade
 
     # --- Hilfen ---
 
@@ -151,8 +158,27 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         self._verteilen("POST")
 
+    def zu_https(self, methode):
+        """Lehrerpfade auf dem HTTP-Port: GET nach HTTPS umleiten, POST ablehnen (Passwoerter nie unverschluesselt)."""
+        laenge = _ganzzahl(self.headers.get("Content-Length") or 0)
+        if 0 < laenge <= MAX_BODY:
+            self.rfile.read(laenge)
+        if methode == "POST" or laenge > MAX_BODY:
+            return self.antwort(403, {"fehler": "Bitte die Seite über https:// aufrufen."})
+        host = (self.headers.get("Host") or "").split(":")[0]
+        if not re.fullmatch(r"[A-Za-z0-9.-]{1,253}", host):
+            host = socket.gethostname()
+        port = "" if HTTPS_PORT == 443 else ":%d" % HTTPS_PORT
+        self._kopfzeilen(301, "text/plain; charset=utf-8", 0,
+                         [("Location", "https://%s%s%s" % (host, port, self.path if self.path.startswith("/") else "/"))])
+
     def _verteilen(self, methode):
         pfad = urllib.parse.urlsplit(self.path).path
+        if self.nur_team and not TEAM_PFADE.fullmatch(pfad):
+            try:
+                return self.zu_https(methode)
+            except Fehler as f:
+                return self.antwort(f.status, {"fehler": f.meldung})
         con = None
         try:
             con = db.verbinden(self.server.db_pfad)
@@ -264,7 +290,8 @@ def api_abmelden(h, con, daten):
 
 
 def api_ich(h, con, daten):
-    h.antwort(200, {"konto": h.konto(con, vorlaeufig_ok=True)})
+    # Team-Links gehen ueber HTTP (team_port), solange der Lehrerbereich ueber HTTPS laeuft
+    h.antwort(200, {"konto": h.konto(con, vorlaeufig_ok=True), "team_port": HTTP_PORT if h.server.ist_tls else None})
 
 
 def api_passwort(h, con, daten):
@@ -334,10 +361,16 @@ def api_vorlagen(h, con, daten):
     h.antwort(200, {"vorlagen": [{"schluessel": v["schluessel"], "name": v["name"]} for v in projekte.vorlagen(con)]})
 
 
+def _abfrage(h, name, vorgabe=None):
+    return (urllib.parse.parse_qs(urllib.parse.urlsplit(h.path).query).get(name) or [vorgabe])[0]
+
+
 def api_projekte(h, con, daten):
     k = h.konto(con)
-    archiv = urllib.parse.parse_qs(urllib.parse.urlsplit(h.path).query).get("archiv") == ["1"]
-    h.antwort(200, {"projekte": projekte.liste(con, k, archiviert=archiv)})
+    liste = projekte.liste(con, k, archiviert=_abfrage(h, "archiv") == "1")
+    for p in liste:
+        p["warnungen"] = [w for w in termine.warnungen(con, p["id"]) if w["stufe"] == "warnung"]
+    h.antwort(200, {"projekte": liste})
 
 
 def api_projekt_anlegen(h, con, daten):
@@ -359,7 +392,9 @@ def _projekt(h, con, pid):
 
 def api_projekt(h, con, daten, pid):
     _k, pid = _projekt(h, con, pid)
-    h.antwort(200, {"projekt": projekte.details(con, pid)})
+    p = projekte.details(con, pid)
+    p["warnungen"] = [w for w in termine.warnungen(con, pid) if w["stufe"] == "warnung"]
+    h.antwort(200, {"projekt": p})
 
 
 def api_projekt_aendern(h, con, daten, pid):
@@ -462,6 +497,79 @@ def api_basisplan(h, con, daten, pid):
     h.antwort(200, {"sheet": sheet.lesen(con, pid)})
 
 
+# --- Termine ---
+
+def _termin_aendern(h, con, pid, wer_art, wer, daten):
+    if daten.get("stornieren"):
+        termine.stornieren(con, pid, wer_art, wer, daten.get("woche"))
+    else:
+        termine.buchen(con, pid, wer_art, wer, daten.get("regel_id"), daten.get("datum"), daten.get("uhrzeit"))
+    lehrkraft = wer_art == "lehrkraft"
+    h.antwort(200, {"termine": termine.termin_sicht(con, pid, lehrkraft=lehrkraft, wochen=6 if lehrkraft else 4),
+                    "warnungen": termine.warnungen(con, pid)})
+
+
+def api_team_termine(h, con, daten, token):
+    pid = _team_projekt(con, token)
+    h.antwort(200, {"termine": termine.termin_sicht(con, pid), "warnungen": termine.warnungen(con, pid)})
+
+
+def api_team_termin(h, con, daten, token):
+    _termin_aendern(h, con, _team_projekt(con, token), "team", "Team", daten)
+
+
+def api_projekt_termine(h, con, daten, pid):
+    _k, pid = _projekt(h, con, pid)
+    h.antwort(200, {"termine": termine.termin_sicht(con, pid, lehrkraft=True, wochen=6),
+                    "warnungen": termine.warnungen(con, pid)})
+
+
+def api_projekt_termin(h, con, daten, pid):
+    k, pid = _projekt(h, con, pid)
+    _termin_aendern(h, con, pid, "lehrkraft", k["kuerzel"], daten)
+
+
+def api_termine(h, con, daten):
+    k = h.konto(con)
+    wochen = min(max(_ganzzahl(_abfrage(h, "wochen", "4")), 1), 12)
+    h.antwort(200, termine.uebersicht(con, k, _abfrage(h, "von"), wochen))
+
+
+def api_regel_anlegen(h, con, daten):
+    termine.regel_anlegen(con, h.konto(con), daten)
+    h.antwort(200, {"ok": True})
+
+
+def api_regel_aendern(h, con, daten, rid):
+    termine.regel_aendern(con, h.konto(con), rid, daten)
+    h.antwort(200, {"ok": True})
+
+
+def api_tag_anpassen(h, con, daten, rid):
+    termine.tag_anpassen(con, h.konto(con), rid, daten.get("datum"), daten)
+    h.antwort(200, {"ok": True})
+
+
+def api_ausfall_anlegen(h, con, daten):
+    termine.ausfall_anlegen(con, h.konto(con), daten)
+    h.antwort(200, {"ok": True})
+
+
+def api_ausfall_entfernen(h, con, daten, aid):
+    termine.ausfall_entfernen(con, h.konto(con), _ganzzahl(aid))
+    h.antwort(200, {"ok": True})
+
+
+def api_ferien_anlegen(h, con, daten):
+    termine.ferien_anlegen(con, h.konto(con), daten)
+    h.antwort(200, {"ok": True})
+
+
+def api_ferien_entfernen(h, con, daten, fid):
+    termine.ferien_entfernen(con, h.konto(con), _ganzzahl(fid))
+    h.antwort(200, {"ok": True})
+
+
 ROUTEN = [(m, re.compile(p), f) for m, p, f in [
     ("GET", r"/api/status", api_status),
     ("POST", r"/api/einrichtung", api_einrichtung),
@@ -489,52 +597,30 @@ ROUTEN = [(m, re.compile(p), f) for m, p, f in [
     ("GET", r"/api/projekte/(\d+)/version/(\d+)", api_version),
     ("GET", r"/api/projekte/(\d+)/aufgabe/(\d+)/verlauf", api_verlauf),
     ("POST", r"/api/projekte/(\d+)/basisplan", api_basisplan),
+    ("GET", r"/api/projekte/(\d+)/termine", api_projekt_termine),
+    ("POST", r"/api/projekte/(\d+)/termin", api_projekt_termin),
+    ("GET", r"/api/termine", api_termine),
+    ("POST", r"/api/termine/regeln", api_regel_anlegen),
+    ("POST", r"/api/termine/regeln/(\d+)", api_regel_aendern),
+    ("POST", r"/api/termine/regeln/(\d+)/tag", api_tag_anpassen),
+    ("POST", r"/api/termine/ausfaelle", api_ausfall_anlegen),
+    ("POST", r"/api/termine/ausfaelle/(\d+)/entfernen", api_ausfall_entfernen),
+    ("POST", r"/api/termine/ferien", api_ferien_anlegen),
+    ("POST", r"/api/termine/ferien/(\d+)/entfernen", api_ferien_entfernen),
     ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})", api_team),
     ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/sheet", api_team_sheet),
     ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/sheet", api_team_sheet_aendern),
     ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/version/(\d+)", api_team_version),
     ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/aufgabe/(\d+)/verlauf", api_team_verlauf),
+    ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/termine", api_team_termine),
+    ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/termin", api_team_termin),
 ]]
 
 
-# --- HTTP nach HTTPS ---
+# --- HTTP neben HTTPS: nur die Team-Seiten ---
 
-class UmleitungHandler(BaseHTTPRequestHandler):
-    """Port 80, wenn HTTPS laeuft: alles nach https:// umleiten, nur das Stammzertifikat direkt ausliefern."""
-    server_version = "TrackingDRS"
-    sys_version = ""
-    timeout = 10
-
-    def _weiter(self):
-        laenge = int(self.headers.get("Content-Length") or 0)
-        if 0 < laenge <= MAX_BODY:
-            self.rfile.read(laenge)
-        if urllib.parse.urlsplit(self.path).path == "/ca.crt":
-            try:
-                with open(os.path.join(TLS_DIR, "ca.crt"), "rb") as f:
-                    inhalt = f.read()
-            except OSError:
-                inhalt = None
-            if inhalt:
-                self.send_response(200)
-                self.send_header("Content-Type", "application/x-x509-ca-cert")
-                self.send_header("Content-Length", str(len(inhalt)))
-                self.end_headers()
-                self.wfile.write(inhalt)
-                return
-        host = (self.headers.get("Host") or "").split(":")[0]
-        if not re.fullmatch(r"[A-Za-z0-9.-]{1,253}", host):
-            host = socket.gethostname()
-        port = "" if HTTPS_PORT == 443 else ":%d" % HTTPS_PORT
-        self.send_response(301)
-        self.send_header("Location", "https://%s%s%s" % (host, port, self.path if self.path.startswith("/") else "/"))
-        self.send_header("Content-Length", "0")
-        self.end_headers()
-
-    do_GET = do_POST = do_HEAD = _weiter
-
-    def log_message(self, fmt, *args):
-        pass
+class TeamHandler(Handler):
+    nur_team = True
 
 
 class TLSServer(ThreadingHTTPServer):
@@ -578,6 +664,23 @@ class HTTPServer(ThreadingHTTPServer):
         self.db_pfad = db_pfad
 
 
+def takt(db_pfad):
+    """Jede Minute: faellige Versionen zum Buchungsschluss anlegen."""
+    while True:
+        con = None
+        try:
+            con = db.verbinden(db_pfad)
+            neu = termine.faellige_versionen(con)
+            if neu:
+                print("Versionen zum Buchungsschluss: %d neu" % neu, flush=True)
+        except Exception as f:
+            print("FEHLER Takt: %r" % f, file=sys.stderr, flush=True)
+        finally:
+            if con is not None:
+                con.close()
+        time.sleep(60)
+
+
 def tls_kontext():
     zert, schluessel = os.path.join(TLS_DIR, "server.crt"), os.path.join(TLS_DIR, "server.key")
     if not (os.path.exists(zert) and os.path.exists(schluessel)):
@@ -601,9 +704,11 @@ def main():
         print("TrackingDRS %s auf http://%s:%d" % (VERSION, BIND, HTTP_PORT), flush=True)
     else:
         server = TLSServer((BIND, HTTPS_PORT), Handler, kontext, db_pfad)
-        umleitung = HTTPServer((BIND, HTTP_PORT), UmleitungHandler)
-        threading.Thread(target=umleitung.serve_forever, daemon=True).start()
-        print("TrackingDRS %s auf https://%s:%d (http :%d leitet um)" % (VERSION, BIND, HTTPS_PORT, HTTP_PORT), flush=True)
+        team = HTTPServer((BIND, HTTP_PORT), TeamHandler, db_pfad)
+        threading.Thread(target=team.serve_forever, daemon=True).start()
+        print("TrackingDRS %s auf https://%s:%d (http :%d nur fuer Team-Links)" % (VERSION, BIND, HTTPS_PORT, HTTP_PORT),
+              flush=True)
+    threading.Thread(target=takt, args=(db_pfad,), daemon=True).start()
     if code:
         print("Noch kein Konto: Einrichtung unter /einrichtung, Code mit  trackingdrs einrichtungscode", flush=True)
     server.serve_forever()

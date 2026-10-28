@@ -160,6 +160,68 @@ MIGRATIONEN = [
         daten TEXT NOT NULL);
     CREATE INDEX version_projekt ON version (projekt_id, id);
     """,
+    # 3: Termine (Stufe C1). Projektzeiten sind Regeln, daraus entstehen die Projekttage mit ihren Terminen.
+    # Datum als ISO-Text, Uhrzeit als HH:MM. Nichts wird geloescht, nur deaktiviert (aktiv = 0).
+    """
+    CREATE TABLE projektzeit (
+        id INTEGER PRIMARY KEY,
+        lehrkraft_id INTEGER NOT NULL REFERENCES lehrkraft(id),
+        klasse TEXT NOT NULL,
+        wochentag INTEGER NOT NULL CHECK (wochentag BETWEEN 0 AND 6),
+        rhythmus TEXT NOT NULL CHECK (rhythmus IN ('jede', 'gerade', 'ungerade')),
+        von TEXT NOT NULL,
+        bis TEXT NOT NULL,
+        fenster_von TEXT NOT NULL,
+        fenster_bis TEXT NOT NULL,
+        laenge INTEGER NOT NULL,
+        schluss_tage INTEGER NOT NULL DEFAULT 1,
+        schluss_zeit TEXT NOT NULL DEFAULT '18:00',
+        gueltig_von TEXT NOT NULL,
+        gueltig_bis TEXT NOT NULL,
+        aktiv INTEGER NOT NULL DEFAULT 1,
+        erstellt TEXT NOT NULL);
+    CREATE TABLE projekttag (
+        projektzeit_id INTEGER NOT NULL REFERENCES projektzeit(id),
+        datum TEXT NOT NULL,
+        gestrichen INTEGER NOT NULL DEFAULT 0,
+        fenster_von TEXT,
+        fenster_bis TEXT,
+        laenge INTEGER,
+        grund TEXT NOT NULL DEFAULT '',
+        PRIMARY KEY (projektzeit_id, datum));
+    CREATE TABLE ausfall (
+        id INTEGER PRIMARY KEY,
+        lehrkraft_id INTEGER NOT NULL REFERENCES lehrkraft(id),
+        klasse TEXT NOT NULL DEFAULT '',
+        von TEXT NOT NULL,
+        bis TEXT NOT NULL,
+        grund TEXT NOT NULL,
+        aktiv INTEGER NOT NULL DEFAULT 1,
+        erstellt TEXT NOT NULL);
+    CREATE TABLE ferien (
+        id INTEGER PRIMARY KEY,
+        von TEXT NOT NULL,
+        bis TEXT NOT NULL,
+        name TEXT NOT NULL,
+        quelle TEXT NOT NULL DEFAULT 'hand' CHECK (quelle IN ('hand', 'abo')),
+        aktiv INTEGER NOT NULL DEFAULT 1);
+    CREATE TABLE buchung (
+        id INTEGER PRIMARY KEY,
+        projekt_id INTEGER NOT NULL REFERENCES projekt(id) ON DELETE CASCADE,
+        projektzeit_id INTEGER NOT NULL REFERENCES projektzeit(id),
+        datum TEXT NOT NULL,
+        uhrzeit TEXT NOT NULL,
+        woche TEXT NOT NULL,
+        aktiv INTEGER NOT NULL DEFAULT 1,
+        zeit TEXT NOT NULL,
+        wer_art TEXT NOT NULL,
+        wer TEXT NOT NULL);
+    CREATE UNIQUE INDEX buchung_platz ON buchung (projektzeit_id, datum, uhrzeit) WHERE aktiv = 1;
+    CREATE UNIQUE INDEX buchung_woche ON buchung (projekt_id, woche) WHERE aktiv = 1;
+    ALTER TABLE aufgabe ADD COLUMN erledigt TEXT;
+    ALTER TABLE version ADD COLUMN woche TEXT;
+    CREATE UNIQUE INDEX version_woche ON version (projekt_id, woche) WHERE art = 'buchungsschluss'
+    """,
 ]
 
 

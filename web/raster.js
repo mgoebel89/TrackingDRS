@@ -3,6 +3,7 @@
 //
 // Ebenen je Zelle: Plan (b = geplante Woche, als blauer Balken), Endtermin (e, Marke) und Ampel (g/y/r faerbt den
 // Balken der Woche). Eingabe: Zelle anklicken und Taste druecken (wie in Excel), ueber Wochen ziehen plant b.
+// Wochen ohne Projekttag sind schraffiert (sobald fuer das Projekt eine Projektzeit gilt); erledigte Aufgaben tragen ein ✓.
 'use strict';
 
 const Raster = (() => {
@@ -22,6 +23,7 @@ const Raster = (() => {
     const kuerzel = id => (mitglied(id) || {}).kuerzel || '?';
     const name = id => { const m = mitglied(id); return m ? m.vorname + ' ' + m.nachname : 'niemand'; };
     const braucht = a => !a.verworfen && !a.verantwortlich_id && (a.plan.length > 0 || a.ende !== null);
+    const frei = w => S.sheet.projektwochen !== null && !S.sheet.projektwochen.includes(w);
     const offenerDialog = () => document.querySelector('dialog[open]') !== null;
 
     async function senden(aktion, daten) {
@@ -91,6 +93,8 @@ const Raster = (() => {
         el('span', {}, el('span', { class: 'm-b st-g' }), el('span', { class: 'm-b st-y' }), el('span', { class: 'm-b st-r' }), 'Ampel der Woche'),
         el('span', { text: '◆ Meilenstein' }),
         el('span', { text: 'blau hinterlegt: laufende Woche' }),
+        el('span', { text: '✓ erledigt' }),
+        S.sheet.projektwochen !== null ? el('span', {}, el('span', { class: 'm-frei' }), 'keine Projektwoche') : null,
         S.vgl ? el('span', {}, el('span', { class: 'm-geist' }), 'Plan der Vergleichsversion') : null);
     }
 
@@ -124,6 +128,7 @@ const Raster = (() => {
       const titel = a.ampel[w] ? T.kwText(w) + ': ' + AMPEL[a.ampel[w]] : T.kwText(w);
       const klassen = ['w'];
       if (w === S.sheet.jetzt) klassen.push('jetzt');
+      if (frei(w)) klassen.push('frei');
       if (S.sel && S.sel.a === a.id && S.sel.k === k) klassen.push('sel');
       return el('td', { class: klassen.join(' '), 'data-k': String(k), title: titel },
         el('div', { class: zelleKlassen(a, k) }, inhalt));
@@ -145,17 +150,19 @@ const Raster = (() => {
       const breite = 3 + W.length;
       let nr = 0;
       const kopf = el('tr', {}, el('th', {}), el('th', { class: 'links', text: 'Aufgabe' }), el('th', { class: 'links', text: 'Verantw.' }),
-        W.map(w => el('th', { class: w === S.sheet.jetzt ? 'jetzt' : '', title: T.tagText(w), text: String(T.kw(T.datum(w))) })));
+        W.map(w => el('th', { class: (w === S.sheet.jetzt ? 'jetzt' : '') + (frei(w) ? ' frei' : ''),
+          title: T.tagText(w) + (frei(w) ? ' · kein Projekttag' : ''), text: String(T.kw(T.datum(w))) })));
       const zeilen = [];
       for (const ph of S.sheet.phasen) {
         zeilen.push(el('tr', { class: 'phase' }, el('td', { colspan: String(breite) }, ph.name,
           S.sheet.projekt.archiviert ? null : el('button', { type: 'button', class: 'neu-auf', onclick: () => aufgabeNeu(ph) }, '+ Aufgabe'))));
         for (const a of ph.aufgaben) {
           nr += 1;
-          const klassen = [a.verworfen ? 'verworfen' : '', a.id === S.gew ? 'gewaehlt' : ''].join(' ').trim();
+          const klassen = [a.verworfen ? 'verworfen' : '', a.erledigt ? 'erledigt' : '', a.id === S.gew ? 'gewaehlt' : ''].join(' ').trim();
           zeilen.push(el('tr', { class: klassen, 'data-a': String(a.id) },
             el('td', { class: 'nr', text: String(nr) }),
-            el('td', { class: 'name', title: a.titel }, el('span', { class: 'nm' }, marken(a), a.titel)),
+            el('td', { class: 'name', title: a.titel + (a.erledigt ? ' · erledigt ' + T.zeitText(a.erledigt) : '') },
+              el('span', { class: 'nm' }, a.erledigt ? el('span', { class: 'erl', text: '✓' }) : null, marken(a), a.titel)),
             el('td', { class: 'vw' }, verantwortlichChip(a)),
             W.map((_, k) => zelle(a, k))));
         }
@@ -216,6 +223,14 @@ const Raster = (() => {
         braucht(a) ? el('div', { class: 'r-hinweis', text: 'Pflicht, weil die Aufgabe geplant ist' }) : null,
         S.sheet.mitglieder.length ? null : el('div', { class: 'leise', text: 'Noch keine Teammitglieder eingetragen.' })));
       teile.push(el('div', {}, el('div', { class: 'etikett', text: 'Plan' }), plan, el('br'), 'Ende: ' + ende));
+      if (!a.verworfen && !S.sheet.projekt.archiviert) {
+        teile.push(el('div', {}, el('div', { class: 'etikett', text: 'Erledigt' }),
+          el('label', { class: 'haken' }, el('input', { type: 'checkbox', checked: !!a.erledigt,
+            onchange: ev => senden('erledigt', { aufgabe_id: a.id, erledigt: ev.target.checked }) }),
+          a.erledigt ? 'erledigt ' + T.zeitText(a.erledigt) : 'Aufgabe ist erledigt')));
+      } else if (a.erledigt) {
+        teile.push(el('div', { class: 'leise', text: '✓ erledigt ' + T.zeitText(a.erledigt) }));
+      }
       if (a.probleme.length) {
         teile.push(el('div', {}, el('div', { class: 'etikett', text: 'Probleme' }), a.probleme.map(p => el('div', { class: 'problem' },
           el('span', { class: 'm-b st-' + p.ampel }), T.kwText(p.woche) + ': ' + p.problem,
@@ -495,15 +510,18 @@ const Raster = (() => {
       const w = S.sheet.jetzt;
       if (!S.sheet.wochen.includes(w)) return el('div', { class: 'leer', text: 'Diese Woche liegt außerhalb des Projektzeitraums.' });
       const laufend = alleAufgaben().filter(a => !a.verworfen && (a.plan.includes(w) || a.ende === w || a.ampel[w]));
-      const offen = laufend.filter(a => !a.ampel[w]).length;
+      const offen = laufend.filter(a => !a.ampel[w] && !a.erledigt).length;
       return el('div', { class: 'stapel' },
         el('div', { class: 'banner' }, T.kwText(w) + ': ' + (laufend.length ? (offen ? offen + ' von ' + laufend.length + ' Aufgaben brauchen noch eine Ampel.' : 'Alle Ampeln gesetzt.') : 'Für diese Woche ist nichts geplant.')),
-        laufend.length ? el('div', { class: 'hz' }, laufend.map(a => el('div', { class: 'hz-z' + (a.ampel[w] ? '' : ' offen') },
-          el('div', {}, el('b', { text: a.titel }), el('span', { class: 'leise', text:
-            (a.verantwortlich_id ? kuerzel(a.verantwortlich_id) : 'ohne Verantwortlichen') + (a.ende ? ' · Ende ' + T.kwText(a.ende) : '') + (a.ampel[w] ? '' : ' · noch keine Ampel') })),
+        laufend.length ? el('div', { class: 'hz' }, laufend.map(a => el('div', { class: 'hz-z' + (a.ampel[w] || a.erledigt ? '' : ' offen') },
+          el('div', {}, el('b', { text: (a.erledigt ? '✓ ' : '') + a.titel }), el('span', { class: 'leise', text:
+            (a.verantwortlich_id ? kuerzel(a.verantwortlich_id) : 'ohne Verantwortlichen') + (a.ende ? ' · Ende ' + T.kwText(a.ende) : '') +
+            (a.erledigt ? ' · erledigt' : a.ampel[w] ? '' : ' · noch keine Ampel') })),
           el('div', { class: 'hz-amp' }, ['g', 'y', 'r'].map(f => el('button', {
             type: 'button', class: f + (a.ampel[w] === f ? ' an' : ''), 'aria-label': AMPEL[f], 'aria-pressed': String(a.ampel[w] === f),
-            onclick: () => f === 'g' ? ampelSetzen(a, w, 'g') : problemDialog(a, w, f) }, f)))))) : null,
+            onclick: () => f === 'g' ? ampelSetzen(a, w, 'g') : problemDialog(a, w, f) }, f)),
+          el('button', { type: 'button', class: 'erl' + (a.erledigt ? ' an' : ''), 'aria-label': 'erledigt', title: a.erledigt ? 'doch nicht erledigt' : 'erledigt',
+            'aria-pressed': String(!!a.erledigt), onclick: () => senden('erledigt', { aufgabe_id: a.id, erledigt: !a.erledigt }) }, '✓'))))) : null,
         el('p', { class: 'leise', text: 'Planen und Aufgaben anlegen geht im Reiter „Tracking-Sheet“, am besten am PC oder Tablet.' }));
     }
 

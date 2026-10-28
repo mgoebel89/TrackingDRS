@@ -13,7 +13,8 @@ Besprechung werden daraus berechnet.
 |---|---|---|
 | A | Grundgerüst: Installation, Lehrkraft-Konten, HTTPS, Firewall, Projekte, Teams, Team-Link, Standardvorlage | fertig |
 | B | Tracking-Sheet: Raster mit Plan und Ampel, Verantwortliche, Meilensteine, Basisplan, Vergleich, Handyansicht „Diese Woche“, Schul-Logo | fertig (Versionen zum Buchungsschluss kommen mit C) |
-| C | Termine, Buchung, Warnungen, Cockpit, Kalender mit Dienstkalender-Abo | geplant |
+| C1 | Projektzeiten als Regeln (Wochentag, jede/gerade/ungerade KW), Ferien, Ausfälle, einzelne Tage anpassen, Termine buchen und umbuchen bis zum Buchungsschluss, Version zum Buchungsschluss, Häkchen „erledigt“, Warnungen, Team-Links über HTTP | fertig |
+| C2 | Cockpit, Kalender, Dienstkalender- und Schulkalender-Abo (ICS) | geplant |
 | D | Besprechungstafel (Smartboard), Kurzzusammenfassung, Arbeitsaufträge | geplant |
 | E | Anfragen: Rückfrage, Bestellliste mit Einreichfenstern, Ausleihe, Abnahme | geplant |
 | F | Fotos, Mindmap, Lehrernotizen, Vorlagen, Excel/PDF, Archiv, Sicherung | geplant |
@@ -38,8 +39,12 @@ git clone https://github.com/mgoebel89/TrackingDRS /opt/trackingdrs && bash /opt
 ```
 
 **HTTPS:** Der Container stellt sich sein Zertifikat mit einer eigenen kleinen Zertifizierungsstelle aus. Damit der
-Browser nicht warnt, das Stammzertifikat von `http://<container>/ca.crt` auf den Geräten installieren. Die
+Browser nicht warnt, das Stammzertifikat von `http://<container>/ca.crt` auf den Lehrer-Geräten installieren. Die
 Zertifizierungsstelle darf nur für das Netz des Containers ausstellen.
+
+**Team-Links über HTTP:** Die Schülergeräte haben das Stammzertifikat nicht. Deshalb bedient Port 80 die Team-Seiten
+(`/t/<link>`) und ihre Schnittstelle direkt; alles andere (Anmeldung, Lehrerbereich) leitet nach HTTPS um bzw. wird
+abgelehnt. Der Lehrerbereich zeigt den Team-Link schon mit `http://` an.
 
 ## Betrieb
 
@@ -70,7 +75,7 @@ Den Einrichtungscode zeigt `TRACKINGDRS_DATEN=.dev-daten python3 -m app.cli einr
 
 | Ordner | Inhalt |
 |---|---|
-| `app/` | Server (`server.py`), Datenbank (`db.py`), Konten, Projekte, Konsolenbefehle, Vorlagen |
+| `app/` | Server (`server.py`), Datenbank (`db.py`), Konten, Projekte, Tracking-Sheet (`sheet.py`), Termine (`termine.py`), Konsolenbefehle, Vorlagen |
 | `web/` | Seiten, Stil und Skripte der Oberfläche (ohne Build-Schritt) |
 | `deploy/` | Installation, Update, Dienste, Zertifikat, Firewall |
 | `proxmox/` | Einzeiler für den Proxmox-Host |

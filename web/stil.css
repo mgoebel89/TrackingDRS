@@ -160,6 +160,11 @@ table.r-tab th.links { text-align: left; padding-left: 8px; font-family: var(--s
 .r-tab td.vw { width: 54px; text-align: center; }
 .r-tab td.w { width: 36px; min-width: 36px; cursor: cell; border-left: 1px solid var(--linie); }
 .r-tab td.w.jetzt { background: var(--blau-hell); }
+/* Woche ohne Projekttag: schraffiert */
+.r-tab td.w.frei, .r-tab th.frei, .m-frei { background-image: repeating-linear-gradient(135deg, transparent 0 4px, rgba(93,103,121,.13) 4px 5px); }
+.m-frei { display: inline-block; width: 14px; height: 12px; border: 1px solid var(--linie-stark); border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
+.r-tab tr.erledigt td.name { color: var(--leise); }
+.erl { color: var(--gruen); font-weight: 700; margin-right: 4px; }
 .r-tab td.w.vor { box-shadow: inset 0 -3px 0 var(--blau); }
 .r-tab td.w.sel { box-shadow: inset 0 0 0 2px var(--blau); }
 .r-tab tr.phase td { background: var(--knopf); font-size: .66rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--leise); padding: 5px 8px; }
@@ -233,6 +238,40 @@ table.r-tab th.links { text-align: left; padding-left: 8px; font-family: var(--s
 .hz-amp button.g.an { background: var(--gruen); border-color: var(--gruen); color: #1d2433; }
 .hz-amp button.y.an { background: var(--gelb); border-color: var(--gelb); color: #1d2433; }
 .hz-amp button.r.an { background: var(--rot); border-color: var(--rot); color: #fff; }
+.hz-amp button.erl { margin-left: 4px; font-family: var(--schrift); }
+.hz-amp button.erl.an { background: var(--blau); border-color: var(--blau); color: #fff; }
+
+/* Warnungen und Hinweise */
+.warnungen { display: grid; gap: 6px; }
+.banner.warnung { background: var(--rot-hell); border-color: #f0b7cf; color: #8a0040; }
+
+/* Termine buchen (Team, Projektseite) */
+.termin-woche { display: grid; gap: 10px; }
+.termin-woche .banner { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.termin-woche .banner button { margin-left: auto; min-height: 30px; }
+.termin-tag { display: grid; gap: 6px; }
+.plaetze { display: grid; grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); gap: 6px; }
+.platz { justify-content: flex-start; gap: 10px; min-height: 44px; font-weight: 600; }
+.platz.frei { border-color: var(--blau-mittel); color: var(--blau); }
+.platz.belegt { background: var(--knopf); color: var(--leise); font-weight: 500; }
+.platz.eigen { background: var(--blau); border-color: var(--blau); color: #fff; opacity: 1; }
+.platz:disabled { cursor: default; }
+.platz.frei:disabled { opacity: .45; }
+
+/* Termine (Lehrkraft) */
+.felder.drei { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+.tage-raster { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); margin-top: 12px; }
+.tage-raster .termin-tag { border: 1px solid var(--linie); border-radius: 12px 4px 4px 4px; padding: 10px 12px; align-content: start; font-size: .92em; }
+.tage-raster .termin-tag.entfaellt { background: var(--knopf); }
+.slots { display: grid; gap: 2px; }
+.slot { display: flex; gap: 10px; align-items: center; padding: 3px 0; border-bottom: 1px solid var(--linie); min-height: 34px; }
+.slot:last-child { border-bottom: none; }
+.slot.belegt a { font-weight: 600; text-decoration: none; }
+.slot.vorbei { opacity: .55; }
+.slot select.klein { width: auto; min-height: 30px; padding: 2px 6px; font-size: .88em; color: var(--leise); }
+.termin-tag .ohne { font-size: .85em; color: var(--rot); }
+.eintraege { display: grid; gap: 6px; font-size: .92em; }
+.zwei-spalten { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
 @media (max-width: 1100px) {
   .sheet { grid-template-columns: minmax(0, 1fr); }
   .pc-panel { position: static; }

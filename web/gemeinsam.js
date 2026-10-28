@@ -121,6 +121,18 @@ const T = {
     return d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }) + ' ' +
       d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
   },
+  // '2026-11-09T18:00:00' -> 'Mo 09.11., 18:00' (ohne Umrechnung: die Zeiten sind Schulzeit)
+  zeitpunkt(text) {
+    if (!text) return '';
+    const d = T.datum(text);
+    return T.TAGE[d.getDay()] + ' ' + text.slice(8, 10) + '.' + text.slice(5, 7) + '., ' + text.slice(11, 16);
+  },
+  // '2026-11-03' -> 'Di 03.11.'
+  kurzTag(text) {
+    const d = T.datum(text);
+    return T.TAGE[d.getDay()] + ' ' + text.slice(8, 10) + '.' + text.slice(5, 7) + '.';
+  },
+  TAGE: ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'],
   isoDatum(d) {
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   },
@@ -153,9 +165,22 @@ const T = {
       meilenstein_geaendert: () => 'Meilenstein „' + d.titel + '“: ' + kw(d.woche_alt) + ' → ' + kw(d.woche),
       meilenstein_verworfen: () => 'Meilenstein „' + d.titel + '“ verworfen',
       meilenstein_zurueck: () => 'Meilenstein „' + d.titel + '“ wiederhergestellt',
+      erledigt: () => '„' + d.titel + '“ erledigt ✓',
+      nicht_erledigt: () => '„' + d.titel + '“ doch nicht erledigt',
+      termin_gebucht: () => (d.alt_datum ? 'Termin umgebucht: ' + T.kurzTag(d.alt_datum) + ' ' + d.alt_uhrzeit + ' → '
+        : 'Termin gebucht: ') + T.kurzTag(d.datum) + ' ' + d.uhrzeit,
+      termin_storniert: () => 'Termin ' + T.kurzTag(d.datum) + ' ' + d.uhrzeit + ' abgesagt',
+      termin_entfallen: () => 'Termin ' + T.kurzTag(d.datum) + ' ' + d.uhrzeit + ' entfällt: ' + d.grund,
       version: () => (d.versionsart === 'basisplan' ? 'Basisplan festgelegt' : 'Version gespeichert') + ': ' + d.name,
     };
     try { return (texte[e.art] || (() => e.art))(); } catch (f) { return e.art; }
+  },
+
+  // Warnungen und Hinweise als Banner (stufe 'warnung' rot, 'hinweis' blau)
+  warnungen(liste) {
+    if (!liste || !liste.length) return null;
+    return T.el('div', { class: 'warnungen' }, liste.map(w =>
+      T.el('div', { class: 'banner' + (w.stufe === 'warnung' ? ' warnung' : '') }, w.stufe === 'warnung' ? '⚠ ' : '', w.text)));
   },
 
   werText(e) { return e.wer_art === 'team' ? 'Team' : e.wer_art === 'system' ? 'System' : e.wer.toUpperCase(); },

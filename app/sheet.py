@@ -1,5 +1,5 @@
-"""Tracking-Sheet: Aufgaben je Phase, Wochenraster mit Plan (b), Endtermin (e) und Ampel (g/y/r), Probleme,
-Meilensteine, Versionen (Basisplan, Stand zum Buchungsschluss).
+"""Tracking-Sheet: Aufgaben je Phase, Wochenraster mit Plan (b), Endtermin (e) und Ampel (g/y/r), Haekchen "erledigt",
+Probleme, Meilensteine, Versionen (Basisplan, Stand zum Buchungsschluss).
 
 Alle Aenderungen laufen ueber aendern(): eine Aktion, eine Transaktion, ein Ereignis. Team und Lehrkraft nutzen
 dieselben Aktionen; Unterschiede: nur Lehrkraefte duerfen Vorgabe-Aufgaben umbenennen/verwerfen und den Basisplan setzen.
@@ -96,6 +96,7 @@ def stand(con, pid):
 
 
 def lesen(con, pid):
+    from . import termine   # hier, weil termine seinerseits sheet braucht
     p = _projekt(con, pid)
     plan, ampel = _zellen(con, pid)
     probleme = {}
@@ -111,7 +112,7 @@ def lesen(con, pid):
             aufgaben.append({
                 "id": a["id"], "titel": a["titel"], "aus_vorlage": bool(a["aus_vorlage"]),
                 "verantwortlich_id": a["verantwortlich_id"], "verworfen": bool(a["verworfen"]),
-                "ende": a["ende"], "ende_ursprung": a["ende_ursprung"],
+                "ende": a["ende"], "ende_ursprung": a["ende_ursprung"], "erledigt": a["erledigt"],
                 "plan": sorted(plan.get(a["id"], [])), "ampel": ampel.get(a["id"], {}),
                 "probleme": probleme.get(a["id"], [])})
         phasen.append({"id": ph["id"], "name": ph["name"], "aufgaben": aufgaben})
@@ -119,6 +120,7 @@ def lesen(con, pid):
         "projekt": {"id": p["id"], "titel": p["titel"], "klasse": p["klasse"], "start": p["start"], "ende": p["ende"],
                     "archiviert": bool(p["archiviert"])},
         "wochen": wochen(p["start"], p["ende"]),
+        "projektwochen": termine.projektwochen(con, p),
         "jetzt": diese_woche(),
         "phasen": phasen,
         "mitglieder": [{"id": m["id"], "vorname": m["vorname"], "nachname": m["nachname"], "kuerzel": m["kuerzel"],
@@ -140,7 +142,7 @@ def momentaufnahme(con, pid):
     for a in con.execute("SELECT * FROM aufgabe WHERE projekt_id = ?", (pid,)):
         aufgaben[str(a["id"])] = {"titel": a["titel"], "phase_id": a["phase_id"], "verantwortlich_id": a["verantwortlich_id"],
                                   "verworfen": bool(a["verworfen"]), "ende": a["ende"],
-                                  "plan": sorted(plan.get(a["id"], [])), "ampel": ampel.get(a["id"], {})}
+                                  "erledigt": a["erledigt"], "plan": sorted(plan.get(a["id"], [])), "ampel": ampel.get(a["id"], {})}
     meilensteine = {str(m["id"]): {"titel": m["titel"], "woche": m["woche"], "verworfen": bool(m["verworfen"])}
                     for m in con.execute("SELECT * FROM meilenstein WHERE projekt_id = ?", (pid,))}
     return {"aufgaben": aufgaben, "meilensteine": meilensteine}
@@ -153,13 +155,18 @@ def version_lesen(con, pid, vid):
     return {"id": v["id"], "art": v["art"], "name": v["name"], "zeit": v["zeit"], "daten": json.loads(v["daten"])}
 
 
-def version_anlegen(con, pid, art, name, wer_art, wer):
-    """Friert den aktuellen Stand ein. Ein neuer Basisplan loest den bisherigen ab (der bleibt als Version erhalten)."""
+def version_anlegen(con, pid, art, name, wer_art, wer, woche=None):
+    """Friert den aktuellen Stand ein. Ein neuer Basisplan loest den bisherigen ab (der bleibt als Version erhalten).
+    Zum Buchungsschluss gibt es je Woche nur eine Version: gibt es sie schon, kommt None zurueck."""
     with db.transaktion(con):
+        if art == "buchungsschluss" and con.execute("SELECT 1 FROM version WHERE projekt_id = ? AND art = ? AND woche = ?",
+                                                    (pid, art, woche)).fetchone():
+            return None
         if art == "basisplan":
             con.execute("UPDATE version SET aktiv = 0 WHERE projekt_id = ? AND art = 'basisplan'", (pid,))
-        vid = con.execute("INSERT INTO version (projekt_id, art, name, zeit, daten) VALUES (?, ?, ?, ?, ?)",
-                          (pid, art, name, db.jetzt(), json.dumps(momentaufnahme(con, pid), ensure_ascii=False))).lastrowid
+        vid = con.execute("INSERT INTO version (projekt_id, art, name, zeit, woche, daten) VALUES (?, ?, ?, ?, ?, ?)",
+                          (pid, art, name, db.jetzt(), woche,
+                           json.dumps(momentaufnahme(con, pid), ensure_ascii=False))).lastrowid
         db.ereignis(con, pid, wer_art, wer, "version", version_id=vid, versionsart=art, name=name)
     return vid
 
@@ -244,6 +251,11 @@ def aendern(con, pid, wer_art, wer, d):
                 con.execute("UPDATE aufgabe SET verantwortlich_id = ? WHERE id = ?", (m["id"], aid))
                 ereignis("verantwortlich", aufgabe_id=aid, titel=a["titel"], kuerzel=m["kuerzel"],
                          name="%s %s" % (m["vorname"], m["nachname"]), alt=alt[0] if alt else None)
+        elif aktion == "erledigt":
+            erledigt = bool(d.get("erledigt", True))
+            if erledigt != bool(a["erledigt"]):
+                con.execute("UPDATE aufgabe SET erledigt = ? WHERE id = ?", (db.jetzt() if erledigt else None, aid))
+                ereignis("erledigt" if erledigt else "nicht_erledigt", aufgabe_id=aid, titel=a["titel"])
         elif aktion == "verwerfen":
             if a["aus_vorlage"] and not lehrkraft:
                 raise ProjektFehler("Vorgegebene Aufgaben kann nur die Lehrkraft verwerfen.")
