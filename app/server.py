@@ -547,9 +547,8 @@ def api_kalender(h, con, daten):
 
 def api_aktivitaeten(h, con, daten):
     k = h.konto(con)
-    projekt, vor = _abfrage(h, "projekt"), _abfrage(h, "vor")
-    h.antwort(200, cockpit.aktivitaeten(con, k, _ganzzahl(projekt) if projekt else None, _abfrage(h, "wer"),
-                                        _ganzzahl(vor) if vor else None))
+    bereiche = [b for b in (_abfrage(h, "bereiche") or "").split(",") if b]
+    h.antwort(200, cockpit.aktivitaeten(con, k, _abfrage(h, "zeitraum", "besuch"), bereiche or None, _abfrage(h, "klasse")))
 
 
 def api_dienstkalender(h, con, daten):

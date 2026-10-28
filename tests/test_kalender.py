@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from app import cockpit, db, kalender, konten, projekte, server, sheet, termine
+from app import anfragen, cockpit, db, extras, kalender, konten, projekte, server, sheet, termine
 
 DIENST = b"""BEGIN:VCALENDAR
 VERSION:2.0
@@ -220,17 +220,41 @@ class MitProjekten(unittest.TestCase):
         team = server._team_termine(self.con, self.klima)["warnungen"]
         self.assertNotIn("rote_ampel", [w["art"] for w in team])
 
-    def test_aktivitaeten_seitenweise(self):
+    def test_aktivitaeten_je_team(self):
         ph = sheet.lesen(self.con, self.klima)["phasen"][1]["id"]
-        for i in range(5):
-            self.team(self.klima, aktion="aufgabe_neu", phase_id=ph, titel="Aufgabe %d" % i)
-        a = cockpit.aktivitaeten(self.con, self.gob, anzahl=3)
-        self.assertEqual([e["daten"]["titel"] for e in a["ereignisse"]], ["Aufgabe 4", "Aufgabe 3", "Aufgabe 2"])
-        b = cockpit.aktivitaeten(self.con, self.gob, vor=a["weiter"], anzahl=3)
-        self.assertEqual(b["ereignisse"][0]["daten"]["titel"], "Aufgabe 1")
-        nur_team = cockpit.aktivitaeten(self.con, self.gob, wer_art="team")["ereignisse"]
-        self.assertTrue(nur_team and all(e["wer_art"] == "team" for e in nur_team))
-        self.assertEqual(cockpit.aktivitaeten(self.con, self.scu, projekt_id=self.klima)["ereignisse"][0]["projekt"], "Förderband")
+        lena = sheet.lesen(self.con, self.klima)["mitglieder"][0]["id"]
+        aid = self.team(self.klima, aktion="aufgabe_neu", phase_id=ph, titel="Lüfter auslegen")["aufgabe_id"]
+        for w in ("2026-10-26", "2026-11-02", "2026-11-09"):   # drei Planaenderungen kurz hintereinander: eine Zeile
+            self.team(self.klima, aktion="plan", aufgabe_id=aid, wochen=[w], wert=True)
+        self.team(self.klima, aktion="ende", aufgabe_id=aid, woche="2026-11-09")
+        self.team(self.klima, aktion="ende", aufgabe_id=aid, woche="2026-11-16")
+        self.team(self.klima, aktion="ampel", aufgabe_id=aid, woche="2026-11-02", ampel="r", problem="nicht lieferbar",
+                  massnahme="anderen suchen", verantwortlich_id=lena)
+        anfragen.anlegen(self.con, self.klima, {"art": "rueckfrage", "titel": "24 V?"})
+        extras.foto_neu(self.con, self.klima, self.ordner, "team", "Team", {"bild": "/9j/" + "A" * 400})
+        a = cockpit.aktivitaeten(self.con, self.gob)
+        self.assertEqual(a["bereiche"], ["raster", "anfragen"])
+        k = {x["titel"]: x for x in a["karten"]}["Klimaanlage"]
+        self.assertEqual(k["hinweise"][0]["art"], "ampel_r")
+        self.assertIn("nicht lieferbar", k["hinweise"][0]["text"])
+        self.assertIn("anfrage", [h["art"] for h in k["hinweise"]])
+        plan = [e for e in k["ereignisse"] if e["art"] == "plan"]
+        self.assertEqual((len(plan), plan[0]["daten"]["wochen"], plan[0]["anzahl"]), (1, ["2026-10-26", "2026-11-02", "2026-11-09"], 3))
+        self.assertEqual(k["ausgeblendet"], 2)   # Foto und "Projekt angelegt" (Bereich sonstiges) sind ausgeblendet
+        self.assertNotIn("foto_neu", [e["art"] for e in k["ereignisse"]])
+        self.assertEqual([r["titel"] for r in a["ruhig"]], ["Hubtisch"])
+        mit = cockpit.aktivitaeten(self.con, self.gob, "heute", ["sonstiges"])
+        self.assertEqual([e["art"] for e in {x["titel"]: x for x in mit["karten"]}["Klimaanlage"]["ereignisse"]], ["foto_neu", "projekt_angelegt"])
+        self.assertNotIn("Förderband", [x["titel"] for x in a["karten"] + a["ruhig"]])   # fremdes Projekt
+
+    def test_seit_letztem_besuch(self):
+        erster = cockpit.aktivitaeten_seit(self.con, self.gob, "besuch")
+        self.assertEqual(erster, "2026-11-02T07:30:00")   # erster Besuch: seit gestern
+        self.zeit = "2026-11-03T07:50:00"   # kurz danach neu geladen: gleicher Beginn
+        self.assertEqual(cockpit.aktivitaeten_seit(self.con, self.gob, "besuch"), erster)
+        self.zeit = "2026-11-03T12:00:00"   # spaeter: seit dem vorigen Besuch
+        self.assertEqual(cockpit.aktivitaeten_seit(self.con, self.gob, "besuch"), "2026-11-03T07:50:00")
+        self.assertEqual(cockpit.aktivitaeten_seit(self.con, self.gob, "woche"), "2026-11-02T00:00:00")
 
 
 if __name__ == "__main__":

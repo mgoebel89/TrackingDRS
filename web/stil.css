@@ -350,7 +350,29 @@ table.matrix tr.achtung td:first-child { box-shadow: inset 3px 0 0 var(--rot); }
 .hj.we { background: #f3f4f6; } .hj.frei.ferien { background: #fdf1dc; } .hj.frei.ausfall { background: #fde7d6; }
 .hj.heute { box-shadow: inset 0 0 0 2px var(--blau); }
 
-/* Aktivitaeten */
+/* Aktivitaeten: Karten je Team */
+.akt-filter { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.akt-bereiche { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip-haken { border: 1px solid var(--linie-stark); border-radius: 999px; padding: 3px 10px; font-size: .85em; cursor: pointer; background: var(--karte); }
+.chip-haken.an { background: var(--blau-hell); border-color: var(--blau-mittel); color: var(--blau); }
+.chip-haken input { width: 14px; height: 14px; }
+.akt-raster { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); align-items: start; }
+.akt-karte { display: grid; gap: 8px; }
+.akt-karte.achtung { border-color: var(--rot); box-shadow: inset 3px 0 0 var(--rot); }
+.akt-titel { font-weight: 700; font-size: 1.05rem; text-decoration: none; flex: 1; }
+.akt-hinweise { display: grid; gap: 4px; }
+.akt-hinweis { display: flex; gap: 8px; align-items: baseline; color: inherit; text-decoration: none; font-size: .92em; }
+.akt-hinweis:hover span:last-child { text-decoration: underline; }
+.akt-hinweis.ampel_r, .akt-hinweis.nachricht { font-weight: 600; }
+.akt-sym { width: 16px; text-align: center; flex: none; color: var(--blau); }
+.akt-sym.ampel_r { color: var(--rot); } .akt-sym.ampel_y { color: var(--gelb); } .akt-sym.entfallen { color: var(--rot); }
+.akt-zahlen { font-size: .85em; }
+.akt-details summary { cursor: pointer; font-size: .88em; color: var(--blau); }
+.akt-liste { display: grid; gap: 3px; margin-top: 6px; max-height: 320px; overflow: auto; }
+.akt-ereignis { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 6px; font-size: .85em; }
+.akt-ruhig a { text-decoration: none; }
+
+/* Aktivitaeten (alt, Chronik) */
 .chronik { display: grid; gap: 4px; }
 .chronik-tag { margin-top: 10px; }
 .chronik-z { display: grid; grid-template-columns: 48px 150px minmax(0, 1fr); gap: 8px; font-size: .9em; padding: 3px 0; border-bottom: 1px solid var(--linie); }

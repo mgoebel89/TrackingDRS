@@ -239,45 +239,78 @@ const Cockpit = (() => {
     return el('div', { class: 'halbjahr' }, spalten);
   }
 
-  // --- Aktivitaeten ---
+  // --- Aktivitaeten: je Team zusammengefasst ---
+
+  const BEREICHE = [['raster', 'Raster & Ampeln'], ['anfragen', 'Anfragen & Bestellungen'], ['besprechung', 'Besprechung & Termine'],
+    ['sonstiges', 'Fotos & Sonstiges']];
+  const ZEITRAEUME = [['besuch', 'Seit letztem Besuch'], ['heute', 'Heute'], ['woche', 'Diese Woche'], ['30', '30 Tage']];
+  const ZAHL_TEXT = { raster: ['Änderung im Raster', 'Änderungen im Raster'], anfragen: ['Eintrag bei Anfragen', 'Einträge bei Anfragen'],
+    besprechung: ['Eintrag zu Besprechung/Termin', 'Einträge zu Besprechung/Termin'], sonstiges: ['sonstige Änderung', 'sonstige Änderungen'] };
+  const SYMBOL = { ampel_r: '●', ampel_y: '●', nachricht: '✉', anfrage: '✉', verschoben: '↦', liste: '🛒', entfallen: '✕', meilenstein: '◆', besprechung: '▣' };
+
+  function aktivitaetenEinstellungen() {
+    if (!S.akt) {
+      let gespeichert = null;
+      try { gespeichert = JSON.parse(localStorage.getItem('tdrs-akt') || 'null'); } catch (e) { /* ohne Speicher */ }
+      S.akt = Object.assign({ zeitraum: 'besuch', bereiche: ['raster', 'anfragen'] }, gespeichert || {});
+    }
+    return S.akt;
+  }
+
+  function aktivitaetenMerken() {
+    try { localStorage.setItem('tdrs-akt', JSON.stringify({ zeitraum: S.akt.zeitraum, bereiche: S.akt.bereiche })); } catch (e) { /* egal */ }
+  }
+
+  function hinweisZeile(h, k) {
+    const text = h.art === 'verschoben' ? h.text + ' (' + T.kwText(h.alt) + ' → ' + T.kwText(h.neu) + ')'
+      : h.art === 'meilenstein' && h.woche ? h.text + ' · ' + T.kwText(h.woche) : h.text;
+    const inhalt = [el('span', { class: 'akt-sym ' + h.art, text: SYMBOL[h.art] || '•' }), el('span', { text })];
+    return h.anfrage_id ? el('a', { class: 'akt-hinweis ' + h.art, href: '#anfragen/v/' + h.anfrage_id }, inhalt)
+      : el('a', { class: 'akt-hinweis ' + h.art, href: '#projekt/' + k.id }, inhalt);
+  }
+
+  function ereignisZeile(e) {
+    return el('div', { class: 'akt-ereignis' },
+      el('span', { class: 'mono leise', text: T.zeitText(e.zeit) }),
+      el('span', {}, el('b', { text: T.werText(e) }), ' ', T.verlaufText(e), e.anzahl > 1 ? el('span', { class: 'leise', text: ' (' + e.anzahl + '×)' }) : null));
+  }
+
+  function aktivitaetKarte(k) {
+    const zahlen = Object.entries(k.zahlen).map(([b, n]) => n + ' ' + ZAHL_TEXT[b][n === 1 ? 0 : 1]);
+    if (k.erledigt) zahlen.push('✓ ' + k.erledigt + ' erledigt');
+    return el('section', { class: 'karte akt-karte' + (k.hinweise.some(h => h.art === 'ampel_r' || h.art === 'nachricht') ? ' achtung' : '') },
+      el('div', { class: 'zeile' }, el('span', { class: 'punkt gross ' + (k.ampel || 'ohne'), title: k.ampel ? 'Gesamtstatus: ' + AMPEL[k.ampel] : 'noch keine Ampel' }),
+        el('a', { class: 'akt-titel', href: '#projekt/' + k.id, text: k.titel }), el('span', { class: 'chip blau', text: k.klasse })),
+      k.hinweise.length ? el('div', { class: 'akt-hinweise' }, k.hinweise.slice(0, 6).map(h => hinweisZeile(h, k)),
+        k.hinweise.length > 6 ? el('div', { class: 'leise klein-text', text: '+ ' + (k.hinweise.length - 6) + ' weitere Hinweise' }) : null) : null,
+      el('div', { class: 'akt-zahlen leise', text: zahlen.join(' · ') + (k.ausgeblendet ? ' · ' + k.ausgeblendet + ' ausgeblendet' : '') }),
+      el('details', { class: 'akt-details' }, el('summary', { text: 'Einzelheiten (' + k.ereignisse.length + ')' }),
+        el('div', { class: 'akt-liste' }, k.ereignisse.map(ereignisZeile))));
+  }
 
   async function aktivitaetenZeigen() {
     titelSetzen('Aktivitäten');
-    const f = S.aktFilter || (S.aktFilter = { projekt: '', wer: '' });
-    const url = () => '/api/aktivitaeten?' + (f.projekt ? 'projekt=' + f.projekt + '&' : '') + (f.wer ? 'wer=' + f.wer + '&' : '');
-    const d = await T.api('GET', url());
-    const liste = el('div', { class: 'chronik' });
-    let letzterTag = '';
-    const anhaengen = ereignisse => ereignisse.forEach(e => {
-      const tag = e.zeit.slice(0, 10);
-      if (tag !== letzterTag) { letzterTag = tag; liste.appendChild(el('div', { class: 'etikett chronik-tag', text: T.tagText(tag) })); }
-      liste.appendChild(el('div', { class: 'chronik-z' },
-        el('span', { class: 'mono leise', text: e.zeit.slice(11, 16) }),
-        el('a', { href: '#projekt/' + e.projekt_id, text: e.projekt }),
-        el('span', {}, el('b', { text: T.werText(e) }), ' ', T.verlaufText(e))));
-    });
-    anhaengen(d.ereignisse);
-    let weiter = d.weiter;
-    const mehr = el('button', { type: 'button', hidden: !weiter, onclick: async () => {
-      try {
-        const n = await T.api('GET', url() + 'vor=' + weiter);
-        anhaengen(n.ereignisse);
-        weiter = n.weiter;
-        mehr.hidden = !weiter;
-      } catch (e) { T.meldung(e.message, true); }
-    } }, 'Ältere laden');
-    const wahl = (wert, optionen, name) => {
-      const s = el('select', { class: 'klein', 'aria-label': name, onchange: ev => { f[name] = ev.target.value; zeigen(); } },
-        optionen.map(([v, t]) => el('option', { value: v, text: t })));
-      s.value = wert;
-      return s;
-    };
+    const E = aktivitaetenEinstellungen();
+    const url = '/api/aktivitaeten?zeitraum=' + E.zeitraum + '&bereiche=' + E.bereiche.join(',') + (S.klasse ? '&klasse=' + encodeURIComponent(S.klasse) : '');
+    const d = await T.api('GET', url);
+    const neu = (aendern) => { aendern(); aktivitaetenMerken(); zeigen(); };
+    const seitText = E.zeitraum === 'besuch' ? 'Neu seit deinem letzten Besuch: ' + T.zeitText(d.seit) : 'seit ' + T.zeitText(d.seit);
     T.setzen(inhalt,
-      el('div', { class: 'werkzeug' }, el('h1', { class: 'dreieck', text: 'Aktivitäten' }),
-        wahl(f.projekt, [['', 'Alle Projekte']].concat(d.projekte.map(p => [String(p.id), p.titel])), 'projekt'),
-        wahl(f.wer, [['', 'Alle'], ['team', 'Teams'], ['lehrkraft', 'Lehrkräfte'], ['system', 'System']], 'wer')),
-      el('section', { class: 'karte stapel-eng' }, d.ereignisse.length ? liste : el('div', { class: 'leer', text: 'Noch nichts passiert.' }),
-        el('div', {}, mehr)));
+      el('div', { class: 'werkzeug' }, el('h1', { class: 'dreieck', text: 'Aktivitäten' }), klassenWahl(d.klassen)),
+      el('div', { class: 'akt-filter' },
+        el('span', { class: 'umschalter' }, ZEITRAEUME.map(([k, t]) => el('button', { type: 'button', class: E.zeitraum === k ? 'an' : '',
+          onclick: () => neu(() => { E.zeitraum = k; }) }, t))),
+        el('span', { class: 'akt-bereiche' }, BEREICHE.map(([k, t]) => el('label', { class: 'haken chip-haken' + (E.bereiche.includes(k) ? ' an' : '') },
+          el('input', { type: 'checkbox', checked: E.bereiche.includes(k), onchange: ev => neu(() => {
+            E.bereiche = ev.target.checked ? E.bereiche.concat(k) : E.bereiche.filter(b => b !== k);
+            if (!E.bereiche.length) E.bereiche = ['raster'];
+          }) }), t)))),
+      el('p', { class: 'leise', text: seitText }),
+      d.karten.length ? el('div', { class: 'akt-raster' }, d.karten.map(aktivitaetKarte))
+        : el('div', { class: 'leer', text: 'In diesem Zeitraum hat sich in den gewählten Bereichen nichts getan.' }),
+      d.ruhig.length ? el('p', { class: 'leise akt-ruhig' }, 'Ohne Änderung: ',
+        d.ruhig.map((r, i) => [i ? ', ' : '', el('a', { href: '#projekt/' + r.id, text: r.titel }),
+          r.ausgeblendet ? el('span', { class: 'klein-text', text: ' (' + r.ausgeblendet + ' ausgeblendet)' }) : null])) : null);
   }
 
   // --- Abos: Dienstkalender (Mein Konto), Schulkalender (Einstellungen) ---

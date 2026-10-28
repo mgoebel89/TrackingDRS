@@ -125,25 +125,128 @@ def cockpit(con, konto, klasse=None):
     }
 
 
-def aktivitaeten(con, konto, projekt_id=None, wer_art=None, vor=None, anzahl=100):
-    """Chronik aller Ereignisse in den betreuten, laufenden Projekten, neueste zuerst, seitenweise (vor = Ereignis-Id)."""
-    projekte = {p["id"]: p["titel"] for p in kalender.meine_projekte(con, konto)}
-    ids = [projekt_id] if projekt_id in projekte else list(projekte)
-    if not ids:
-        return {"ereignisse": [], "projekte": [], "weiter": None}
-    sql = "SELECT * FROM ereignis WHERE projekt_id IN (%s)" % ",".join("?" * len(ids))
-    werte = list(ids)
-    if wer_art in ("team", "lehrkraft", "system"):
-        sql += " AND wer_art = ?"
-        werte.append(wer_art)
-    if vor:
-        sql += " AND id < ?"
-        werte.append(int(vor))
-    zeilen = con.execute(sql + " ORDER BY id DESC LIMIT ?", werte + [anzahl + 1]).fetchall()
-    return {
-        "ereignisse": [{"id": e["id"], "zeit": e["zeit"], "projekt_id": e["projekt_id"], "projekt": projekte[e["projekt_id"]],
-                        "wer_art": e["wer_art"], "wer": e["wer"], "art": e["art"], "daten": json.loads(e["daten"])}
-                       for e in zeilen[:anzahl]],
-        "projekte": [{"id": i, "titel": t} for i, t in sorted(projekte.items(), key=lambda x: x[1])],
-        "weiter": zeilen[anzahl - 1]["id"] if len(zeilen) > anzahl else None,
-    }
+# --- Aktivitaeten: je Team zusammengefasst ---
+
+BEREICHE = {
+    "raster": SHEET + ("version",),
+    "besprechung": ("termin_gebucht", "termin_storniert", "termin_entfallen", "vorbereitung", "eintrag_neu", "eintrag_erledigt",
+                    "eintrag_offen", "eintrag_verworfen", "eintrag_umgewandelt", "besprechung_abgeschlossen"),
+    "anfragen": ("anfrage_neu", "anfrage_status", "anfrage_nachricht", "sonderfenster", "position_neu", "position_geaendert",
+                 "position_gestrichen", "position_zurueck", "liste_eingereicht", "position_entschieden", "position_status"),
+}
+STANDARD_BEREICHE = ("raster", "anfragen")
+ZUSAMMEN = datetime.timedelta(minutes=15)   # gleiche Aenderung an derselben Aufgabe innerhalb dieser Zeit: eine Zeile
+RANG_HINWEIS = {"ampel_r": 0, "nachricht": 1, "anfrage": 2, "ampel_y": 3, "verschoben": 4, "liste": 5, "entfallen": 6, "meilenstein": 7}
+
+
+def bereich(art):
+    for name, arten in BEREICHE.items():
+        if art in arten:
+            return name
+    return "sonstiges"
+
+
+def aktivitaeten_seit(con, konto, zeitraum):
+    """Beginn des Zeitraums. 'besuch' = seit dem letzten Besuch: Ein Besuch zaehlt als neu, wenn der vorige mehr als
+    30 Minuten her ist (so zeigt Neuladen nicht ploetzlich nichts mehr an)."""
+    jetzt = datetime.datetime.fromisoformat(db.jetzt())
+    if zeitraum == "heute":
+        return jetzt.replace(hour=0, minute=0, second=0).isoformat()
+    if zeitraum == "woche":
+        return datetime.datetime.combine(montag(jetzt.date()), datetime.time()).isoformat()
+    if zeitraum == "30":
+        return (jetzt - datetime.timedelta(days=30)).isoformat()
+    zuletzt = db.einstellung(con, "akt_zuletzt:%d" % konto["id"])
+    davor = db.einstellung(con, "akt_davor:%d" % konto["id"]) or (jetzt - datetime.timedelta(days=1)).isoformat()
+    with db.transaktion(con):
+        if zuletzt is not None and jetzt - datetime.datetime.fromisoformat(zuletzt) > datetime.timedelta(minutes=30):
+            davor = zuletzt
+            db.einstellung_setzen(con, "akt_davor:%d" % konto["id"], davor)
+        elif zuletzt is None:
+            db.einstellung_setzen(con, "akt_davor:%d" % konto["id"], davor)
+        db.einstellung_setzen(con, "akt_zuletzt:%d" % konto["id"], jetzt.isoformat())
+    return davor
+
+
+def _verdichten(ereignisse):
+    """Serien zusammenfassen: Planaenderungen derselben Aufgabe (gleiche Richtung), Endtermin- und Ampel-Aenderungen
+    derselben Aufgabe kurz hintereinander werden eine Zeile. Erwartet aelteste zuerst."""
+    liste = []
+    for e in ereignisse:
+        d = e["daten"]
+        v = liste[-1] if liste else None
+        gleich = (v is not None and v["art"] == e["art"] and d.get("aufgabe_id") and v["daten"].get("aufgabe_id") == d.get("aufgabe_id")
+                  and v["wer_art"] == e["wer_art"]
+                  and datetime.datetime.fromisoformat(e["zeit"]) - datetime.datetime.fromisoformat(v["zeit"]) <= ZUSAMMEN)
+        if gleich and e["art"] == "plan" and v["daten"].get("wert") == d.get("wert"):
+            v["daten"]["wochen"] = sorted(set(v["daten"]["wochen"]) | set(d["wochen"]))
+        elif gleich and e["art"] == "ende":
+            v["daten"]["woche"] = d.get("woche")      # erster alter Wert bleibt, letzter neuer Wert gilt
+        elif gleich and e["art"] == "ampel" and v["daten"].get("woche") == d.get("woche"):
+            v["daten"].update({k: d.get(k) for k in ("ampel", "problem", "massnahme")})
+        else:
+            liste.append(dict(e, daten=dict(d)))
+            continue
+        v["zeit"] = e["zeit"]
+        v["anzahl"] = v.get("anzahl", 1) + 1
+    return liste
+
+
+def _hinweise(ereignisse):
+    """Was in der Karte oben steht: rote/gelbe Ampeln, neue Anfragen, Nachrichten des Teams, verschobene Endtermine,
+    Meilensteine, eingereichte Listen, entfallene Termine, abgeschlossene Besprechungen."""
+    hinweise, nachrichten = [], {}
+    for e in ereignisse:
+        d, art = e["daten"], e["art"]
+        if art == "ampel" and d.get("ampel") in ("y", "r"):
+            hinweise.append({"art": "ampel_" + d["ampel"], "text": "%s in %s: %s%s" % ("Rot" if d["ampel"] == "r" else "Gelb",
+                             termine.kw_text(d["woche"]), d["titel"], " – " + d["problem"] if d.get("problem") else ""),
+                             "woche": d.get("woche")})
+        elif art == "anfrage_neu":
+            hinweise.append({"art": "anfrage", "text": "Neue Anfrage: " + d.get("titel", ""), "anfrage_id": d.get("anfrage_id")})
+        elif art == "anfrage_nachricht" and e["wer_art"] == "team":
+            n = nachrichten.setdefault(d.get("anfrage_id"), {"titel": d.get("titel", ""), "anzahl": 0})
+            n["anzahl"] += 1
+        elif art == "ende" and d.get("alt") and d.get("woche") and d["woche"] > d["alt"]:
+            hinweise.append({"art": "verschoben", "text": "Endtermin verschoben: " + d["titel"], "alt": d["alt"], "neu": d["woche"]})
+        elif art in ("meilenstein_neu", "meilenstein_geaendert"):
+            hinweise.append({"art": "meilenstein", "text": "Meilenstein: " + d["titel"], "woche": d.get("woche")})
+        elif art == "liste_eingereicht":
+            hinweise.append({"art": "liste", "text": "Bestellliste eingereicht (%s Positionen)" % d.get("positionen")})
+        elif art == "termin_entfallen":
+            hinweise.append({"art": "entfallen", "text": "Termin entfällt: " + d.get("grund", "")})
+        elif art == "besprechung_abgeschlossen":
+            hinweise.append({"art": "besprechung", "text": "Besprechung abgeschlossen (%s Ergebnisse)" % d.get("ergebnisse")})
+    for aid, n in nachrichten.items():
+        hinweise.append({"art": "nachricht", "anfrage_id": aid,
+                         "text": "%d %s vom Team: %s" % (n["anzahl"], "Nachricht" if n["anzahl"] == 1 else "Nachrichten", n["titel"])})
+    hinweise.sort(key=lambda h: RANG_HINWEIS.get(h["art"], 9))
+    return hinweise
+
+
+def aktivitaeten(con, konto, zeitraum="besuch", bereiche=None, klasse=None):
+    """Je betreutem Projekt: Hinweise (Wichtiges), Zahlen je Bereich und die verdichteten Einzelheiten (neueste zuerst)
+    seit dem Beginn des Zeitraums. Projekte ohne sichtbare Aenderung kommen gesammelt in 'ruhig'."""
+    seit = aktivitaeten_seit(con, konto, zeitraum)
+    bereiche = [b for b in (bereiche or STANDARD_BEREICHE) if b in BEREICHE or b == "sonstiges"]
+    diese = montag(datetime.date.fromisoformat(db.jetzt()[:10])).isoformat()
+    karten, ruhig = [], []
+    for p in kalender.meine_projekte(con, konto, klasse):
+        alle = [{"id": e["id"], "zeit": e["zeit"], "wer_art": e["wer_art"], "wer": e["wer"], "art": e["art"], "daten": json.loads(e["daten"])}
+                for e in con.execute("SELECT * FROM ereignis WHERE projekt_id = ? AND zeit > ? ORDER BY id", (p["id"], seit))]
+        sichtbar = [e for e in alle if bereich(e["art"]) in bereiche]
+        if not sichtbar:
+            ruhig.append({"id": p["id"], "titel": p["titel"], "klasse": p["klasse"], "ausgeblendet": len(alle)})
+            continue
+        zahlen = {}
+        for e in sichtbar:
+            zahlen[bereich(e["art"])] = zahlen.get(bereich(e["art"]), 0) + 1
+        gesamt = gesamt_je_woche(con, p["id"])
+        bisher = sorted(w for w in gesamt if w <= diese)
+        karten.append({"id": p["id"], "titel": p["titel"], "klasse": p["klasse"], "ampel": gesamt[bisher[-1]] if bisher else None,
+                       "hinweise": _hinweise(sichtbar), "zahlen": zahlen,
+                       "erledigt": sum(1 for e in sichtbar if e["art"] == "erledigt"),
+                       "ereignisse": list(reversed(_verdichten(sichtbar))), "ausgeblendet": len(alle) - len(sichtbar)})
+    karten.sort(key=lambda k: (min([RANG_HINWEIS.get(h["art"], 9) for h in k["hinweise"]] or [10]), -len(k["ereignisse"]), k["titel"]))
+    return {"seit": seit, "zeitraum": zeitraum, "bereiche": bereiche, "karten": karten, "ruhig": ruhig,
+            "klassen": sorted({p["klasse"] for p in kalender.meine_projekte(con, konto)})}
