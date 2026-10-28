@@ -103,7 +103,7 @@ async function start() {
     return;
   }
   document.getElementById('unter').textContent = projekt.titel;
-  document.title = projekt.titel + ' · TrackingDRS';
+  document.title = projekt.titel + ' · ' + T.NAME;
   T.setzen(inhalt,
     el('div', { class: 'team-kopf' },
       el('div', { class: 'zeile' }, el('span', { class: 'chip blau', text: projekt.klasse }), el('span', { class: 'leise', text: projekt.schuljahr })),

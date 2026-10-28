@@ -20,7 +20,7 @@ async function lehrkraefte() {
 
 function titelSetzen(text) {
   document.getElementById('unter').textContent = text;
-  document.title = text ? text + ' · TrackingDRS' : 'TrackingDRS';
+  document.title = text ? text + ' · ' + T.NAME : T.NAME;
 }
 
 function fehlerZeigen(e) {

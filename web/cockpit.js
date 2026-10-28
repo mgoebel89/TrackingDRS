@@ -317,7 +317,7 @@ const Cockpit = (() => {
     return aboKarte({ titel: 'Dienstkalender (Outlook)', status: dienst, basis: '/api/dienstkalender',
       text: 'Deine Termine erscheinen im Cockpit und im Kalender, nur für dich: weder Teams noch andere Lehrkräfte sehen sie. ' +
         'In Outlook im Web: Einstellungen → Kalender → Freigegebene Kalender → Kalender veröffentlichen, Kalender wählen, ' +
-        '„Kann alle Details anzeigen“, Veröffentlichen, dann den ICS-Link kopieren. TrackingDRS holt ihn alle 30 Minuten, nur lesend.' });
+        '„Kann alle Details anzeigen“, Veröffentlichen, dann den ICS-Link kopieren. Der Server holt ihn alle 30 Minuten, nur lesend.' });
   }
 
   function schulKarte(einst) {

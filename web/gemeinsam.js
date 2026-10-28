@@ -8,6 +8,8 @@ document.querySelectorAll('img.logo').forEach(img => {
 });
 
 const T = {
+  NAME: 'Projektarbeit MT',   // Name der Seite (Titel, Kopfzeile); intern heisst das System TrackingDRS
+
   async api(methode, url, daten) {
     const kopf = { 'X-TrackingDRS': '1' };
     if (daten !== undefined) kopf['Content-Type'] = 'application/json';
