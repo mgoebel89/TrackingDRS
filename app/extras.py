@@ -191,7 +191,8 @@ def loeschen(con, pid, daten_dir, wer, bestaetigung):
         raise ProjektFehler("Zur Bestätigung bitte den Projekttitel genau so eintippen: %s" % p["titel"])
     namen = [z[0] for z in con.execute(
         "SELECT bild FROM eintrag WHERE projekt_id = ? AND bild IS NOT NULL UNION SELECT bild FROM anfrage WHERE projekt_id = ? "
-        "AND bild IS NOT NULL UNION SELECT name FROM datei WHERE projekt_id = ?", (pid, pid, pid))]
+        "AND bild IS NOT NULL UNION SELECT name FROM datei WHERE projekt_id = ? UNION SELECT n.bild FROM nachricht n "
+        "JOIN anfrage a ON a.id = n.anfrage_id WHERE a.projekt_id = ? AND n.bild IS NOT NULL", (pid, pid, pid, pid))]
     with db.transaktion(con):
         con.execute("UPDATE bestellliste SET fenster_id = NULL WHERE projekt_id = ?", (pid,))
         con.execute("DELETE FROM bestellfenster WHERE projekt_id = ?", (pid,))   # Sonderfenster haengen nicht per Kaskade

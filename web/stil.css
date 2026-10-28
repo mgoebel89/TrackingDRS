@@ -507,6 +507,54 @@ body.bericht-seite { background: #fff; }
   .b-plan, .b-g, .b-y, .b-r, .b-frei, .b-raster tr.b-phase td, .tz, .pi { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
 
+/* Vorgaenge: Eingang und Gespraechsverlauf */
+.eingang { display: grid; grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); gap: 14px; align-items: start; }
+.vg-links { display: grid; gap: 10px; position: sticky; top: 70px; }
+.vg-filter { flex-wrap: wrap; }
+.vg-liste { display: grid; gap: 6px; max-height: calc(100vh - 230px); overflow: auto; }
+.vg-zeile { display: grid; gap: 3px; text-align: left; padding: 8px 10px; border: 1px solid var(--linie); border-radius: 10px 4px 4px 4px;
+  background: var(--karte); color: inherit; text-decoration: none; font: inherit; cursor: pointer; width: 100%; white-space: normal; min-height: 0; }
+.vg-zeile:hover { border-color: var(--blau-mittel); background: var(--karte); color: inherit; }
+.vg-zeile.an { border-color: var(--blau); box-shadow: inset 3px 0 0 var(--blau); }
+.vg-zeile.neu .vg-titel { font-weight: 700; }
+.vg-zeile .rechts { margin-left: auto; }
+.vg-titel { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.vg-punkt { width: 9px; height: 9px; border-radius: 50%; background: var(--rot); flex: none; }
+.vg-vorschau { font-size: .85em; color: var(--leise); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vg-stand.offen { background: #fff3b0; border-color: #f0d870; } .vg-stand.bearbeitung { background: var(--blau-hell); border-color: var(--blau-mittel); color: var(--blau); }
+.vg-stand.erledigt { background: #e2f3d6; border-color: #b7dc9a; }
+.vg-detail { background: var(--karte); border: 1px solid var(--linie); border-radius: var(--ecke) 6px 6px 6px; padding: 14px 16px; display: grid; gap: 12px; min-width: 0; }
+.vg-detail-kopf h2, .vg-team h2 { font-size: 1.15rem; flex: 1; min-width: 0; }
+.vg-detail-kopf .rechts { margin-left: auto; display: flex; gap: 6px; }
+.vg-zurueck { display: none; }
+.vg-leer { border: none; }
+.vg-verlauf { display: grid; gap: 10px; max-height: calc(100vh - 380px); min-height: 200px; overflow: auto; padding: 4px 2px; }
+.vg-team .vg-verlauf { max-height: 60vh; }
+.vg-n { display: grid; gap: 3px; max-width: 80%; }
+.vg-n.lehrkraft, .vg-n.intern { justify-self: end; }
+.vg-kopf { font-size: .8em; color: var(--leise); display: flex; gap: 6px; align-items: center; }
+.vg-n.lehrkraft .vg-kopf, .vg-n.intern .vg-kopf { justify-content: flex-end; }
+.vg-blase { padding: 8px 12px; border-radius: 12px 12px 12px 3px; background: var(--knopf); border: 1px solid var(--linie); display: grid; gap: 4px; }
+.vg-n.lehrkraft .vg-blase { background: var(--blau-hell); border-color: var(--blau-mittel); border-radius: 12px 12px 3px 12px; }
+.vg-n.intern .vg-blase { background: #fff6cc; border-color: #f0d870; border-radius: 12px 12px 3px 12px; }
+.vg-bild { max-width: 260px; max-height: 200px; border-radius: 6px; cursor: zoom-in; object-fit: cover; }
+.vg-ereignis { justify-self: center; font-size: .82em; color: var(--leise); text-align: center; padding: 2px 10px; border-radius: 999px; background: var(--bg); }
+.vg-antwort { display: grid; gap: 6px; border-top: 1px solid var(--linie); padding-top: 10px; }
+.vg-antwort textarea { min-height: 70px; }
+.vg-antwort textarea.intern { background: #fffbea; border-color: #f0d870; }
+.vg-antwort .rechts { margin-left: auto; display: flex; gap: 6px; }
+.nav-zahl { margin-left: auto; min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--knopf); font-size: .75em; text-align: center; }
+.nav-zahl.neu { background: var(--rot); color: #fff; }
+@media (max-width: 900px) {
+  .eingang { grid-template-columns: minmax(0, 1fr); }
+  .eingang.mit-detail .vg-links { display: none; }
+  .eingang:not(.mit-detail) .vg-detail { display: none; }
+  .vg-zurueck { display: inline-flex; }
+  .vg-links { position: static; }
+  .vg-liste, .vg-verlauf { max-height: none; }
+  .vg-n { max-width: 92%; }
+}
+
 /* Team-Uebersicht */
 .uebersicht { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); align-items: start; }
 .dem-gruppe { display: grid; gap: 4px; }

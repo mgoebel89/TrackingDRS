@@ -185,6 +185,8 @@ const T = {
       anfrage_status: () => '„' + d.titel + '“: ' + ({ beantwortet: 'beantwortet', bereitgelegt: 'bereitgelegt', ausgegeben: 'ausgegeben',
         zurueck: 'zurückgegeben', abgelehnt: 'abgelehnt', freigegeben: 'freigegeben', nachbessern: 'nachbessern', zurueckgezogen: 'zurückgezogen',
         neu: 'erneut angefragt' })[d.status] + (d.antwort ? ' – ' + d.antwort : ''),
+      anfrage_nachricht: () => ({ rueckfrage: 'Rückfrage', ausleihe: 'Ausleihe', abnahme: 'Abnahme', bestellung: 'Bestellliste' })[d.anfrageart] +
+        ' „' + d.titel + '“: ' + d.text,
       sonderfenster: () => 'Sonderfenster für die Bestellliste bis ' + d.bis.slice(8, 10) + '.' + d.bis.slice(5, 7) + '., ' + d.bis.slice(11, 16),
       position_neu: () => 'Bestellliste: ' + d.menge + '× „' + d.artikel + '“' + (d.uebernommen ? ' (übernommen)' : ''),
       position_geaendert: () => 'Bestellliste: „' + d.artikel + '“ geändert',

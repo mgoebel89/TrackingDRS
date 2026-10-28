@@ -92,8 +92,12 @@ def fenster_anlegen(con, konto, d):
     with db.transaktion(con):
         fid = con.execute("INSERT INTO bestellfenster (lehrkraft_id, klasse, projekt_id, von, bis, erstellt) VALUES (?, ?, ?, ?, ?, ?)",
                           (konto["id"], klasse, projekt_id, von, bis, db.jetzt())).lastrowid
-        if projekt_id is not None:   # Sonderfenster: steht im Verlauf des Projekts
+        if projekt_id is not None:   # Sonderfenster: steht im Verlauf des Projekts (und der Rueckfrage, aus der es kam)
             db.ereignis(con, int(projekt_id), "lehrkraft", konto["kuerzel"], "sonderfenster", fenster_id=fid, von=von, bis=bis)
+            if d.get("anfrage_id"):
+                from . import anfragen
+                anfragen.vorgang_notieren(con, int(d["anfrage_id"]), int(projekt_id), "lehrkraft", konto["kuerzel"],
+                                          was="sonderfenster", von=von, bis=bis)
     return fid
 
 
@@ -254,6 +258,8 @@ def team_aendern(con, pid, d):
                 raise ProjektFehler("Die Liste ist leer.")
             con.execute("UPDATE bestellliste SET fenster_id = ?, eingereicht = ? WHERE id = ?", (offen["id"], jetzt, l["id"]))
             ereignis("liste_eingereicht", liste_id=l["id"], positionen=n, fenster_id=offen["id"])
+            from . import anfragen   # hier, um einen Import-Kreis zu vermeiden
+            anfragen.bestellung_vorgang(con, pid, l["id"], n)   # Gespraechsverlauf zur Liste
             return {}
         raise ProjektFehler("Unbekannte Aktion.")
 
@@ -285,10 +291,16 @@ def pruefen(con, pid, wer, d):
                         "ersatz_lieferant = ?, ersatz_weg = ?, status = NULL WHERE id = ?", (e, menge, kommentar) + ersatz + (z["id"],))
             db.ereignis(con, pid, "lehrkraft", wer, "position_entschieden", position_id=z["id"], artikel=z["artikel"], entscheidung=e,
                         kommentar=kommentar, ersatz=ersatz[0])
+            from . import anfragen
+            anfragen.bestellung_notieren(con, z["liste_id"], "lehrkraft", wer, was="position", artikel=z["artikel"], entscheidung=e,
+                                         kommentar=kommentar, ersatz=ersatz[0], menge=menge)
             offen = con.execute("SELECT COUNT(*) FROM position WHERE liste_id = ? AND gestrichen = 0 AND entscheidung IS NULL",
                                 (z["liste_id"],)).fetchone()[0]
+            vorher = con.execute("SELECT geprueft FROM bestellliste WHERE id = ?", (z["liste_id"],)).fetchone()[0]
             con.execute("UPDATE bestellliste SET geprueft = ?, geprueft_von = ? WHERE id = ?",
                         (db.jetzt() if offen == 0 else None, wer if offen == 0 else None, z["liste_id"]))
+            if offen == 0 and not vorher:
+                anfragen.bestellung_notieren(con, z["liste_id"], "lehrkraft", wer, was="geprueft")
         elif aktion == "status":
             weg = _position(z)["weg"]
             status = d.get("status") or None
@@ -296,6 +308,8 @@ def pruefen(con, pid, wer, d):
                 raise ProjektFehler("Diesen Status gibt es für diese Position nicht.")
             con.execute("UPDATE position SET status = ? WHERE id = ?", (status, z["id"]))
             db.ereignis(con, pid, "lehrkraft", wer, "position_status", position_id=z["id"], artikel=z["artikel"], status=status)
+            from . import anfragen
+            anfragen.bestellung_notieren(con, z["liste_id"], "lehrkraft", wer, was="position_status", artikel=z["artikel"], status=status)
         else:
             raise ProjektFehler("Unbekannte Aktion.")
 

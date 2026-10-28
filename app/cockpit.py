@@ -89,9 +89,12 @@ def cockpit(con, konto, klasse=None):
                                 "warnungen": len(k["warnungen"])})
         for w in k["warnungen"]:
             blick.append({"projekt_id": p["id"], "titel": p["titel"], "art": w["art"], "text": w["text"]})
-        for a in con.execute("SELECT * FROM anfrage WHERE projekt_id = ? AND status = 'neu' ORDER BY id", (p["id"],)):
-            erledigen.append({"projekt_id": p["id"], "titel": p["titel"], "art": "anfrage", "anfrage_id": a["id"],
-                              "text": "%s: %s" % (NAMEN[a["art"]], a["titel"])})
+        from . import anfragen   # hier, weil anfragen ueber besprechung wieder cockpit braucht
+        for a in con.execute("SELECT * FROM anfrage WHERE projekt_id = ? AND stand != 'erledigt' ORDER BY id", (p["id"],)).fetchall():
+            neu = anfragen._ungelesen(con, a, "l%d" % konto["id"], konto["kuerzel"])
+            if (a["stand"] == "offen" and a["art"] != "bestellung") or (neu and a["stand"] != "offen"):
+                erledigen.append({"projekt_id": p["id"], "titel": p["titel"], "art": "anfrage", "anfrage_id": a["id"],
+                                  "text": "%s: %s%s" % (anfragen.NAMEN[a["art"]], a["titel"], " · neue Nachricht" if a["stand"] != "offen" else "")})
         for l in con.execute("SELECT l.* FROM bestellliste l WHERE l.projekt_id = ? AND l.eingereicht IS NOT NULL AND l.geprueft IS NULL",
                              (p["id"],)):
             erledigen.append({"projekt_id": p["id"], "titel": p["titel"], "art": "liste", "liste_id": l["id"],

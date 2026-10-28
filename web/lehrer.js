@@ -48,6 +48,8 @@ async function start() {
   if (S.konto.pw_vorlaeufig) await passwortPflicht();
   window.addEventListener('hashchange', zeigen);
   zeigen();
+  Vorgang.zaehlerLaden();
+  setInterval(() => { if (document.visibilityState === 'visible') Vorgang.zaehlerLaden(); }, 60000);
 }
 
 async function zeigen() {

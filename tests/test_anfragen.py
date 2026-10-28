@@ -31,57 +31,106 @@ class Basis(unittest.TestCase):
 
 
 class Anfragen(Basis):
+    def setUp(self):
+        super().setUp()
+        with db.transaktion(self.con):   # Teamteaching: Herr Schu betreut die Klimaanlage mit
+            self.con.execute("INSERT INTO projekt_lehrkraft (projekt_id, lehrkraft_id) VALUES (?, ?)", (self.klima, self.scu["id"]))
+
+    def eingang(self, konto, filter_="aktiv"):
+        return {v["id"]: v for v in anfragen.vorgaenge_lehrkraft(self.con, konto, filter_)}
+
+    def team_liste(self):
+        return {v["id"]: v for v in anfragen.vorgaenge_team(self.con, self.klima)}
+
+    def lk(self, aid, konto=None, **d):
+        anfragen.bearbeiten(self.con, self.klima, konto or self.gob, dict(d, anfrage_id=aid))
+
+    def test_gespraech_status_zustaendig_ungelesen(self):
+        aid = anfragen.anlegen(self.con, self.klima, {"art": "rueckfrage", "titel": "Dürfen wir 24 V nehmen?", "text": "Lüfter gibt es nur in 24 V."})
+        e = self.eingang(self.gob)[aid]
+        self.assertEqual((e["stand"], e["ungelesen"], e["zustaendig"]), ("offen", True, None))
+        self.assertFalse(self.team_liste()[aid]["ungelesen"])
+        anfragen.vorgang(self.con, self.klima, aid, self.gob)   # gelesen
+        self.assertFalse(self.eingang(self.gob)[aid]["ungelesen"])
+        self.assertTrue(self.eingang(self.scu)[aid]["ungelesen"])
+        # interne Notiz: nur fuer Lehrkraefte, aendert nichts am Status
+        anfragen.nachricht(self.con, self.klima, aid, "lehrkraft", {"text": "Netzteil reicht?", "intern": True}, self.gob)
+        self.assertEqual(self.eingang(self.gob)[aid]["stand"], "offen")
+        self.assertFalse(self.team_liste()[aid]["ungelesen"])
+        self.assertNotIn("Netzteil reicht?", str(anfragen.vorgang(self.con, self.klima, aid)))
+        self.assertIn("Netzteil reicht?", str(anfragen.vorgang(self.con, self.klima, aid, self.scu)))
+        # Antwort: in Bearbeitung, wer antwortet, uebernimmt
+        anfragen.nachricht(self.con, self.klima, aid, "lehrkraft", {"text": "Ja, aber mit Sicherung."}, self.gob)
+        e = self.eingang(self.gob)[aid]
+        self.assertEqual((e["stand"], e["zustaendig"]), ("bearbeitung", "GOB"))
+        self.assertTrue(self.team_liste()[aid]["ungelesen"])
+        self.assertEqual(list(self.eingang(self.gob, "meine")), [aid])
+        self.assertEqual(list(self.eingang(self.scu, "meine")), [])
+        anfragen.vorgang(self.con, self.klima, aid)   # das Team liest
+        self.assertFalse(self.team_liste()[aid]["ungelesen"])
+        anfragen.nachricht(self.con, self.klima, aid, "team", {"text": "Welche Sicherung?"})
+        self.assertTrue(self.eingang(self.gob)[aid]["ungelesen"])
+        # erledigt, dann schreibt das Team wieder: offen
+        self.lk(aid, aktion="stand", stand="erledigt")
+        self.assertNotIn(aid, self.eingang(self.gob))
+        self.assertIn(aid, self.eingang(self.gob, "erledigt"))
+        anfragen.nachricht(self.con, self.klima, aid, "team", {"text": "Doch noch eine Frage."})
+        self.assertEqual(self.eingang(self.gob)[aid]["stand"], "offen")
+        was = [n["daten"].get("was") for n in anfragen.vorgang(self.con, self.klima, aid, self.gob)["verlauf"] if n["art"] == "ereignis"]
+        self.assertEqual(was, ["zustaendig", "stand", "stand", "stand"])
+        # uebernehmen durch Herrn Schu
+        self.lk(aid, self.scu, aktion="uebernehmen")
+        self.assertEqual(self.eingang(self.scu, "meine")[aid]["zustaendig"], "SCU")
+        with self.assertRaises(projekte.ProjektFehler):   # Team kann nur Offenes zurueckziehen
+            anfragen.team_aendern(self.con, self.klima, {"aktion": "zurueckziehen", "anfrage_id": aid})
+
     def test_rueckfrage_ueber_die_tafel_geklaert(self):
         aid = anfragen.anlegen(self.con, self.klima, {"art": "rueckfrage", "titel": "Dürfen wir 24 V nehmen?", "in_besprechung": True})
         frage = [z for z in tafel.lesen(self.con, self.klima)["postits"] if z["text"] == "Dürfen wir 24 V nehmen?"][0]
         tafel.aendern(self.con, self.klima, "gob", {"aktion": "erledigt", "key": frage["key"]})
-        a = anfragen.liste(self.con, self.klima)[0]
-        self.assertEqual((a["id"], a["status"]), (aid, "beantwortet"))
-        self.assertIn("In der Besprechung", a["antwort"])
-
-    def test_rueckfrage_antwort_pflicht_und_verlauf(self):
-        anfragen.anlegen(self.con, self.klima, {"art": "rueckfrage", "titel": "Sonderfenster für Lüfter?"})
-        aid = anfragen.liste(self.con, self.klima)[0]["id"]
-        with self.assertRaises(projekte.ProjektFehler):
-            anfragen.bearbeiten(self.con, self.klima, "gob", {"anfrage_id": aid, "status": "beantwortet"})
-        anfragen.bearbeiten(self.con, self.klima, "gob", {"anfrage_id": aid, "status": "beantwortet", "antwort": "Ja, bis Do."})
-        e = self.con.execute("SELECT wer, daten FROM ereignis WHERE art = 'anfrage_status'").fetchone()
-        self.assertEqual(e["wer"], "gob")
-        with self.assertRaises(projekte.ProjektFehler):   # schon in Bearbeitung
-            anfragen.team_aendern(self.con, self.klima, {"aktion": "zurueckziehen", "anfrage_id": aid})
+        v = anfragen.vorgang(self.con, self.klima, aid, self.gob)
+        self.assertEqual((v["stand"], v["status"]), ("erledigt", "beantwortet"))
+        self.assertIn("geklaert", [n["daten"].get("was") for n in v["verlauf"]])
 
     def test_ausleihe_rueckgabe_ueberfaellig(self):
         aid = anfragen.anlegen(self.con, self.klima, {"art": "ausleihe", "titel": "Anemometer", "menge": "1", "von": "2026-11-03", "bis": "2026-11-10"})
         with self.assertRaises(projekte.ProjektFehler):
             anfragen.anlegen(self.con, self.klima, {"art": "ausleihe", "titel": "x", "von": "2026-11-10", "bis": "2026-11-03"})
-        for status in ("bereitgelegt", "ausgegeben"):
-            anfragen.bearbeiten(self.con, self.klima, "gob", {"anfrage_id": aid, "status": status})
+        self.lk(aid, aktion="status", status="bereitgelegt")
+        self.assertEqual(self.eingang(self.gob)[aid]["stand"], "bearbeitung")
+        self.lk(aid, aktion="status", status="ausgegeben")
         self.zeit = "2026-11-11T09:00:00"
         self.assertIn("rueckgabe_ueberfaellig", [w["art"] for w in termine.warnungen(self.con, self.klima)])
-        self.assertTrue(anfragen.liste(self.con, self.klima)[0]["ueberfaellig"])
-        anfragen.bearbeiten(self.con, self.klima, "gob", {"anfrage_id": aid, "status": "zurueck"})
+        self.lk(aid, aktion="status", status="zurueck")
         self.assertNotIn("rueckgabe_ueberfaellig", [w["art"] for w in termine.warnungen(self.con, self.klima)])
+        self.assertEqual(anfragen.vorgang(self.con, self.klima, aid, self.gob)["stand"], "erledigt")
 
     def test_abnahme_im_verlauf_der_aufgabe(self):
         ph = sheet.lesen(self.con, self.klima)["phasen"][2]["id"]
         auf = sheet.aendern(self.con, self.klima, "team", "Team", {"aktion": "aufgabe_neu", "phase_id": ph, "titel": "Verdrahten"})["aufgabe_id"]
         aid = anfragen.anlegen(self.con, self.klima, {"art": "abnahme", "titel": "Netzteil prüfen", "aufgabe_id": auf})
         with self.assertRaises(projekte.ProjektFehler):   # nachbessern braucht einen Hinweis
-            anfragen.bearbeiten(self.con, self.klima, "gob", {"anfrage_id": aid, "status": "nachbessern"})
-        anfragen.bearbeiten(self.con, self.klima, "gob", {"anfrage_id": aid, "status": "nachbessern", "antwort": "PE fehlt"})
+            self.lk(aid, aktion="status", status="nachbessern")
+        self.lk(aid, aktion="status", status="nachbessern", text="PE fehlt")
         anfragen.team_aendern(self.con, self.klima, {"aktion": "erneut", "anfrage_id": aid})
-        anfragen.bearbeiten(self.con, self.klima, "gob", {"anfrage_id": aid, "status": "freigegeben"})
+        self.assertEqual(self.eingang(self.gob)[aid]["stand"], "offen")
+        self.lk(aid, aktion="status", status="freigegeben")
         arten = [(e["art"], e["daten"].get("status")) for e in sheet.aufgabe_verlauf(self.con, self.klima, auf)]
         self.assertIn(("anfrage_status", "freigegeben"), arten)
+        v = anfragen.vorgang(self.con, self.klima, aid)
+        self.assertEqual(v["stand"], "erledigt")
+        self.assertIn("PE fehlt", [n["text"] for n in v["verlauf"]])
 
     def test_anfrage_wartet_nur_fuer_lehrkraft(self):
-        anfragen.anlegen(self.con, self.klima, {"art": "rueckfrage", "titel": "Welcher Servo?"})
+        aid = anfragen.anlegen(self.con, self.klima, {"art": "rueckfrage", "titel": "Welcher Servo?"})
         self.zeit = "2026-11-03T18:00:00"
         self.assertNotIn("anfrage_wartet", [w["art"] for w in termine.warnungen(self.con, self.klima)])
         self.zeit = "2026-11-04T08:00:00"   # zwei Schultage spaeter
         self.assertIn("anfrage_wartet", [w["art"] for w in termine.warnungen(self.con, self.klima)])
         self.assertNotIn("anfrage_wartet", [w["art"] for w in server._team_termine(self.con, self.klima)["warnungen"]])
         self.assertIn("anfrage", [e["art"] for e in cockpit.cockpit(self.con, self.gob)["erledigen"]])
+        anfragen.nachricht(self.con, self.klima, aid, "lehrkraft", {"text": "MG996R"}, self.gob)
+        self.assertNotIn("anfrage_wartet", [w["art"] for w in termine.warnungen(self.con, self.klima)])
 
 
 class Bestellung(Basis):
@@ -135,6 +184,12 @@ class Bestellung(Basis):
         self.entscheiden(self.klima, p5, entscheidung="ablehnen", kommentar="kein Bedarf")
         self.assertIsNotNone(self.con.execute("SELECT geprueft FROM bestellliste WHERE id = (SELECT liste_id FROM position WHERE id = ?)",
                                               (p1,)).fetchone()[0])
+        # Gespraechsverlauf zur Liste: Pruefentscheidungen als Ereignisse, "geprueft" am Ende
+        v = [x for x in anfragen.vorgaenge_lehrkraft(self.con, self.gob, "alle") if x["art"] == "bestellung" and x["projekt_id"] == self.klima][0]
+        was = [n["daten"].get("was") for n in anfragen.vorgang(self.con, self.klima, v["id"], self.gob)["verlauf"]]
+        self.assertEqual(was.count("position"), 5)
+        self.assertIn("geprueft", was)
+        self.assertEqual(anfragen.vorgang(self.con, self.klima, v["id"])["stand"], "bearbeitung")
         # Status: nur passend zum Weg
         bestellung.pruefen(self.con, self.klima, "gob", {"aktion": "status", "position_id": p1, "status": "bestellt"})
         with self.assertRaises(projekte.ProjektFehler):
@@ -173,6 +228,36 @@ class Bestellung(Basis):
         self.assertIn("sonderfenster", [r[0] for r in self.con.execute("SELECT art FROM ereignis WHERE projekt_id = ?", (self.klima,))])
         u = bestellung.uebersicht(self.con, self.gob)
         self.assertEqual([t["titel"] for t in u["fenster"][0]["teams"]], ["Klimaanlage"])
+
+
+
+class Migration9(unittest.TestCase):
+    """Umbau der Tabelle anfrage mit vorhandenen Daten (so laeuft das Update im Container)."""
+
+    def test_altdaten(self):
+        ordner = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, ordner, True)
+        with mock.patch.object(db, "MIGRATIONEN", db.MIGRATIONEN[:8]):
+            con = db.oeffnen(ordner)
+        with db.transaktion(con):
+            k = konten.anlegen(con, "gob", "Matthias Göbel", "admin", "geheim123", vorlaeufig=False)
+        pid = projekte.anlegen(con, "gob", "Klimaanlage", "BSMT 22b", "2026-10-26", "2027-01-04", [k["id"]], [])
+        with db.transaktion(con):
+            con.execute("INSERT INTO anfrage (projekt_id, art, titel, status, antwort, erstellt, geaendert, geaendert_von) "
+                        "VALUES (?, 'rueckfrage', '24 V?', 'beantwortet', 'Ja.', '2026-10-27T09:00:00', '2026-10-27T10:00:00', 'gob')", (pid,))
+            con.execute("INSERT INTO eintrag (projekt_id, art, text, erstellt, wer_art, wer, anfrage_id) VALUES (?, 'frage', '24 V?', "
+                        "'2026-10-27T09:00:00', 'team', 'Team', 1)", (pid,))
+            con.execute("INSERT INTO bestellliste (projekt_id, eingereicht) VALUES (?, '2026-10-28T10:00:00')", (pid,))
+        con.close()
+        con = db.oeffnen(ordner)
+        self.assertEqual(con.execute("PRAGMA user_version").fetchone()[0], len(db.MIGRATIONEN))
+        a = [tuple(z) for z in con.execute("SELECT art, stand, bestellliste_id FROM anfrage ORDER BY id")]
+        self.assertEqual(a, [("rueckfrage", "erledigt", None), ("bestellung", "offen", 1)])
+        self.assertEqual(con.execute("SELECT text, wer FROM nachricht").fetchone()[:], ("Ja.", "gob"))
+        self.assertEqual(con.execute("PRAGMA foreign_key_check").fetchall(), [])
+        self.assertEqual(con.execute("PRAGMA foreign_keys").fetchone()[0], 1)
+        self.assertIn("anfrage", [z[2] for z in con.execute("PRAGMA foreign_key_list(eintrag)")])
+        con.close()
 
 
 if __name__ == "__main__":

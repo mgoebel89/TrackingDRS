@@ -18,6 +18,7 @@ Besprechung werden daraus berechnet.
 | D1 | Besprechung: Vorbereitung des Teams (Stand, Fragen, Themen, Ideen), Kurzzusammenfassung ohne KI, Lehrernotizen, Ergebnis (Absprachen, Aufträge mit Frist, Meilensteine), Abschließen mit Protokoll, Aufträge abhaken, Warnung „Auftrag überfällig“ | fertig |
 | D2 | Besprechungstafel (Smartboard): Zonen, Stift mit Druckstufen, Radierer, Post-its ziehen (in Ergebnis-Zonen werden sie zu Absprache, Auftrag, Meilenstein), live von Schülergeräten (Post-its, Fotos), Fenster auf dem zweiten Bildschirm, beim Abschließen eingefroren | fertig |
 | E | Anfragen (Rückfrage, auch über die Tafel; Material ausleihen; Abnahme mit Foto) mit Status und Verlauf; Bestellliste: sammeln, im Einreichfenster einreichen (auch Sonderfenster), Prüfung je Position (bestellen, SchulLager, Firma, ersetzen, ablehnen), Status bis ausgegeben, Sammelbestellung je Lieferant als CSV und Druckansicht | fertig |
+| E+ | Anfragen als Vorgänge mit Gesprächsverlauf: Nachrichten von Team und Lehrkraft, interne Notizen, Ereignisse; Status offen / in Bearbeitung / erledigt, Übernehmen, Ungelesen-Zähler; Eingang für Lehrkräfte; Bestelllisten als Vorgang | fertig |
 | F | Fotos vom Aufbau (Team und Lehrkraft), Mindmap als Bild oder PDF, private Lehrernotizen, eigene Projektvorlagen, Excel-Export (.xlsx) im Sheet-Layout, Projektbericht als Druckansicht (PDF) mit Tafeln, Archiv nach Schuljahr, endgültig löschen, ZIP-Sicherung | fertig |
 | G | WireGuard-Anbindung (Zugriff von zuhause), Probelauf | geplant |
 | H | optional: Anbindung an SchulLager | geplant |

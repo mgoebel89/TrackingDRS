@@ -307,7 +307,9 @@ def bild_pfad(con, daten_dir, pid, name):
         return None, None
     if not (con.execute("SELECT 1 FROM eintrag WHERE projekt_id = ? AND bild = ?", (pid, name)).fetchone()
             or con.execute("SELECT 1 FROM anfrage WHERE projekt_id = ? AND bild = ?", (pid, name)).fetchone()
-            or con.execute("SELECT 1 FROM datei WHERE projekt_id = ? AND name = ?", (pid, name)).fetchone()):
+            or con.execute("SELECT 1 FROM datei WHERE projekt_id = ? AND name = ?", (pid, name)).fetchone()
+            or con.execute("SELECT 1 FROM nachricht n JOIN anfrage a ON a.id = n.anfrage_id WHERE a.projekt_id = ? AND n.bild = ?",
+                           (pid, name)).fetchone()):
         return None, None
     for endung, typ in ((".jpg", "image/jpeg"), (".png", "image/png"), (".pdf", "application/pdf")):
         pfad = os.path.join(daten_dir, "bilder", name + endung)

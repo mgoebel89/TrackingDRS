@@ -1,6 +1,7 @@
-// Anfragen und Bestelllisten. Team (Reiter "Anfragen"): Rueckfrage, Material ausleihen, Abnahme stellen und verfolgen;
-// Bestellliste sammeln und im Einreichfenster einreichen. Lehrkraft (#anfragen): Anfragen bearbeiten, Einreichfenster
-// festlegen, Listen je Position pruefen (#anfragen/liste/<id>), Sammelbestellung je Lieferant (#anfragen/sammel/<id>).
+// Anfragen und Bestelllisten. Team (Reiter "Anfragen"): Rueckfrage, Material ausleihen, Abnahme stellen und im
+// Gespraechsverlauf verfolgen (vorgang.js); Bestellliste sammeln und im Einreichfenster einreichen. Lehrkraft: Eingang
+// (#anfragen, vorgang.js), Einreichfenster (#anfragen/fenster), Listen je Position pruefen (#anfragen/liste/<id>),
+// Sammelbestellung je Lieferant (#anfragen/sammel/<id>).
 'use strict';
 
 const Anfragen = (() => {
@@ -70,6 +71,7 @@ const Anfragen = (() => {
 
   function teamErzeugen({ ort, basis, beiAenderung }) {
     let D = null;
+    let offen = null;   // geoeffneter Vorgang
 
     async function laden() {
       try { D = await T.api('GET', basis + '/anfragen'); zeichnen(); }
@@ -124,25 +126,14 @@ const Anfragen = (() => {
           return true;
         },
       });
-      if (ok) { zeichnen(); T.meldung('Anfrage gestellt.'); if (beiAenderung) beiAenderung(); }
-    }
-
-    function anfrageZeile(a) {
-      return el('div', { class: 'anfrage' + (a.offen ? '' : ' zu') },
-        el('div', { class: 'zeile' }, el('span', { class: 'chip', text: ARTEN[a.art] }), el('b', { text: a.titel }), statusChip(a.status),
-          a.ueberfaellig ? el('span', { class: 'chip rot', text: 'Rückgabe überfällig' }) : null,
-          el('span', { class: 'rechts leise klein-text', text: T.zeitText(a.erstellt) })),
-        a.art === 'ausleihe' ? el('div', { class: 'leise klein-text', text: a.menge + ' · ' + datum(a.von) + ' bis ' + datum(a.bis) }) : null,
-        a.text ? el('div', { class: 'vortext klein-text', text: a.text }) : null,
-        a.aufgabe ? el('div', { class: 'leise klein-text', text: 'Aufgabe: ' + a.aufgabe }) : null,
-        a.bild ? el('img', { class: 'anfrage-bild', src: basis + '/bild/' + a.bild, alt: 'Foto' }) : null,
-        a.antwort ? el('div', { class: 'antwort' }, el('span', { class: 'leise', text: (a.geaendert_von || '').toUpperCase() + ': ' }), a.antwort) : null,
-        el('div', { class: 'zeile' },
-          a.status === 'neu' ? el('button', { type: 'button', class: 'leicht', onclick: () => senden('/anfragen', { aktion: 'zurueckziehen', anfrage_id: a.id }, 'Zurückgezogen.') }, 'Zurückziehen') : null,
-          a.status === 'nachbessern' ? el('button', { type: 'button', onclick: () => senden('/anfragen', { aktion: 'erneut', anfrage_id: a.id }, 'Erneut angefragt.') }, 'Nachgebessert, erneut anfragen') : null));
+      if (ok) { zeichnen(); T.meldung('Anfrage gestellt. Antworten erscheinen im Verlauf der Anfrage.'); if (beiAenderung) beiAenderung(); }
     }
 
     function zeichnen() {
+      if (offen) {
+        Vorgang.teamDetail({ ort, basis, id: offen, beiAenderung, zurueck: () => { offen = null; laden(); } });
+        return;
+      }
       const b = D.bestellung;
       const sammel = b.sammel.positionen.filter(p => !p.gestrichen);
       T.setzen(ort, el('div', { class: 'stapel' },
@@ -173,7 +164,7 @@ const Anfragen = (() => {
               : null)))) : null,
         el('section', { class: 'karte stapel-eng' },
           el('h2', { class: 'dreieck', text: 'Anfragen' }),
-          D.anfragen.length ? D.anfragen.map(anfrageZeile) : el('div', { class: 'leise klein-text', text: 'Noch keine Anfragen.' }))));
+          Vorgang.teamListe(D.anfragen, id => { offen = id; zeichnen(); }))));
     }
 
     return { laden };
@@ -181,59 +172,27 @@ const Anfragen = (() => {
 
   // --- Lehrkraft ---
 
+  // Kopf mit den beiden Reitern der Anfragen-Seite
+  function kopf(aktiv) {
+    return el('div', { class: 'werkzeug' }, el('h1', { class: 'dreieck', text: 'Anfragen' }),
+      el('span', { class: 'umschalter' },
+        el('a', { class: 'knopf' + (aktiv === 'eingang' ? ' an' : ''), href: '#anfragen' }, 'Eingang'),
+        el('a', { class: 'knopf' + (aktiv === 'fenster' ? ' an' : ''), href: '#anfragen/fenster' }, 'Einreichfenster')));
+  }
+
   async function lehrerZeigen(teil, id) {
     if (teil === 'liste') return listeZeigen(Number(id));
     if (teil === 'sammel') return sammelZeigen(Number(id));
-    titelSetzen('Anfragen');
+    if (teil === 'fenster') return fensterZeigen();
+    return Vorgang.eingang(teil === 'v' ? Number(id) : null);
+  }
+
+  async function fensterZeigen() {
+    titelSetzen('Einreichfenster');
     const d = await T.api('GET', '/api/anfragen');
-    const bildUrl = a => '/api/projekte/' + a.projekt_id + '/bild/' + a.bild;
-
-    async function bearbeiten(a, status, frage) {
-      let antwort = a.antwort;
-      if (frage) {
-        const feld = el('textarea', { rows: '4', maxlength: '2000', required: true, value: a.antwort || '' });
-        const ok = await T.dialog({ titel: a.projekt + ' · ' + a.titel, knopf: frage, inhalt: el('div', { class: 'felder' },
-          a.text ? el('p', { class: 'vortext', text: a.text }) : null, T.feld(status === 'beantwortet' ? 'Antwort' : 'Hinweis für das Team', feld)),
-          speichern: () => { antwort = feld.value; return true; } });
-        if (!ok) return;
-      }
-      try {
-        await T.api('POST', '/api/projekte/' + a.projekt_id + '/anfragen', { anfrage_id: a.id, status, antwort });
-        T.meldung('Gespeichert.');
-        zeigen();
-      } catch (e) { T.meldung(e.message, true); }
-    }
-
-    function knoepfe(a) {
-      const k = (text, status, frage, haupt) => el('button', { type: 'button', class: haupt ? 'haupt' : '', onclick: () => bearbeiten(a, status, frage) }, text);
-      if (a.art === 'rueckfrage' && a.status === 'neu') return [k('Antworten', 'beantwortet', 'Antworten', true),
-        el('button', { type: 'button', onclick: () => fensterDialog(d.bestellung, a.projekt_id) }, 'Sonderfenster öffnen')];
-      if (a.art === 'ausleihe') {
-        if (a.status === 'neu') return [k('Bereitlegen', 'bereitgelegt', null, true), k('Ausgeben', 'ausgegeben'), k('Ablehnen', 'abgelehnt', 'Ablehnen')];
-        if (a.status === 'bereitgelegt') return [k('Ausgegeben', 'ausgegeben', null, true)];
-        if (a.status === 'ausgegeben') return [k('Zurückgegeben', 'zurueck', null, true)];
-      }
-      if (a.art === 'abnahme' && a.status === 'neu') return [k('Freigeben', 'freigegeben', null, true), k('Nachbessern', 'nachbessern', 'Zurückgeben')];
-      return [];
-    }
-
-    const anfragenKarte = el('section', { class: 'karte stapel-eng' },
-      el('h2', { class: 'dreieck', text: 'Anfragen' }),
-      d.anfragen.length ? d.anfragen.map(a => el('div', { class: 'anfrage' + (a.offen ? '' : ' zu') },
-        el('div', { class: 'zeile' }, el('a', { href: '#projekt/' + a.projekt_id, text: a.projekt }), el('span', { class: 'chip', text: ARTEN[a.art] }),
-          el('b', { text: a.titel }), statusChip(a.status), a.ueberfaellig ? el('span', { class: 'chip rot', text: 'Rückgabe überfällig' }) : null,
-          el('span', { class: 'rechts leise klein-text', text: T.zeitText(a.erstellt) })),
-        a.art === 'ausleihe' ? el('div', { class: 'leise klein-text', text: a.menge + ' · ' + datum(a.von) + ' bis ' + datum(a.bis) }) : null,
-        a.text ? el('div', { class: 'vortext klein-text', text: a.text }) : null,
-        a.aufgabe ? el('div', { class: 'leise klein-text', text: 'Aufgabe: ' + a.aufgabe }) : null,
-        a.bild ? el('a', { href: bildUrl(a), target: '_blank', rel: 'noopener' }, el('img', { class: 'anfrage-bild', src: bildUrl(a), alt: 'Foto' })) : null,
-        a.antwort ? el('div', { class: 'antwort', text: a.antwort }) : null,
-        el('div', { class: 'zeile' }, knoepfe(a))))
-        : el('div', { class: 'leise klein-text', text: 'Keine Anfragen.' }));
-
     const fensterKarte = el('section', { class: 'karte stapel-eng' },
       el('div', { class: 'zeile' }, el('h2', { class: 'dreieck', text: 'Einreichfenster für Bestelllisten' }),
-        el('span', { class: 'rechts' }, el('button', { type: 'button', onclick: () => fensterDialog(d.bestellung) }, '+ Einreichfenster'))),
+        el('span', { class: 'rechts' }, el('button', { type: 'button', onclick: async () => { if (await fensterDialog(d.bestellung)) zeigen(); } }, '+ Einreichfenster'))),
       d.bestellung.fenster.length ? d.bestellung.fenster.map(f => el('div', { class: 'fenster' + (f.laeuft ? ' laeuft' : '') },
         el('div', { class: 'zeile' },
           el('b', { text: T.kurzTag(f.von) + ' bis ' + stichtag(f.bis) }),
@@ -251,11 +210,12 @@ const Anfragen = (() => {
             (t.eingereicht ? ' · ' + T.zeitText(t.eingereicht) : '') }),
           el('td', {}, t.liste_id ? el('a', { class: 'knopf klein' + (t.stand === 'eingereicht' ? ' haupt' : ''), href: '#anfragen/liste/' + t.liste_id }, 'Prüfen') : null))))))))
         : el('div', { class: 'leise klein-text', text: 'Noch kein Einreichfenster. Teams sammeln trotzdem schon und reichen ein, sobald ein Fenster offen ist.' }));
-
-    T.setzen(inhalt, el('div', { class: 'werkzeug' }, el('h1', { class: 'dreieck', text: 'Anfragen' })), anfragenKarte, fensterKarte);
+    T.setzen(inhalt, kopf('fenster'), fensterKarte);
+    Vorgang.zaehlerZeigen(d.zaehler);
   }
 
-  async function fensterDialog(b, sonderFuer) {
+  // Einreichfenster festlegen; aus einer Rueckfrage (anfrageId) als Sonderfenster, das dann im Verlauf steht
+  async function fensterDialog(b, sonderFuer, anfrageId) {
     const heute = T.isoDatum(new Date());
     const f = {
       von: el('input', { type: 'date', required: true, value: heute }),
@@ -272,9 +232,11 @@ const Anfragen = (() => {
       speichern: () => {
         const w = f.fuer.value;
         return T.api('POST', '/api/bestellfenster', { von: f.von.value, bis: f.bisTag.value + 'T' + f.bisZeit.value,
-          klasse: w.startsWith('k:') ? w.slice(2) : '', projekt_id: w.startsWith('p:') ? Number(w.slice(2)) : null });
+          klasse: w.startsWith('k:') ? w.slice(2) : '', projekt_id: w.startsWith('p:') ? Number(w.slice(2)) : null,
+          anfrage_id: anfrageId && w === 'p:' + sonderFuer ? anfrageId : null });
       } });
-    if (ok) { T.meldung('Einreichfenster festgelegt.'); zeigen(); }
+    if (ok) T.meldung('Einreichfenster festgelegt.');
+    return !!ok;
   }
 
   async function stichtagDialog(f) {
@@ -356,7 +318,7 @@ const Anfragen = (() => {
     }
 
     T.setzen(inhalt, el('div', { class: 'werkzeug' }, el('h1', { class: 'dreieck', text: 'Bestellliste prüfen' }),
-      el('a', { class: 'knopf', href: '#anfragen' }, 'Zurück zu den Anfragen'), el('a', { class: 'knopf', href: '#projekt/' + L.projekt_id }, 'Zum Projekt')), ort);
+      el('a', { class: 'knopf', href: '#anfragen/fenster' }, 'Zu den Einreichfenstern'), el('a', { class: 'knopf', href: '#projekt/' + L.projekt_id }, 'Zum Projekt')), ort);
     zeichnen();
   }
 
@@ -368,7 +330,7 @@ const Anfragen = (() => {
       el('div', { class: 'werkzeug' }, el('h1', { class: 'dreieck', text: 'Sammelbestellung' }),
         el('a', { class: 'knopf', href: '/api/bestellfenster/' + fid + '/sammelbestellung.csv', download: '' }, 'Excel (CSV)'),
         el('button', { type: 'button', onclick: () => window.print() }, 'Drucken / PDF'),
-        el('a', { class: 'knopf', href: '#anfragen' }, 'Zurück')),
+        el('a', { class: 'knopf', href: '#anfragen/fenster' }, 'Zurück')),
       el('p', { class: 'leise', text: 'Einreichfenster ' + T.kurzTag(f.von) + ' bis ' + stichtag(f.bis) +
         '. Nur Positionen mit „Bestellen“ (auch Ersatzartikel), je Lieferant, gleiche Bestellnummern zusammengefasst. Preise nur zur Information.' }),
       s.lieferanten.length ? s.lieferanten.map(g => el('section', { class: 'karte stapel-eng sammel' },
@@ -380,5 +342,5 @@ const Anfragen = (() => {
         : el('div', { class: 'leer', text: 'Noch keine Position zum Bestellen entschieden.' }));
   }
 
-  return { teamErzeugen, lehrerZeigen };
+  return { teamErzeugen, lehrerZeigen, kopf, fensterDialog };
 })();

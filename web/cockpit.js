@@ -65,7 +65,7 @@ const Cockpit = (() => {
       gruppe('Jetzt erledigen', c.erledigen, e => el('div', { class: 'hb' },
         el('span', { class: 'hb-m', text: '›' }),
         el('div', {}, el('b', { text: e.titel }), el('div', { class: 'leise', text: e.text })),
-        e.art === 'anfrage' ? el('a', { class: 'knopf', href: '#anfragen' }, 'Ansehen')
+        e.art === 'anfrage' ? el('a', { class: 'knopf', href: '#anfragen/v/' + e.anfrage_id }, 'Öffnen')
           : e.art === 'liste' ? el('a', { class: 'knopf', href: '#anfragen/liste/' + e.liste_id }, 'Prüfen')
             : el('button', { type: 'button', onclick: e.projekt_id ? zuProjekt(e.projekt_id) : () => { location.hash = 'termine'; } },
               e.projekt_id ? 'Öffnen' : 'Termine')), 'Nichts offen.'),

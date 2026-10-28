@@ -15,6 +15,7 @@ except Exception:   # Windows ohne tzdata (lokales Testen): Ortszeit des Rechner
     ZONE = None
 
 VORLAGEN_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "vorlagen")
+OHNE_FK = "ohne_fk"   # Kennzeichen einer Migration, die eine Tabelle neu aufbaut
 
 
 def jetzt():
@@ -371,23 +372,90 @@ MIGRATIONEN = [
         wer TEXT NOT NULL,
         verworfen INTEGER NOT NULL DEFAULT 0)
     """,
+    # 9: Anfragen als Vorgaenge mit Gespraechsverlauf. Die Tabelle anfrage wird neu aufgebaut (neue Art 'bestellung',
+    # Status des Vorgangs, Zustaendigkeit); bisherige Antworten werden Nachrichten, eingereichte Listen Vorgaenge.
+    (OHNE_FK, """
+    CREATE TABLE anfrage_neu (
+        id INTEGER PRIMARY KEY,
+        projekt_id INTEGER NOT NULL REFERENCES projekt(id) ON DELETE CASCADE,
+        art TEXT NOT NULL CHECK (art IN ('rueckfrage', 'ausleihe', 'abnahme', 'bestellung')),
+        titel TEXT NOT NULL,
+        text TEXT NOT NULL DEFAULT '',
+        aufgabe_id INTEGER REFERENCES aufgabe(id),
+        menge TEXT NOT NULL DEFAULT '',
+        von TEXT,
+        bis TEXT,
+        bild TEXT,
+        in_besprechung INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL,
+        antwort TEXT NOT NULL DEFAULT '',
+        erstellt TEXT NOT NULL,
+        geaendert TEXT NOT NULL,
+        geaendert_von TEXT,
+        stand TEXT NOT NULL DEFAULT 'offen' CHECK (stand IN ('offen', 'bearbeitung', 'erledigt')),
+        zustaendig_id INTEGER REFERENCES lehrkraft(id),
+        bestellliste_id INTEGER REFERENCES bestellliste(id) ON DELETE CASCADE);
+    INSERT INTO anfrage_neu (id, projekt_id, art, titel, text, aufgabe_id, menge, von, bis, bild, in_besprechung, status, antwort,
+        erstellt, geaendert, geaendert_von, stand)
+        SELECT id, projekt_id, art, titel, text, aufgabe_id, menge, von, bis, bild, in_besprechung, status, antwort, erstellt, geaendert,
+        geaendert_von, CASE WHEN status = 'neu' THEN 'offen'
+            WHEN status IN ('beantwortet', 'zurueck', 'abgelehnt', 'freigegeben', 'zurueckgezogen') THEN 'erledigt' ELSE 'bearbeitung' END
+        FROM anfrage;
+    DROP TABLE anfrage;
+    ALTER TABLE anfrage_neu RENAME TO anfrage;
+    CREATE INDEX anfrage_projekt ON anfrage (projekt_id, id);
+    CREATE TABLE nachricht (
+        id INTEGER PRIMARY KEY,
+        anfrage_id INTEGER NOT NULL REFERENCES anfrage(id) ON DELETE CASCADE,
+        art TEXT NOT NULL CHECK (art IN ('nachricht', 'intern', 'ereignis')),
+        text TEXT NOT NULL DEFAULT '',
+        bild TEXT,
+        daten TEXT NOT NULL DEFAULT '{}',
+        zeit TEXT NOT NULL,
+        wer_art TEXT NOT NULL,
+        wer TEXT NOT NULL);
+    CREATE INDEX nachricht_anfrage ON nachricht (anfrage_id, id);
+    CREATE TABLE gelesen (
+        anfrage_id INTEGER NOT NULL REFERENCES anfrage(id) ON DELETE CASCADE,
+        leser TEXT NOT NULL,
+        bis INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (anfrage_id, leser));
+    INSERT INTO nachricht (anfrage_id, art, text, zeit, wer_art, wer)
+        SELECT id, 'nachricht', antwort, geaendert, 'lehrkraft', COALESCE(geaendert_von, '') FROM anfrage WHERE antwort != '';
+    INSERT INTO anfrage (projekt_id, art, titel, status, erstellt, geaendert, stand, bestellliste_id)
+        SELECT projekt_id, 'bestellung', 'Bestellliste vom ' || substr(eingereicht, 9, 2) || '.' || substr(eingereicht, 6, 2) || '.',
+        'neu', eingereicht, eingereicht, CASE WHEN geprueft IS NULL THEN 'offen' ELSE 'bearbeitung' END, id
+        FROM bestellliste WHERE eingereicht IS NOT NULL
+    """),
 ]
 
 
 def migrieren(con):
-    """Bringt das Schema auf den neuesten Stand (PRAGMA user_version = Anzahl angewandter Migrationen)."""
+    """Bringt das Schema auf den neuesten Stand (PRAGMA user_version = Anzahl angewandter Migrationen).
+    Migrationen mit OHNE_FK bauen eine Tabelle neu auf: dafuer ist die Fremdschluessel-Pruefung kurz aus (das geht nur
+    ausserhalb einer Transaktion), danach muss PRAGMA foreign_key_check leer sein, sonst wird alles zurueckgerollt."""
     stand = con.execute("PRAGMA user_version").fetchone()[0]
     for nummer in range(stand, len(MIGRATIONEN)):
+        eintrag = MIGRATIONEN[nummer]
+        ohne_fk = isinstance(eintrag, tuple)
+        sql = eintrag[1] if ohne_fk else eintrag
+        if ohne_fk:
+            con.execute("PRAGMA foreign_keys = OFF")
         con.execute("BEGIN IMMEDIATE")
         try:
-            for befehl in MIGRATIONEN[nummer].split(";"):
+            for befehl in sql.split(";"):
                 if befehl.strip():
                     con.execute(befehl)
+            if ohne_fk and con.execute("PRAGMA foreign_key_check").fetchall():
+                raise RuntimeError("Migration %d: Fremdschluessel verletzt" % (nummer + 1))
             con.execute("PRAGMA user_version = %d" % (nummer + 1))
             con.execute("COMMIT")
         except Exception:
             con.execute("ROLLBACK")
             raise
+        finally:
+            if ohne_fk:
+                con.execute("PRAGMA foreign_keys = ON")
     _vorlagen_einlesen(con)
 
 

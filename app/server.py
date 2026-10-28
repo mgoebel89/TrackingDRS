@@ -668,7 +668,7 @@ def api_team_bild(h, con, daten, token, name):
 # --- Anfragen und Bestelllisten ---
 
 def _team_anfragen(con, pid):
-    return {"anfragen": anfragen.liste(con, pid), "bestellung": bestellung.team_sicht(con, pid)}
+    return {"anfragen": anfragen.vorgaenge_team(con, pid), "bestellung": bestellung.team_sicht(con, pid)}
 
 
 def api_team_anfragen(h, con, daten, token):
@@ -693,13 +693,71 @@ def api_team_bestellung(h, con, daten, token):
 
 def api_anfragen(h, con, daten):
     k = h.konto(con)
-    h.antwort(200, {"anfragen": anfragen.uebersicht(con, k), "bestellung": bestellung.uebersicht(con, k)})
+    h.antwort(200, {"bestellung": bestellung.uebersicht(con, k), "zaehler": anfragen.zaehler(con, k)})
+
+
+def api_vorgaenge(h, con, daten):
+    k = h.konto(con)
+    projekt = _abfrage(h, "projekt")
+    h.antwort(200, {"vorgaenge": anfragen.vorgaenge_lehrkraft(con, k, _abfrage(h, "filter", "aktiv"),
+                                                             _ganzzahl(projekt) if projekt else None, _abfrage(h, "art")),
+                    "zaehler": anfragen.zaehler(con, k)})
+
+
+def api_vorgaenge_zaehler(h, con, daten):
+    h.antwort(200, anfragen.zaehler(con, h.konto(con)))
+
+
+def _vorgang_projekt(con, aid):
+    z = con.execute("SELECT projekt_id FROM anfrage WHERE id = ?", (_ganzzahl(aid),)).fetchone()
+    if z is None:
+        raise Fehler(404, "Diesen Vorgang gibt es nicht.")
+    return str(z[0])
+
+
+def api_vorgang_direkt(h, con, daten, aid):
+    api_vorgang(h, con, daten, _vorgang_projekt(con, aid), aid)
+
+
+def api_vorgang_direkt_aendern(h, con, daten, aid):
+    api_vorgang_aendern(h, con, daten, _vorgang_projekt(con, aid), aid)
+
+
+def api_vorgang(h, con, daten, pid, aid):
+    k, pid = _projekt(h, con, pid)
+    h.antwort(200, {"vorgang": anfragen.vorgang(con, pid, _ganzzahl(aid), k)})
+
+
+def api_vorgang_aendern(h, con, daten, pid, aid):
+    k, pid = _projekt(h, con, pid)
+    aid = _ganzzahl(aid)
+    if daten.get("aktion") == "nachricht":
+        bild = tafel.bild_speichern(_daten_dir(h), daten["bild"]) if daten.get("bild") else None
+        anfragen.nachricht(con, pid, aid, "lehrkraft", dict(daten, bild=bild), k)
+    else:
+        anfragen.bearbeiten(con, pid, k, dict(daten, anfrage_id=aid))
+    h.antwort(200, {"vorgang": anfragen.vorgang(con, pid, aid, k)})
 
 
 def api_anfrage_bearbeiten(h, con, daten, pid):
     k, pid = _projekt(h, con, pid)
-    anfragen.bearbeiten(con, pid, k["kuerzel"], daten)
-    h.antwort(200, {"anfragen": anfragen.uebersicht(con, k)})
+    anfragen.bearbeiten(con, pid, k, daten)
+    h.antwort(200, {"vorgang": anfragen.vorgang(con, pid, _ganzzahl(daten.get("anfrage_id")), k)})
+
+
+def api_team_vorgang(h, con, daten, token, aid):
+    h.antwort(200, {"vorgang": anfragen.vorgang(con, _team_projekt(con, token), _ganzzahl(aid))})
+
+
+def api_team_vorgang_aendern(h, con, daten, token, aid):
+    pid = _team_projekt(con, token)
+    aid = _ganzzahl(aid)
+    if daten.get("aktion") == "nachricht":
+        bild = tafel.bild_speichern(_daten_dir(h), daten["bild"]) if daten.get("bild") else None
+        anfragen.nachricht(con, pid, aid, "team", dict(daten, bild=bild))
+    else:
+        anfragen.team_aendern(con, pid, dict(daten, anfrage_id=aid))
+    h.antwort(200, {"vorgang": anfragen.vorgang(con, pid, aid)})
 
 
 def api_bestellfenster(h, con, daten):
@@ -975,6 +1033,12 @@ ROUTEN = [(m, re.compile(p), f) for m, p, f in [
     ("GET", r"/api/sicherung\.zip", api_sicherung),
     ("POST", r"/api/projekte/(\d+)/bestellung", api_bestellung_pruefen),
     ("GET", r"/api/anfragen", api_anfragen),
+    ("GET", r"/api/vorgaenge", api_vorgaenge),
+    ("GET", r"/api/vorgaenge/zaehler", api_vorgaenge_zaehler),
+    ("GET", r"/api/vorgaenge/(\d+)", api_vorgang_direkt),
+    ("POST", r"/api/vorgaenge/(\d+)", api_vorgang_direkt_aendern),
+    ("GET", r"/api/projekte/(\d+)/vorgaenge/(\d+)", api_vorgang),
+    ("POST", r"/api/projekte/(\d+)/vorgaenge/(\d+)", api_vorgang_aendern),
     ("POST", r"/api/bestellfenster", api_bestellfenster),
     ("POST", r"/api/bestellfenster/(\d+)", api_bestellfenster_aendern),
     ("GET", r"/api/bestellfenster/(\d+)/sammelbestellung", api_sammelbestellung),
@@ -1006,6 +1070,8 @@ ROUTEN = [(m, re.compile(p), f) for m, p, f in [
     ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/fotos", api_team_foto),
     ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/fotos/(\d+)/verwerfen", api_team_foto_weg),
     ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/anfragen", api_team_anfragen_aendern),
+    ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/vorgaenge/(\d+)", api_team_vorgang),
+    ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/vorgaenge/(\d+)", api_team_vorgang_aendern),
     ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/bestellung", api_team_bestellung),
     ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/besprechung", api_team_besprechung),
     ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/besprechung", api_team_besprechung_aendern),
