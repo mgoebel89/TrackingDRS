@@ -347,6 +347,30 @@ MIGRATIONEN = [
         erstellt TEXT NOT NULL);
     CREATE INDEX position_liste ON position (liste_id, id)
     """,
+    # 8: Extras (Stufe F). Fotos des Teams und die Mindmap als Datei im Ordner bilder/, private Lehrernotizen.
+    """
+    CREATE TABLE datei (
+        id INTEGER PRIMARY KEY,
+        projekt_id INTEGER NOT NULL REFERENCES projekt(id) ON DELETE CASCADE,
+        art TEXT NOT NULL CHECK (art IN ('foto', 'mindmap')),
+        name TEXT NOT NULL,
+        typ TEXT NOT NULL,
+        titel TEXT NOT NULL DEFAULT '',
+        aufgabe_id INTEGER REFERENCES aufgabe(id) ON DELETE SET NULL,
+        verworfen INTEGER NOT NULL DEFAULT 0,
+        erstellt TEXT NOT NULL,
+        wer_art TEXT NOT NULL,
+        wer TEXT NOT NULL);
+    CREATE INDEX datei_projekt ON datei (projekt_id, id);
+    CREATE TABLE notiz (
+        id INTEGER PRIMARY KEY,
+        projekt_id INTEGER NOT NULL REFERENCES projekt(id) ON DELETE CASCADE,
+        text TEXT NOT NULL,
+        erstellt TEXT NOT NULL,
+        geaendert TEXT,
+        wer TEXT NOT NULL,
+        verworfen INTEGER NOT NULL DEFAULT 0)
+    """,
 ]
 
 

@@ -252,6 +252,15 @@ def archivieren(con, wer, pid, archiviert):
         db.ereignis(con, pid, "lehrkraft", wer, "archiviert" if archiviert else "reaktiviert")
 
 
+def archivieren_schuljahr(con, konto, schuljahr):
+    """Alle laufenden Projekte eines Schuljahres archivieren, die die Lehrkraft betreut. Rueckgabe: Anzahl."""
+    ids = [z[0] for z in con.execute("SELECT p.id FROM projekt p JOIN projekt_lehrkraft pl ON pl.projekt_id = p.id "
+                                     "WHERE pl.lehrkraft_id = ? AND p.schuljahr = ? AND p.archiviert = 0", (konto["id"], schuljahr))]
+    for pid in ids:
+        archivieren(con, konto["kuerzel"], pid, True)
+    return len(ids)
+
+
 def team_sicht(con, token):
     """Was das Team ueber seinen Link sieht. None, wenn der Link unbekannt oder das Projekt archiviert ist."""
     if not TOKEN.fullmatch(token or ""):

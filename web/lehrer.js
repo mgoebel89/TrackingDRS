@@ -89,13 +89,29 @@ function projektkarte(p) {
 async function projekteZeigen(archiv) {
   titelSetzen(archiv ? 'Archiv' : 'Projekte');
   const { projekte } = await T.api('GET', '/api/projekte' + (archiv ? '?archiv=1' : ''));
-  T.setzen(inhalt, 
+  const jahre = [...new Set(projekte.map(p => p.schuljahr))].sort().reverse();
+  T.setzen(inhalt,
     el('div', { class: 'werkzeug' },
       el('h1', { class: 'dreieck', text: archiv ? 'Archiv' : 'Projekte' }),
+      archiv || !projekte.length ? null : el('button', { type: 'button', onclick: () => schuljahrArchivieren(jahre) }, 'Schuljahr archivieren …'),
       archiv ? null : el('button', { class: 'haupt', type: 'button', onclick: neuesProjekt }, '+ Neues Projekt')),
-    projekte.length ? el('div', { class: 'raster' }, projekte.map(projektkarte))
+    archiv ? el('p', { class: 'leise', text: 'Archivierte Projekte sind nur noch lesbar, der Team-Link ist aus. Endgültig löschen geht auf der Projektseite.' }) : null,
+    projekte.length ? jahre.map(j => el('section', { class: 'stapel-eng' },
+      jahre.length > 1 || archiv ? el('h2', { class: 'etikett schuljahr', text: 'Schuljahr ' + j }) : null,
+      el('div', { class: 'raster' }, projekte.filter(p => p.schuljahr === j).map(projektkarte))))
       : el('div', { class: 'leer', text: archiv ? 'Keine archivierten Projekte.'
         : 'Noch keine Projekte. Lege mit „Neues Projekt“ das erste an.' }));
+}
+
+async function schuljahrArchivieren(jahre) {
+  const wahl = el('select', {}, jahre.map(j => el('option', { value: j, text: j })));
+  const ok = await T.dialog({
+    titel: 'Schuljahr archivieren', knopf: 'Archivieren', gefaehrlich: true,
+    inhalt: el('div', { class: 'felder' }, T.feld('Schuljahr', wahl),
+      el('p', { class: 'leise', text: 'Alle laufenden Projekte dieses Schuljahres, die du betreust, werden archiviert. Die Team-Links funktionieren dann nicht mehr.' })),
+    speichern: async () => (await T.api('POST', '/api/projekte/archivieren-schuljahr', { schuljahr: wahl.value })).anzahl,
+  });
+  if (ok !== null) { T.meldung(ok + ' Projekte archiviert.'); zeigen(); }
 }
 
 function lehrkraftAuswahl(alle, gewaehlt) {
@@ -210,14 +226,20 @@ async function projektZeigen(id) {
       el('span', { class: 'zeit', text: T.zeitText(e.zeit) }),
       el('span', {}, el('b', { text: T.werText(e) }), ' ', T.verlaufText(e))))));
 
-  T.setzen(inhalt, 
+  T.setzen(inhalt,
     el('div', { class: 'werkzeug' },
       el('h1', { class: 'dreieck', text: p.titel }),
       p.archiviert ? null : el('a', { class: 'knopf', href: '#besprechung/' + p.id }, 'Besprechung ▶'),
+      el('a', { class: 'knopf', href: '/api/projekte/' + p.id + '/export.xlsx', download: '' }, 'Excel'),
+      el('a', { class: 'knopf', href: '/bericht?projekt=' + p.id, target: '_blank', rel: 'noopener' }, 'Bericht (PDF)'),
+      el('button', { type: 'button', onclick: () => vorlageSpeichern(p) }, 'Als Vorlage'),
       el('button', { type: 'button', onclick: () => projektBearbeiten(p) }, 'Bearbeiten'),
       el('button', { type: 'button', class: p.archiviert ? '' : 'warnen', onclick: () => archivieren(p) },
-        p.archiviert ? 'Wieder aktivieren' : 'Archivieren')),
-    warnOrt, ueberblick, struktur, p.archiviert ? null : termine, p.archiviert ? null : teamlink, mitglieder, verlauf);
+        p.archiviert ? 'Wieder aktivieren' : 'Archivieren'),
+      p.archiviert ? el('button', { type: 'button', class: 'warnen', onclick: () => endgueltigLoeschen(p) }, 'Endgültig löschen') : null),
+    warnOrt, ueberblick, struktur, p.archiviert ? null : termine,
+    Extras.lehrerKarten(p.id, p.archiviert, p.phasen.flatMap(ph => ph.aufgaben).filter(a => !a.verworfen).map(a => ({ id: a.id, titel: a.titel }))),
+    p.archiviert ? null : teamlink, mitglieder, verlauf);
   const warnungenLaden = async () => {
     try { warnungenZeigen((await T.api('GET', '/api/projekte/' + p.id + '/termine')).warnungen); } catch (e) { /* bleibt */ }
   };
@@ -225,6 +247,32 @@ async function projektZeigen(id) {
   if (!p.archiviert) {
     Termine.erzeugen({ ort: terminOrt, basis: '/api/projekte/' + p.id, rolle: 'lehrkraft', beiAenderung: a => warnungenZeigen(a.warnungen) }).laden();
   }
+}
+
+async function vorlageSpeichern(p) {
+  const name = el('input', { required: true, maxlength: '80', value: p.titel + ' (Vorlage)' });
+  const mitTeam = el('input', { type: 'checkbox' });
+  const ok = await T.dialog({
+    titel: 'Als Vorlage speichern', knopf: 'Speichern',
+    inhalt: el('div', { class: 'felder' }, T.feld('Name der Vorlage', name),
+      el('label', { class: 'haken' }, mitTeam, 'auch die Aufgaben des Teams übernehmen (sonst nur Phasen und Vorgaben)'),
+      el('p', { class: 'leise', text: 'Die Vorlage steht danach beim Anlegen neuer Projekte zur Auswahl.' })),
+    speichern: () => T.api('POST', '/api/projekte/' + p.id + '/vorlage', { name: name.value, mit_team: mitTeam.checked }),
+  });
+  if (ok) { S.vorlagen = null; T.meldung('Vorlage gespeichert.'); }
+}
+
+async function endgueltigLoeschen(p) {
+  const titel = el('input', { required: true, autocomplete: 'off', placeholder: p.titel });
+  const ok = await T.dialog({
+    titel: 'Projekt endgültig löschen?', knopf: 'Endgültig löschen', gefaehrlich: true,
+    inhalt: el('div', { class: 'felder' },
+      el('p', { text: 'Alles zu „' + p.titel + '“ wird gelöscht: Sheet, Verlauf, Besprechungen, Tafeln, Anfragen, Bestelllisten, Fotos und Notizen. ' +
+        'Das lässt sich nicht rückgängig machen. Tipp: vorher den Bericht als PDF speichern.' }),
+      T.feld('Zur Bestätigung den Projekttitel eintippen', titel)),
+    speichern: () => T.api('POST', '/api/projekte/' + p.id + '/loeschen', { bestaetigung: titel.value }),
+  });
+  if (ok) { T.meldung('Projekt gelöscht.'); location.hash = 'archiv'; }
 }
 
 async function projektBearbeiten(p) {
@@ -528,7 +576,7 @@ async function lehrkraefteZeigen() {
   titelSetzen('Lehrkräfte');
   S.lehrkraefte = null;
   const alle = await lehrkraefte();
-  T.setzen(inhalt, 
+  T.setzen(inhalt,
     el('div', { class: 'werkzeug' }, el('h1', { class: 'dreieck', text: 'Lehrkräfte' }),
       el('button', { class: 'haupt', type: 'button', onclick: () => lehrkraftDialog() }, '+ Lehrkraft')),
     el('section', { class: 'karte rollbar' }, el('table', { class: 'liste' },
@@ -600,7 +648,7 @@ function dateiLesen(datei) {
 
 async function einstellungenZeigen() {
   titelSetzen('Einstellungen');
-  const einst = await T.api('GET', '/api/einstellungen');
+  const [einst, { vorlagen }] = await Promise.all([T.api('GET', '/api/einstellungen'), T.api('GET', '/api/vorlagen')]);
   const logo = einst.logo;
   const datei = el('input', { type: 'file', accept: '.svg,.png,.jpg,.jpeg,image/svg+xml,image/png,image/jpeg' });
   const vorschau = logo ? el('img', { src: '/logo?' + Date.now(), alt: 'aktuelles Logo', class: 'logo-vorschau' })
@@ -625,7 +673,20 @@ async function einstellungenZeigen() {
       vorschau,
       el('div', { class: 'zeile' }, datei, el('button', { type: 'button', class: 'haupt', onclick: hochladen }, 'Hochladen'),
         logo ? el('button', { type: 'button', class: 'warnen', onclick: entfernen }, 'Logo entfernen') : null)),
-    Cockpit.schulKarte(einst));
+    Cockpit.schulKarte(einst),
+    el('section', { class: 'karte stapel-eng' },
+      el('h2', { class: 'dreieck', text: 'Projektvorlagen' }),
+      el('p', { class: 'leise', text: 'Eigene Vorlagen entstehen auf der Projektseite mit „Als Vorlage“. Die mitgelieferten Vorlagen bleiben immer.' }),
+      vorlagen.map(v => el('div', { class: 'zeile' }, el('span', { text: v.name }),
+        v.schluessel.startsWith('eigen-') ? el('button', { type: 'button', class: 'leicht', onclick: async () => {
+          try { await T.api('POST', '/api/vorlagen/' + v.schluessel + '/entfernen', {}); S.vorlagen = null; T.meldung('Vorlage entfernt.'); zeigen(); }
+          catch (e) { T.meldung(e.message, true); }
+        } }, 'Entfernen') : el('span', { class: 'chip', text: 'mitgeliefert' })))),
+    el('section', { class: 'karte stapel-eng' },
+      el('h2', { class: 'dreieck', text: 'Sicherung' }),
+      el('p', { class: 'leise', text: 'ZIP mit Datenbank, Fotos, Mindmaps und Logo (ohne Zertifikate). Zusätzlich sichert Proxmox den ganzen Container. ' +
+        'Die ZIP enthält personenbezogene Daten: sicher aufbewahren.' }),
+      el('div', {}, el('a', { class: 'knopf haupt', href: '/api/sicherung.zip', download: '' }, 'Sicherung herunterladen'))));
 }
 
 // --- Eigenes Konto ---
@@ -668,7 +729,7 @@ async function kontoZeigen() {
     try { await passwortSpeichern(f); form.reset(); T.meldung('Passwort geändert. Andere Anmeldungen sind beendet.'); }
     catch (e) { fehler.textContent = e.message; }
   });
-  T.setzen(inhalt, 
+  T.setzen(inhalt,
     el('h1', { class: 'dreieck', text: 'Mein Konto' }),
     el('section', { class: 'karte' }, el('dl', { class: 'daten' },
       el('dt', { text: 'Name' }), el('dd', { text: S.konto.name }),

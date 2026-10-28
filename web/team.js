@@ -8,7 +8,7 @@ const inhalt = document.getElementById('inhalt');
 const token = location.pathname.split('/')[2] || '';
 const basis = '/api/t/' + encodeURIComponent(token);
 const REITER = [['uebersicht', 'Übersicht'], ['sheet', 'Tracking-Sheet'], ['besprechung', 'Besprechung'], ['anfragen', 'Anfragen'],
-  ['projekt', 'Projekt']];
+  ['fotos', 'Fotos'], ['projekt', 'Projekt']];
 const U = { sheet: null, entfallen: [] };   // was "Demnaechst" braucht
 let projekt = null;
 const bereich = el('div', { class: 'stapel' });
@@ -88,7 +88,18 @@ function zeigen() {
   const wahl = reiterWahl();
   document.querySelectorAll('.reiter a').forEach(a => a.classList.toggle('an', a.dataset.reiter === wahl));
   inhalt.classList.toggle('breit', wahl === 'sheet');
-  if (wahl === 'projekt') { T.setzen(bereich, projektSeite(projekt)); return; }
+  if (wahl === 'projekt') {
+    const seite = projektSeite(projekt);
+    T.setzen(bereich, seite);
+    Extras.teamMindmap(basis).then(k => { if (k && bereich.contains(seite[0])) bereich.insertBefore(k, bereich.firstChild); });
+    return;
+  }
+  if (wahl === 'fotos') {
+    const ort = el('div');
+    T.setzen(bereich, ort);
+    Extras.teamFotos({ ort, basis, aufgaben: projekt.phasen.flatMap(ph => ph.aufgaben).filter(a => !a.verworfen).map(a => ({ id: a.id, titel: a.titel })) });
+    return;
+  }
   if (wahl === 'uebersicht') { uebersicht(); return; }
   if (wahl === 'besprechung') {
     const ort = el('div');

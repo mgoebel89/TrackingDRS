@@ -194,6 +194,9 @@ const T = {
       position_entschieden: () => '„' + d.artikel + '“: ' + ({ bestellen: 'wird bestellt', lager: 'aus dem SchulLager', firma: 'über die Firma',
         ersetzen: d.ersatz ? 'ersetzt durch ' + d.ersatz : 'Ersatz gesucht', ablehnen: 'abgelehnt' })[d.entscheidung] + (d.kommentar ? ' – ' + d.kommentar : ''),
       position_status: () => '„' + d.artikel + '“: ' + (d.status || 'Status zurückgesetzt'),
+      foto_neu: () => 'Foto' + (d.titel ? ': „' + d.titel + '“' : ' hochgeladen'),
+      foto_verworfen: () => 'Foto entfernt' + (d.titel ? ': „' + d.titel + '“' : ''),
+      mindmap: () => 'Mindmap hochgeladen: ' + d.titel,
       version: () => (d.versionsart === 'basisplan' ? 'Basisplan festgelegt' : 'Version gespeichert') + ': ' + d.name,
     };
     try { return (texte[e.art] || (() => e.art))(); } catch (f) { return e.art; }

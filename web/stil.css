@@ -458,6 +458,55 @@ input.menge { width: 80px; min-height: 32px; }
   .karte { border: none; padding: 0; break-inside: avoid; }
 }
 
+/* Extras: Fotos, Mindmap, Lehrernotizen, Archiv */
+.galerie { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+.foto { margin: 0; display: grid; gap: 4px; }
+.foto img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 10px 3px 3px 3px; cursor: zoom-in; background: var(--knopf); }
+.foto figcaption { font-size: .9em; }
+.mindmap { margin: 0; }
+.mindmap img { max-width: 100%; max-height: 520px; border: 1px solid var(--linie); border-radius: 6px; cursor: zoom-in; }
+.notizkarte { background: #fffdf3; }
+.notizen { display: grid; gap: 8px; }
+.notiz { border-top: 1px solid var(--linie); padding-top: 8px; }
+.notiz.aus-bespr { opacity: .85; }
+.notiz .rechts { margin-left: auto; }
+.etikett.schuljahr { margin-top: 6px; }
+
+/* Projektbericht (Druckansicht, A4 quer) */
+body.bericht-seite { background: #fff; }
+.bericht { max-width: 1100px; margin: 0 auto; padding: 16px; display: grid; gap: 18px; font-size: 13px; }
+.b-leiste { display: flex; gap: 12px; align-items: center; justify-content: flex-end; flex-wrap: wrap; padding: 8px; background: var(--blau-hell); border-radius: 8px; }
+.b-kopf { display: flex; gap: 18px; align-items: center; border-bottom: 2px solid var(--blau); padding-bottom: 10px; }
+.b-kopf h1 { color: var(--blau); margin-bottom: 4px; }
+.b-logo { height: 52px; }
+.b-abschnitt { display: grid; gap: 6px; break-inside: avoid-page; }
+.b-abschnitt h3 { font-size: 13px; margin: 6px 0 0; }
+.b-raster { border-collapse: collapse; font-size: 9px; width: 100%; table-layout: fixed; }
+.b-raster th, .b-raster td { border: 1px solid #d5dae1; padding: 1px 2px; text-align: center; }
+.b-raster td.b-name { text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.b-raster th:first-child { width: 210px; } .b-raster th:nth-child(2) { width: 26px; }
+.b-raster tr.b-phase td { background: #e8ebef; font-weight: 700; text-align: left; }
+.b-raster tr.b-verworfen td { color: #999; text-decoration: line-through; }
+.b-raster tr.b-summe td.b-name { background: #e8ebef; font-weight: 700; }
+.b-plan { background: #9dcdea; } .b-g { background: #9fb400; } .b-y { background: #f8b442; } .b-r { background: #d4005e; color: #fff; }
+.b-frei { background: repeating-linear-gradient(135deg, #fff 0 3px, #e1e5ea 3px 4px); }
+.b-ms { color: var(--blau); font-weight: 700; }
+.b-tabelle { border-collapse: collapse; width: 100%; }
+.b-tabelle th, .b-tabelle td { border-bottom: 1px solid #d5dae1; padding: 3px 6px; text-align: left; vertical-align: top; }
+.b-verlauf { font-size: 11px; }
+.b-liste { margin: 0; padding-left: 18px; }
+.b-tafel { width: 960px; height: 540px; border: 1px solid #d5dae1; }
+.b-mindmap { max-width: 100%; max-height: 600px; }
+.b-fotos { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.b-fotos figure { margin: 0; break-inside: avoid; } .b-fotos img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
+.b-fotos figcaption { font-size: 10px; }
+@media print {
+  @page { size: A4 landscape; margin: 12mm; }
+  .b-leiste { display: none; }
+  .bericht { padding: 0; max-width: none; }
+  .b-plan, .b-g, .b-y, .b-r, .b-frei, .b-raster tr.b-phase td, .tz, .pi { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+
 /* Team-Uebersicht */
 .uebersicht { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); align-items: start; }
 .dem-gruppe { display: grid; gap: 4px; }

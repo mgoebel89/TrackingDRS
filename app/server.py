@@ -23,7 +23,8 @@ import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import VERSION, anfragen, besprechung, bestellung, cockpit, db, einstellungen, kalender, konten, projekte, sheet, tafel, termine
+from . import (VERSION, anfragen, besprechung, bestellung, cockpit, db, einstellungen, export, extras, kalender, konten, projekte,
+               sheet, tafel, termine)
 
 BASIS = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WEB_DIR = os.path.join(BASIS, "web")
@@ -35,8 +36,9 @@ BIND = os.environ.get("TRACKINGDRS_BIND", "0.0.0.0")
 OHNE_TLS = os.environ.get("TRACKINGDRS_OHNE_TLS") == "1"
 
 COOKIE = "tdrs"
-MAX_BODY = 2 * 1024 * 1024   # Logo als Base64
-SEITEN = {"/anmelden": "anmelden.html", "/lehrer": "lehrer.html", "/einrichtung": "einrichtung.html", "/tafel": "tafel.html"}
+MAX_BODY = 12 * 1024 * 1024   # Mindmap (PDF bis 8 MB) als Base64
+SEITEN = {"/anmelden": "anmelden.html", "/lehrer": "lehrer.html", "/einrichtung": "einrichtung.html", "/tafel": "tafel.html",
+          "/bericht": "bericht.html"}
 STATISCH = re.compile(r"/static/([a-z0-9_-]+\.(css|js|svg|png|ico))")
 TEAM_SEITE = re.compile(r"/t/[A-Za-z0-9_-]{20,64}")
 # was ueber HTTP erreichbar ist, wenn HTTPS laeuft
@@ -628,6 +630,10 @@ def _bild(h, con, pid, name):
     pfad, typ = tafel.bild_pfad(con, _daten_dir(h), pid, name)
     if pfad is None:
         raise Fehler(404, "Dieses Foto gibt es nicht.")
+    if typ == "application/pdf":   # PDF nie im Kontext der Seite oeffnen: herunterladen
+        with open(pfad, "rb") as f:
+            inhalt = f.read()
+        return h.antwort(200, inhalt, typ, extra=[("Content-Disposition", 'attachment; filename="mindmap.pdf"')], cache=True)
     h.datei(pfad, typ, cache=True)
 
 
@@ -728,6 +734,113 @@ def api_sammelbestellung_csv(h, con, daten, fid):
     name = "sammelbestellung-%s.csv" % d["fenster"]["bis"][:10]
     h.antwort(200, bestellung.sammelbestellung_csv(d), "text/csv; charset=utf-8",
               extra=[("Content-Disposition", 'attachment; filename="%s"' % name)])
+
+
+# --- Extras: Fotos, Mindmap, Lehrernotizen, Vorlagen, Export, Archiv, Sicherung ---
+
+def _extras(con, pid, lehrkraft):
+    d = {"fotos": extras.fotos(con, pid), "mindmap": extras.mindmap(con, pid)}
+    if lehrkraft:
+        d["notizen"] = extras.notizen(con, pid)
+    return d
+
+
+def api_extras(h, con, daten, pid):
+    _k, pid = _projekt(h, con, pid)
+    h.antwort(200, _extras(con, pid, True))
+
+
+def api_foto(h, con, daten, pid):
+    k, pid = _projekt(h, con, pid)
+    extras.foto_neu(con, pid, _daten_dir(h), "lehrkraft", k["kuerzel"], daten)
+    h.antwort(200, _extras(con, pid, True))
+
+
+def api_foto_weg(h, con, daten, pid, fid):
+    k, pid = _projekt(h, con, pid)
+    extras.foto_verwerfen(con, pid, "lehrkraft", k["kuerzel"], _ganzzahl(fid))
+    h.antwort(200, _extras(con, pid, True))
+
+
+def api_mindmap(h, con, daten, pid):
+    k, pid = _projekt(h, con, pid)
+    extras.mindmap_setzen(con, pid, _daten_dir(h), k["kuerzel"], daten)
+    h.antwort(200, _extras(con, pid, True))
+
+
+def api_notiz(h, con, daten, pid):
+    k, pid = _projekt(h, con, pid)
+    extras.notiz_neu(con, pid, k["kuerzel"], daten.get("text"))
+    h.antwort(200, _extras(con, pid, True))
+
+
+def api_notiz_aendern(h, con, daten, pid, nid):
+    k, pid = _projekt(h, con, pid)
+    extras.notiz_aendern(con, pid, k["kuerzel"], _ganzzahl(nid), daten)
+    h.antwort(200, _extras(con, pid, True))
+
+
+def api_vorlage_speichern(h, con, daten, pid):
+    _k, pid = _projekt(h, con, pid)
+    h.antwort(200, {"schluessel": extras.vorlage_speichern(con, pid, daten.get("name"), bool(daten.get("mit_team")))})
+
+
+def api_vorlage_entfernen(h, con, daten, schluessel):
+    _admin(h, con)
+    extras.vorlage_entfernen(con, schluessel)
+    h.antwort(200, {"ok": True})
+
+
+def api_loeschen(h, con, daten, pid):
+    k, pid = _projekt(h, con, pid)
+    extras.loeschen(con, pid, _daten_dir(h), k["kuerzel"], daten.get("bestaetigung"))
+    h.antwort(200, {"ok": True})
+
+
+def api_archivieren_schuljahr(h, con, daten):
+    k = h.konto(con)
+    h.antwort(200, {"anzahl": projekte.archivieren_schuljahr(con, k, str(daten.get("schuljahr") or ""))})
+
+
+def api_export_xlsx(h, con, daten, pid):
+    _k, pid = _projekt(h, con, pid)
+    titel = con.execute("SELECT titel FROM projekt WHERE id = ?", (pid,)).fetchone()[0]
+    h.antwort(200, export.sheet_xlsx(con, pid), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+              extra=[("Content-Disposition", 'attachment; filename="%s"' % export.dateiname(titel, "xlsx"))])
+
+
+def api_bericht(h, con, daten, pid):
+    _k, pid = _projekt(h, con, pid)
+    h.antwort(200, {"bericht": export.bericht(con, pid, _abfrage(h, "notizen") == "1")})
+
+
+def api_sicherung(h, con, daten):
+    a = _admin(h, con)
+    pfad = extras.sicherung(con, _daten_dir(h))
+    try:
+        with open(pfad, "rb") as f:
+            inhalt = f.read()
+    finally:
+        os.remove(pfad)
+    print("Sicherung heruntergeladen von %s (%d KB)" % (a["kuerzel"], len(inhalt) // 1024), flush=True)
+    h.antwort(200, inhalt, "application/zip",
+              extra=[("Content-Disposition", 'attachment; filename="trackingdrs-sicherung-%s.zip"' % db.jetzt()[:10])])
+
+
+def api_team_extras(h, con, daten, token):
+    h.antwort(200, _extras(con, _team_projekt(con, token), False))
+
+
+def api_team_foto(h, con, daten, token):
+    pid = _team_projekt(con, token)
+    extras.foto_neu(con, pid, _daten_dir(h), "team", "Team", daten)
+    h.antwort(200, _extras(con, pid, False))
+
+
+def api_team_foto_weg(h, con, daten, token, fid):
+    pid = _team_projekt(con, token)
+    extras.foto_verwerfen(con, pid, "team", "Team", _ganzzahl(fid))
+    h.antwort(200, _extras(con, pid, False))
 
 
 # --- Termine ---
@@ -847,6 +960,19 @@ ROUTEN = [(m, re.compile(p), f) for m, p, f in [
     ("POST", r"/api/projekte/(\d+)/basisplan", api_basisplan),
     ("GET", r"/api/projekte/(\d+)/termine", api_projekt_termine),
     ("POST", r"/api/projekte/(\d+)/anfragen", api_anfrage_bearbeiten),
+    ("GET", r"/api/projekte/(\d+)/extras", api_extras),
+    ("POST", r"/api/projekte/(\d+)/fotos", api_foto),
+    ("POST", r"/api/projekte/(\d+)/fotos/(\d+)/verwerfen", api_foto_weg),
+    ("POST", r"/api/projekte/(\d+)/mindmap", api_mindmap),
+    ("POST", r"/api/projekte/(\d+)/notizen", api_notiz),
+    ("POST", r"/api/projekte/(\d+)/notizen/(\d+)", api_notiz_aendern),
+    ("POST", r"/api/projekte/(\d+)/vorlage", api_vorlage_speichern),
+    ("POST", r"/api/projekte/(\d+)/loeschen", api_loeschen),
+    ("GET", r"/api/projekte/(\d+)/export\.xlsx", api_export_xlsx),
+    ("GET", r"/api/projekte/(\d+)/bericht", api_bericht),
+    ("POST", r"/api/projekte/archivieren-schuljahr", api_archivieren_schuljahr),
+    ("POST", r"/api/vorlagen/(eigen-\d+)/entfernen", api_vorlage_entfernen),
+    ("GET", r"/api/sicherung\.zip", api_sicherung),
     ("POST", r"/api/projekte/(\d+)/bestellung", api_bestellung_pruefen),
     ("GET", r"/api/anfragen", api_anfragen),
     ("POST", r"/api/bestellfenster", api_bestellfenster),
@@ -876,6 +1002,9 @@ ROUTEN = [(m, re.compile(p), f) for m, p, f in [
     ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/aufgabe/(\d+)/verlauf", api_team_verlauf),
     ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/termine", api_team_termine),
     ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/anfragen", api_team_anfragen),
+    ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/extras", api_team_extras),
+    ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/fotos", api_team_foto),
+    ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/fotos/(\d+)/verwerfen", api_team_foto_weg),
     ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/anfragen", api_team_anfragen_aendern),
     ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/bestellung", api_team_bestellung),
     ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/besprechung", api_team_besprechung),

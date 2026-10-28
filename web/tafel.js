@@ -426,5 +426,13 @@ const Tafel = (() => {
     else T.meldung('Tafel geöffnet. Auf dem Board „Vollbild“ antippen.');
   }
 
-  return { starten, ansehen, aufsBoard };
+  // Eingefrorene Tafel fest in eine Seite setzen (Projektbericht); der Rahmen braucht eine feste Groesse
+  function einbetten(rahmen, d, bildBasis) {
+    const t = aufbauen(rahmen);
+    const pos = anordnen(d.postits, d.positionen || {});
+    T.setzen(t.zettel, d.postits.map(z => zettelElement(z, pos[z.key], bildBasis)));
+    zeichneStriche(t.ctx, d.striche);
+  }
+
+  return { starten, ansehen, aufsBoard, einbetten };
 })();
