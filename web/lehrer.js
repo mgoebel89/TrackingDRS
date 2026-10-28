@@ -1,8 +1,9 @@
-// Lehrerbereich: Projekte, Projektseite mit Team-Link, Teammitgliedern und Terminen, Termine (Projektzeiten, Ausfaelle,
-// Ferien, Wochenuebersicht), Lehrkraefte (Admin), eigenes Konto.
+// Lehrerbereich: Cockpit, Kalender und Aktivitaeten (cockpit.js), Projekte, Projektseite mit Team-Link, Teammitgliedern
+// und Terminen, Termine (Projektzeiten, Ausfaelle, Ferien, Wochenuebersicht), Lehrkraefte (Admin), eigenes Konto.
 'use strict';
 const { el } = T;
-const S = { konto: null, lehrkraefte: null, vorlagen: null, teamPort: null, terminVon: null };
+const S = { konto: null, lehrkraefte: null, vorlagen: null, teamPort: null, terminVon: null,
+  klasse: '', cockpitAnsicht: 'karten', kalMonat: null, aktFilter: null };
 const inhalt = document.getElementById('inhalt');
 
 
@@ -50,18 +51,21 @@ async function start() {
 }
 
 async function zeigen() {
-  const [ansicht, id] = (location.hash.slice(1) || 'projekte').split('/');
+  const [ansicht, id] = (location.hash.slice(1) || 'cockpit').split('/');
   const nav = ansicht === 'projekt' ? 'projekte' : ansicht;
   document.querySelectorAll('nav.seite a').forEach(a => a.classList.toggle('an', a.dataset.ansicht === nav));
   try {
-    if (ansicht === 'projekte') await projekteZeigen(false);
+    if (ansicht === 'cockpit') await Cockpit.cockpitZeigen();
+    else if (ansicht === 'kalender') await Cockpit.kalenderZeigen(id);
+    else if (ansicht === 'aktivitaeten') await Cockpit.aktivitaetenZeigen();
+    else if (ansicht === 'projekte') await projekteZeigen(false);
     else if (ansicht === 'archiv') await projekteZeigen(true);
     else if (ansicht === 'termine') await termineZeigen();
     else if (ansicht === 'projekt') await projektZeigen(Number(id));
     else if (ansicht === 'lehrkraefte') await lehrkraefteZeigen();
-    else if (ansicht === 'konto') kontoZeigen();
+    else if (ansicht === 'konto') await kontoZeigen();
     else if (ansicht === 'einstellungen') await einstellungenZeigen();
-    else location.hash = 'projekte';
+    else location.hash = 'cockpit';
   } catch (e) { fehlerZeigen(e); }
 }
 
@@ -192,7 +196,7 @@ async function projektZeigen(id) {
   const terminOrt = el('div');
   const termine = el('section', { class: 'karte' }, el('h2', { class: 'dreieck', text: 'Besprechungstermine' }), terminOrt);
   const warnOrt = el('div');
-  const warnungenZeigen = liste => T.setzen(warnOrt, T.warnungen((liste || []).filter(w => w.stufe === 'warnung')));
+  const warnungenZeigen = liste => T.setzen(warnOrt, T.warnungen((liste || []).filter(w => w.stufe !== 'hinweis')));
   warnungenZeigen(p.warnungen);
 
   const sheetOrt = el('div');
@@ -593,7 +597,8 @@ function dateiLesen(datei) {
 
 async function einstellungenZeigen() {
   titelSetzen('Einstellungen');
-  const { logo } = await T.api('GET', '/api/einstellungen');
+  const einst = await T.api('GET', '/api/einstellungen');
+  const logo = einst.logo;
   const datei = el('input', { type: 'file', accept: '.svg,.png,.jpg,.jpeg,image/svg+xml,image/png,image/jpeg' });
   const vorschau = logo ? el('img', { src: '/logo?' + Date.now(), alt: 'aktuelles Logo', class: 'logo-vorschau' })
     : el('div', { class: 'leer', text: 'Noch kein Logo hinterlegt.' });
@@ -616,7 +621,8 @@ async function einstellungenZeigen() {
       el('p', { class: 'leise', text: 'Erscheint oben links auf allen Seiten, auch bei den Teams. Am besten das Querformat als SVG oder PNG (höchstens 1 MB).' }),
       vorschau,
       el('div', { class: 'zeile' }, datei, el('button', { type: 'button', class: 'haupt', onclick: hochladen }, 'Hochladen'),
-        logo ? el('button', { type: 'button', class: 'warnen', onclick: entfernen }, 'Logo entfernen') : null)));
+        logo ? el('button', { type: 'button', class: 'warnen', onclick: entfernen }, 'Logo entfernen') : null)),
+    Cockpit.schulKarte(einst));
 }
 
 // --- Eigenes Konto ---
@@ -646,7 +652,7 @@ async function passwortPflicht() {
   });
 }
 
-function kontoZeigen() {
+async function kontoZeigen() {
   titelSetzen('Mein Konto');
   const f = passwortFelder();
   const fehler = el('div', { class: 'fehlertext', role: 'alert' });
@@ -666,6 +672,7 @@ function kontoZeigen() {
       el('dt', { text: 'Kürzel' }), el('dd', { text: S.konto.kuerzel }),
       el('dt', { text: 'Rolle' }), el('dd', { text: S.konto.rolle === 'admin' ? 'Admin' : 'Lehrkraft' }))),
     el('section', { class: 'karte' }, el('h2', { class: 'dreieck', text: 'Passwort ändern' }), form));
+  inhalt.appendChild(await Cockpit.dienstKarte());
 }
 
 start();

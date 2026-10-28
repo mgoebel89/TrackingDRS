@@ -278,6 +278,90 @@ table.r-tab th.links { text-align: left; padding-left: 8px; font-family: var(--s
 .eintraege { display: grid; gap: 6px; font-size: .92em; }
 .zwei-spalten { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
 
+/* Cockpit */
+.cockpit { display: grid; gap: 16px; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); align-items: start; }
+.stapel-eng { display: grid; gap: 10px; }
+.klein-text { font-size: .85em; }
+select.klein, .knopf.klein { width: auto; min-height: 32px; padding: 3px 10px; font-size: .88em; }
+.hb-gruppe { display: grid; gap: 6px; padding-top: 10px; border-top: 1px solid var(--linie); }
+.hb-gruppe:first-of-type { border-top: none; padding-top: 0; }
+.hb { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 8px; align-items: center; font-size: .9em; color: inherit; text-decoration: none; }
+.hb .leise { font-size: .9em; }
+a.hb:hover b { color: var(--blau); }
+.hb-m { text-align: center; font-weight: 700; color: var(--blau); }
+.hb-m.warn { color: #fff; background: var(--rot); border-radius: 50%; width: 22px; height: 22px; line-height: 22px; justify-self: center; font-size: .8em; }
+.kt-liste { display: grid; margin-top: 6px; }
+.kt { display: grid; grid-template-columns: 118px minmax(0, 1fr); gap: 8px; padding: 6px 4px; border-bottom: 1px solid var(--linie); font-size: .88em; align-items: start; }
+.kt.heute { background: var(--blau-hell); border-radius: 6px; }
+.kt.frei { background: #fdf6ea; }
+.kt-tag { white-space: nowrap; }
+.kt-inhalt { display: flex; flex-wrap: wrap; gap: 4px 6px; }
+.ke { display: inline-block; border-radius: 4px; padding: 1px 6px; font-size: .9em; background: var(--knopf); color: var(--text); text-decoration: none;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.ke.dienst { background: #eef0f3; border-left: 3px solid #8a94a6; }
+.ke.besprechung { background: var(--blau-hell); color: var(--blau); font-weight: 600; }
+.ke.meilenstein { background: #fff; color: var(--blau); box-shadow: inset 0 0 0 1px var(--blau-mittel); }
+.ke.fehlt { background: var(--rot-hell); color: #8a0040; font-weight: 600; }
+.ke.ferien { background: #fdf1dc; color: #9a5b00; font-weight: 600; }
+.ke.ausfall { background: #fde7d6; color: #a14400; font-weight: 600; }
+.ke.projekttag { background: var(--knopf); }
+.ke-m { display: inline-block; width: 12px; height: 10px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; background: var(--knopf); }
+.ke-m.dienst { background: #8a94a6; } .ke-m.besprechung { background: var(--blau-mittel); } .ke-m.meilenstein { background: var(--blau); }
+.ke-m.fehlt, .ke-m.projekttag.fehlt { background: var(--rot); } .ke-m.ferien { background: var(--gelb); } .ke-m.ausfall { background: #e8833a; }
+.ke-m.projekttag { background: var(--linie-stark); }
+.umschalter { display: inline-flex; gap: 2px; background: var(--knopf); border-radius: 8px; padding: 2px; }
+.umschalter button, .umschalter .knopf { min-height: 30px; padding: 3px 10px; border-color: transparent; background: transparent; font-size: .85em; }
+.umschalter .an { background: var(--karte); color: var(--blau); border-color: var(--linie-stark); }
+.pk { gap: 6px; }
+.pk.achtung { border-color: var(--rot); box-shadow: inset 3px 0 0 var(--rot); }
+.pk h3 { flex: 1; min-width: 0; }
+.pk-warn { color: #8a0040; font-size: .82em; font-weight: 600; }
+.punkte { display: inline-flex; gap: 4px; vertical-align: middle; }
+.punkt { display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: var(--linie); }
+.punkt.gross { width: 16px; height: 16px; flex: none; }
+.punkt.g { background: var(--gruen); } .punkt.y { background: var(--gelb); } .punkt.r { background: var(--rot); }
+.punkt.ohne { background: transparent; box-shadow: inset 0 0 0 2px var(--linie-stark); }
+.punkt.aus { background: transparent; }
+.balken { display: inline-block; width: 90px; height: 8px; border-radius: 4px; background: var(--linie); overflow: hidden; vertical-align: middle; }
+.balken span { display: block; height: 100%; background: var(--gruen); }
+table.matrix th, table.matrix td.mz { text-align: center; padding: 6px 4px; }
+table.matrix tr.achtung td:first-child { box-shadow: inset 3px 0 0 var(--rot); }
+@media (max-width: 1100px) { .cockpit { grid-template-columns: minmax(0, 1fr); } }
+
+/* Kalender */
+.monat { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-top: 1px solid var(--linie); border-left: 1px solid var(--linie); }
+.mt-wt { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--leise); padding: 4px 6px;
+  border-right: 1px solid var(--linie); border-bottom: 1px solid var(--linie); }
+.mt { min-height: 96px; padding: 4px; border-right: 1px solid var(--linie); border-bottom: 1px solid var(--linie); display: grid; gap: 2px;
+  align-content: start; font-size: .82em; min-width: 0; }
+.mt-kopf { display: flex; justify-content: space-between; gap: 4px; }
+.mt.fremd { background: var(--bg); color: var(--leise); }
+.mt.we { background: #fafbfc; }
+.mt.frei.ferien { background: #fdf6ea; } .mt.frei.ausfall { background: #fdf0e6; }
+.mt.heute { box-shadow: inset 0 0 0 2px var(--blau); }
+.halbjahr { display: grid; grid-template-columns: repeat(6, minmax(130px, 1fr)); gap: 8px; overflow-x: auto; }
+.hj-monat { font-weight: 700; font-size: .85em; padding: 4px 6px; border-bottom: 2px solid var(--blau); margin-bottom: 2px; }
+.hj { display: flex; gap: 6px; align-items: center; font-size: .78rem; height: 22px; padding: 0 6px; border-bottom: 1px solid var(--linie); position: relative; min-width: 0; }
+.hj-tag { width: 40px; flex: none; color: var(--leise); font-family: var(--mono); font-size: .9em; }
+.hj-m { display: inline-flex; gap: 3px; align-items: center; }
+.hj-n { background: var(--blau-hell); color: var(--blau); border-radius: 3px; padding: 0 4px; font-weight: 700; font-size: .9em; }
+.hj-ms { color: var(--blau); }
+.hj-frei { margin-left: auto; color: #9a5b00; font-size: .9em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hj.we { background: #f3f4f6; } .hj.frei.ferien { background: #fdf1dc; } .hj.frei.ausfall { background: #fde7d6; }
+.hj.heute { box-shadow: inset 0 0 0 2px var(--blau); }
+
+/* Aktivitaeten */
+.chronik { display: grid; gap: 4px; }
+.chronik-tag { margin-top: 10px; }
+.chronik-z { display: grid; grid-template-columns: 48px 150px minmax(0, 1fr); gap: 8px; font-size: .9em; padding: 3px 0; border-bottom: 1px solid var(--linie); }
+.chronik-z a { font-weight: 600; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 760px) {
+  .chronik-z { grid-template-columns: 44px minmax(0, 1fr); }
+  .chronik-z > span:last-child { grid-column: 1 / -1; }
+  .monat .mt { min-height: 64px; }
+  .monat .ke { display: none; }
+}
+
 /* Team-Uebersicht */
 .uebersicht { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); align-items: start; }
 .dem-gruppe { display: grid; gap: 4px; }

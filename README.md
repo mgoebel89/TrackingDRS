@@ -14,7 +14,7 @@ Besprechung werden daraus berechnet.
 | A | Grundgerüst: Installation, Lehrkraft-Konten, HTTPS, Firewall, Projekte, Teams, Team-Link, Standardvorlage | fertig |
 | B | Tracking-Sheet: Raster mit Plan und Ampel, Verantwortliche, Meilensteine, Basisplan, Vergleich, Handyansicht „Diese Woche“, Schul-Logo | fertig (Versionen zum Buchungsschluss kommen mit C) |
 | C1 | Projektzeiten als Regeln (Wochentag, jede/gerade/ungerade KW), Ferien, Ausfälle, einzelne Tage anpassen, Termine buchen und umbuchen bis zum Buchungsschluss, Version zum Buchungsschluss, Häkchen „erledigt“, Warnungen, Team-Links über HTTP | fertig |
-| C2 | Cockpit, Kalender, Dienstkalender- und Schulkalender-Abo (ICS) | geplant |
+| C2 | Cockpit (Handlungsbedarf, zwei Wochen, Projektkarten, Ampel-Matrix), Kalender (Monat, Halbjahr), Aktivitäten, Dienstkalender je Lehrkraft und Schulkalender (Ferien) als ICS-Abo | fertig |
 | D | Besprechungstafel (Smartboard), Kurzzusammenfassung, Arbeitsaufträge | geplant |
 | E | Anfragen: Rückfrage, Bestellliste mit Einreichfenstern, Ausleihe, Abnahme | geplant |
 | F | Fotos, Mindmap, Lehrernotizen, Vorlagen, Excel/PDF, Archiv, Sicherung | geplant |
@@ -60,7 +60,7 @@ Daten: `/var/lib/trackingdrs` (SQLite-Datenbank, Zertifikate). Programm: `/opt/t
 
 ## Entwicklung
 
-Python 3.11 oder neuer, keine weiteren Pakete. Im Repo-Ordner:
+Python 3.11 oder neuer. Für die Kalender-Abos zusätzlich `icalendar` und `recurring-ical-events` (im Container `python3-icalendar`, `python3-recurring-ical-events`; ohne sie läuft alles andere weiter). Im Repo-Ordner:
 
 ```bash
 python3 -m unittest discover -s tests

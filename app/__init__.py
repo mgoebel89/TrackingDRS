@@ -1,2 +1,2 @@
 """TrackingDRS: Projektarbeit im Blick (Tracking-Sheet, Besprechungen, Anfragen)."""
-VERSION = "0.3.0"
+VERSION = "0.4.0"

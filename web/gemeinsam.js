@@ -180,7 +180,7 @@ const T = {
   warnungen(liste) {
     if (!liste || !liste.length) return null;
     return T.el('div', { class: 'warnungen' }, liste.map(w =>
-      T.el('div', { class: 'banner' + (w.stufe === 'warnung' ? ' warnung' : '') }, w.stufe === 'warnung' ? '⚠ ' : '', w.text)));
+      T.el('div', { class: 'banner' + (w.stufe !== 'hinweis' ? ' warnung' : '') }, w.stufe !== 'hinweis' ? '⚠ ' : '', w.text)));
   },
 
   werText(e) { return e.wer_art === 'team' ? 'Team' : e.wer_art === 'system' ? 'System' : e.wer.toUpperCase(); },

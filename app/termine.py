@@ -345,7 +345,7 @@ def stornieren(con, pid, wer_art, wer, woche):
         db.ereignis(con, pid, wer_art, wer, "termin_storniert", datum=b["datum"], uhrzeit=b["uhrzeit"])
 
 
-def _buchungen_pruefen(con, wer):
+def _buchungen_pruefen(con, wer, wer_art="lehrkraft"):
     """Nach einer Aenderung an Regeln, Ausfaellen, Ferien oder Tagen: kuenftige Buchungen, deren Termin es nicht mehr
     gibt, aufheben und im Projekt vermerken. Laeuft in der Transaktion des Aufrufers."""
     heute = _heute().isoformat()
@@ -363,7 +363,7 @@ def _buchungen_pruefen(con, wer):
             if alle and alle[0]["entfaellt"]:
                 grund = alle[0]["entfaellt"]
         con.execute("UPDATE buchung SET aktiv = 0 WHERE id = ?", (b["id"],))
-        db.ereignis(con, b["projekt_id"], "lehrkraft", wer, "termin_entfallen", datum=b["datum"], uhrzeit=b["uhrzeit"], grund=grund)
+        db.ereignis(con, b["projekt_id"], wer_art, wer, "termin_entfallen", datum=b["datum"], uhrzeit=b["uhrzeit"], grund=grund)
 
 
 # --- Regeln, Tage, Ausfaelle, Ferien verwalten (Lehrkraft) ---
@@ -577,7 +577,8 @@ def uebersicht(con, konto, von, wochen=4):
 # --- Warnungen ---
 
 def warnungen(con, pid):
-    """Was fuer ein Projekt gerade zu tun ist. stufe 'warnung' sieht auch die Lehrkraft, 'hinweis' nur das Team."""
+    """Was fuer ein Projekt gerade zu tun ist. stufe 'warnung' sehen Team und Lehrkraft, 'hinweis' nur das Team,
+    'intern' nur die Lehrkraft (rote Ampel)."""
     p = _projekt(con, pid)
     if p["archiviert"]:
         return []
@@ -622,6 +623,13 @@ def warnungen(con, pid):
                 liste.append({"art": "ampel_offen", "stufe": "hinweis", "woche": aw,
                               "text": "%s brauch%s noch eine Ampel für %s, bis %s." % (n, "t" if len(offen) == 1 else "en",
                                                                                      kw_text(aw), zeitpunkt_text(schluss))})
+    rot = [a for a in aufgaben if (a["id"], diese) in zellen and zellen[(a["id"], diese)]["ampel"] == "r"]
+    if rot:
+        problem = con.execute("SELECT problem FROM problem WHERE aufgabe_id = ? AND woche = ? AND ampel = 'r' ORDER BY id DESC",
+                              (rot[0]["id"], diese)).fetchone()
+        liste.append({"art": "rote_ampel", "stufe": "intern", "woche": diese,
+                      "text": "Rot in %s: „%s“%s%s." % (kw_text(diese), rot[0]["titel"], ": " + problem[0] if problem else "",
+                                                       " und %d weitere" % (len(rot) - 1) if len(rot) > 1 else "")})
     for a in aufgaben:
         if a["ende"] and not a["erledigt"] and a["ende"] < diese:
             liste.append({"art": "endtermin", "stufe": "warnung", "aufgabe_id": a["id"],

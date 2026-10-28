@@ -222,6 +222,28 @@ MIGRATIONEN = [
     ALTER TABLE version ADD COLUMN woche TEXT;
     CREATE UNIQUE INDEX version_woche ON version (projekt_id, woche) WHERE art = 'buchungsschluss'
     """,
+    # 4: Kalender-Abos (Stufe C2). Dienstkalender je Lehrkraft, Schulkalender (lehrkraft_id NULL) fuer die Ferien.
+    # kalender_termin ist ein Spiegel des letzten Abrufs und wird bei jedem Abruf neu geschrieben.
+    """
+    CREATE TABLE kalender_abo (
+        id INTEGER PRIMARY KEY,
+        art TEXT NOT NULL CHECK (art IN ('dienst', 'schule')),
+        lehrkraft_id INTEGER REFERENCES lehrkraft(id),
+        url TEXT NOT NULL,
+        versuch TEXT,
+        stand TEXT,
+        fehler TEXT,
+        anzahl INTEGER NOT NULL DEFAULT 0);
+    CREATE UNIQUE INDEX kalender_abo_wer ON kalender_abo (art, COALESCE(lehrkraft_id, 0));
+    CREATE TABLE kalender_termin (
+        abo_id INTEGER NOT NULL REFERENCES kalender_abo(id) ON DELETE CASCADE,
+        beginn TEXT NOT NULL,
+        ende TEXT NOT NULL,
+        ganztags INTEGER NOT NULL DEFAULT 0,
+        titel TEXT NOT NULL,
+        ort TEXT NOT NULL DEFAULT '');
+    CREATE INDEX kalender_termin_zeit ON kalender_termin (abo_id, beginn)
+    """,
 ]
 
 

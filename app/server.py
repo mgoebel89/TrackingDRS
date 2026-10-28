@@ -23,7 +23,7 @@ import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import VERSION, db, einstellungen, konten, projekte, sheet, termine
+from . import VERSION, cockpit, db, einstellungen, kalender, konten, projekte, sheet, termine
 
 BASIS = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WEB_DIR = os.path.join(BASIS, "web")
@@ -336,7 +336,32 @@ def api_lehrkraft_aendern(h, con, daten, lid):
 
 def api_einstellungen(h, con, daten):
     _admin(h, con)
-    h.antwort(200, {"logo": db.einstellung(con, "logo")})
+    h.antwort(200, {"logo": db.einstellung(con, "logo"), "schulkalender": kalender.abo_status(con, "schule"),
+                    "stichwoerter": db.einstellung(con, "schulkalender_stichwoerter", kalender.STICHWOERTER)})
+
+
+def api_schulkalender(h, con, daten):
+    """Schulkalender (Ferien) setzen: neue Adresse und/oder Stichwoerter; danach sofort abrufen."""
+    a = _admin(h, con)
+    if daten.get("stichwoerter") is not None:
+        woerter = ", ".join(w.strip() for w in str(daten["stichwoerter"]).split(",") if w.strip())[:300]
+        if not woerter:
+            raise Fehler(400, "Bitte mindestens ein Stichwort angeben, z. B. Ferien.")
+        db.einstellung_setzen(con, "schulkalender_stichwoerter", woerter)
+    if daten.get("url"):
+        status = kalender.abo_setzen(con, "schule", None, daten["url"])
+        print("Schulkalender gesetzt von %s" % a["kuerzel"], flush=True)
+    elif kalender.abo_status(con, "schule"):
+        status = kalender.abrufen(con, "schule")
+    else:
+        status = None
+    h.antwort(200, {"schulkalender": status})
+
+
+def api_schulkalender_entfernen(h, con, daten):
+    _admin(h, con)
+    kalender.abo_entfernen(con, "schule", None)
+    h.antwort(200, {"schulkalender": None})
 
 
 def api_logo(h, con, daten):
@@ -369,7 +394,7 @@ def api_projekte(h, con, daten):
     k = h.konto(con)
     liste = projekte.liste(con, k, archiviert=_abfrage(h, "archiv") == "1")
     for p in liste:
-        p["warnungen"] = [w for w in termine.warnungen(con, p["id"]) if w["stufe"] == "warnung"]
+        p["warnungen"] = [w for w in termine.warnungen(con, p["id"]) if w["stufe"] != "hinweis"]
     h.antwort(200, {"projekte": liste})
 
 
@@ -393,7 +418,7 @@ def _projekt(h, con, pid):
 def api_projekt(h, con, daten, pid):
     _k, pid = _projekt(h, con, pid)
     p = projekte.details(con, pid)
-    p["warnungen"] = [w for w in termine.warnungen(con, pid) if w["stufe"] == "warnung"]
+    p["warnungen"] = [w for w in termine.warnungen(con, pid) if w["stufe"] != "hinweis"]
     h.antwort(200, {"projekt": p})
 
 
@@ -503,6 +528,48 @@ def api_basisplan(h, con, daten, pid):
     h.antwort(200, {"sheet": sheet.lesen(con, pid)})
 
 
+# --- Cockpit, Kalender, Aktivitaeten ---
+
+def api_cockpit(h, con, daten):
+    h.antwort(200, cockpit.cockpit(con, h.konto(con), _abfrage(h, "klasse")))
+
+
+def api_kalender(h, con, daten):
+    k = h.konto(con)
+    von, bis = termine._datum(_abfrage(h, "von"), "den Beginn"), termine._datum(_abfrage(h, "bis"), "das Ende")
+    if bis < von or (bis - von).days > 200:
+        raise Fehler(400, "Ungültiger Zeitraum.")
+    h.antwort(200, {"eintraege": kalender.eintraege(con, k, von, bis, _abfrage(h, "klasse")),
+                    "dienst": kalender.abo_status(con, "dienst", k["id"])})
+
+
+def api_aktivitaeten(h, con, daten):
+    k = h.konto(con)
+    projekt, vor = _abfrage(h, "projekt"), _abfrage(h, "vor")
+    h.antwort(200, cockpit.aktivitaeten(con, k, _ganzzahl(projekt) if projekt else None, _abfrage(h, "wer"),
+                                        _ganzzahl(vor) if vor else None))
+
+
+def api_dienstkalender(h, con, daten):
+    h.antwort(200, {"dienst": kalender.abo_status(con, "dienst", h.konto(con)["id"])})
+
+
+def api_dienstkalender_setzen(h, con, daten):
+    k = h.konto(con)
+    h.antwort(200, {"dienst": kalender.abo_setzen(con, "dienst", k["id"], daten.get("url"))})
+
+
+def api_dienstkalender_abrufen(h, con, daten):
+    k = h.konto(con)
+    h.antwort(200, {"dienst": kalender.abrufen(con, "dienst", k["id"])})
+
+
+def api_dienstkalender_entfernen(h, con, daten):
+    k = h.konto(con)
+    kalender.abo_entfernen(con, "dienst", k["id"])
+    h.antwort(200, {"dienst": None})
+
+
 # --- Termine ---
 
 def _termin_aendern(h, con, pid, wer_art, wer, daten):
@@ -517,7 +584,8 @@ def _termin_aendern(h, con, pid, wer_art, wer, daten):
 
 def _team_termine(con, pid):
     """Was die Team-Uebersicht braucht: Termine nur der aktuellen Woche, Warnungen, entfallende Projekttage."""
-    return {"termine": termine.termin_sicht(con, pid, wochen=6, aktuell=True), "warnungen": termine.warnungen(con, pid),
+    return {"termine": termine.termin_sicht(con, pid, wochen=6, aktuell=True),
+            "warnungen": [w for w in termine.warnungen(con, pid) if w["stufe"] != "intern"],
             "entfallen": termine.entfallende_tage(con, pid)}
 
 
@@ -595,6 +663,15 @@ ROUTEN = [(m, re.compile(p), f) for m, p, f in [
     ("GET", r"/api/einstellungen", api_einstellungen),
     ("POST", r"/api/einstellungen/logo", api_logo),
     ("POST", r"/api/einstellungen/logo-entfernen", api_logo_entfernen),
+    ("POST", r"/api/einstellungen/schulkalender", api_schulkalender),
+    ("POST", r"/api/einstellungen/schulkalender/entfernen", api_schulkalender_entfernen),
+    ("GET", r"/api/cockpit", api_cockpit),
+    ("GET", r"/api/kalender", api_kalender),
+    ("GET", r"/api/aktivitaeten", api_aktivitaeten),
+    ("GET", r"/api/dienstkalender", api_dienstkalender),
+    ("POST", r"/api/dienstkalender", api_dienstkalender_setzen),
+    ("POST", r"/api/dienstkalender/abrufen", api_dienstkalender_abrufen),
+    ("POST", r"/api/dienstkalender/entfernen", api_dienstkalender_entfernen),
     ("GET", r"/api/projekte", api_projekte),
     ("POST", r"/api/projekte", api_projekt_anlegen),
     ("GET", r"/api/projekte/(\d+)", api_projekt),
@@ -676,7 +753,7 @@ class HTTPServer(ThreadingHTTPServer):
 
 
 def takt(db_pfad):
-    """Jede Minute: faellige Versionen zum Buchungsschluss anlegen."""
+    """Jede Minute: faellige Versionen zum Buchungsschluss anlegen und Kalender-Abos holen (alle 30 Minuten)."""
     while True:
         con = None
         try:
@@ -684,6 +761,7 @@ def takt(db_pfad):
             neu = termine.faellige_versionen(con)
             if neu:
                 print("Versionen zum Buchungsschluss: %d neu" % neu, flush=True)
+            kalender.faellige_abrufen(con)
         except Exception as f:
             print("FEHLER Takt: %r" % f, file=sys.stderr, flush=True)
         finally:
