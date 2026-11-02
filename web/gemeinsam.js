@@ -103,6 +103,35 @@ const T = {
     fotos: 'M3.5 8h4l1.8-2.5h5.4L16.5 8h4v11h-17zM12 10.5a3.25 3.25 0 1 0 0 6.5a3.25 3.25 0 1 0 0-6.5',
     projekt: 'M3.5 6h6l2 2.5h9v10.5h-17z',
   },
+  // Reiterleiste (Team-Ansicht und Projektseite der Lehrkraft): klebt unter der Kopfzeile, am Handy feste Leiste unten.
+  // eintraege: [{schluessel, ziel, lang, kurz, symbol, zahl}], zahl = Platz fuer einen roten Zaehler
+  reiterleiste(eintraege) {
+    document.body.classList.add('mit-unterleiste');
+    return T.el('nav', { class: 'reiterleiste', 'aria-label': 'Bereiche' }, eintraege.map(r =>
+      T.el('a', { href: r.ziel, 'data-reiter': r.schluessel, title: r.lang }, T.symbol(r.symbol), T.el('span', { class: 'lang', text: r.lang }),
+        T.el('span', { class: 'kurz', text: r.kurz }), r.zahl ? T.el('span', { class: 'reiter-zahl', hidden: true }) : null)));
+  },
+  reiterAktiv(leiste, schluessel) {
+    leiste.querySelectorAll('a').forEach(a => {
+      a.classList.toggle('an', a.dataset.reiter === schluessel);
+      if (a.dataset.reiter === schluessel) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+    });
+  },
+  reiterZahl(leiste, n, titel) {
+    const b = leiste && leiste.querySelector('.reiter-zahl');
+    if (!b) return;
+    b.textContent = String(n);
+    b.hidden = !n;
+    b.title = titel || '';
+  },
+  // Hoehe von Kopfzeile und Reiterleiste, damit Klebendes (Reiter, Seitenleiste im Sheet) darunter bleibt
+  hoehenMerken() {
+    const kopf = document.querySelector('header.kopf'), leiste = document.querySelector('.reiterleiste');
+    const wurzel = document.documentElement.style;
+    if (kopf) wurzel.setProperty('--kopf-h', kopf.offsetHeight + 'px');
+    if (leiste) wurzel.setProperty('--reiter-h', leiste.offsetHeight + 'px');
+  },
+
   symbol(name) {
     const ns = 'http://www.w3.org/2000/svg';
     const s = document.createElementNS(ns, 'svg');

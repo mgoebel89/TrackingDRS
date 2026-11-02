@@ -52,19 +52,20 @@ async function start() {
 }
 
 async function zeigen() {
-  const [ansicht, id, id2] = (location.hash.slice(1) || 'cockpit').split('/');
+  const [ansicht, id, id2, id3] = (location.hash.slice(1) || 'cockpit').split('/');
+  if (ansicht === 'besprechung') { location.replace('#projekt/' + id + '/besprechung'); return; }   // alte Links
+  document.body.classList.remove('mit-unterleiste');
   const nav = ansicht === 'projekt' ? 'projekte' : ansicht === 'besprechung' ? 'cockpit' : ansicht;
   document.querySelectorAll('nav.seite a').forEach(a => a.classList.toggle('an', a.dataset.ansicht === nav));
   try {
     if (ansicht === 'cockpit') await Cockpit.cockpitZeigen();
     else if (ansicht === 'kalender') await Cockpit.kalenderZeigen(id);
     else if (ansicht === 'aktivitaeten') await Cockpit.aktivitaetenZeigen();
-    else if (ansicht === 'besprechung') await Besprechung.lehrerZeigen(Number(id));
     else if (ansicht === 'anfragen') await Anfragen.lehrerZeigen(id, id2);
     else if (ansicht === 'projekte') await projekteZeigen(false);
     else if (ansicht === 'archiv') await projekteZeigen(true);
     else if (ansicht === 'termine') await termineZeigen();
-    else if (ansicht === 'projekt') await projektZeigen(Number(id));
+    else if (ansicht === 'projekt') await projektZeigen(Number(id), id2, id3);
     else if (ansicht === 'lehrkraefte') await lehrkraefteZeigen();
     else if (ansicht === 'konto') await kontoZeigen();
     else if (ansicht === 'einstellungen') await einstellungenZeigen();
@@ -82,7 +83,7 @@ function projektkarte(p) {
     el('h3', { text: p.titel }),
     el('dl', { class: 'daten' },
       el('dt', { text: 'Zeitraum' }), el('dd', { text: T.zeitraum(p.start, p.ende) }),
-      el('dt', { text: 'Team' }), el('dd', { text: p.mitglieder === 1 ? '1 Mitglied' : p.mitglieder + ' Mitglieder' }),
+      el('dt', { text: 'Team' }), el('dd', { text: !p.mitglieder ? 'noch nicht eingetragen' : p.mitglieder === 1 ? '1 Mitglied' : p.mitglieder + ' Mitglieder' }),
       el('dt', { text: 'Betreut von' }), el('dd', { text: p.lehrkraefte.map(k => k.toUpperCase()).join(', ') }),
       el('dt', { text: 'Zuletzt' }), el('dd', { text: T.zeitText(p.zuletzt) || '–' })));
 }
@@ -129,14 +130,6 @@ function gewaehlteLehrkraefte(form) {
   return ids;
 }
 
-function namenLesen(text) {
-  return text.split('\n').map(z => z.trim()).filter(Boolean).map(zeile => {
-    const teile = zeile.split(/\s+/);
-    if (teile.length < 2) throw new Error('Bitte Vor- und Nachnamen angeben: „' + zeile + '“');
-    return { vorname: teile.slice(0, -1).join(' '), nachname: teile[teile.length - 1] };
-  });
-}
-
 async function neuesProjekt() {
   const alle = await lehrkraefte();
   if (!S.vorlagen) S.vorlagen = (await T.api('GET', '/api/vorlagen')).vorlagen;
@@ -150,7 +143,6 @@ async function neuesProjekt() {
     ende: el('input', { type: 'date', required: true, value: T.isoDatum(ende) }),
     schuljahr: el('input', { maxlength: '9', placeholder: 'automatisch' }),
     vorlage: el('select', {}, S.vorlagen.map(v => el('option', { value: v.schluessel, text: v.name }))),
-    namen: el('textarea', { rows: '5', placeholder: 'Lena Schmitt\nBen Weber\nMia Klein' }),
   };
   const id = await T.dialog({
     titel: 'Neues Projekt',
@@ -160,12 +152,12 @@ async function neuesProjekt() {
       el('div', { class: 'felder zwei' }, T.feld('Klasse', f.klasse), T.feld('Schuljahr', f.schuljahr)),
       el('div', { class: 'felder zwei' }, T.feld('Start', f.start, 'zählt ab dem Montag dieser Woche'), T.feld('Ende', f.ende)),
       T.feld('Vorlage', f.vorlage),
-      T.feld('Teammitglieder', f.namen, 'ein Name pro Zeile: Vorname Nachname'),
+      el('p', { class: 'leise klein-text', text: 'Die Namen trägt das Team beim ersten Öffnen des Team-Links selbst ein.' }),
       lehrkraftAuswahl(alle, [S.konto.id])),
     speichern: async form => {
       const { projekt } = await T.api('POST', '/api/projekte', {
         titel: f.titel.value, klasse: f.klasse.value, start: f.start.value, ende: f.ende.value,
-        schuljahr: f.schuljahr.value, vorlage: f.vorlage.value, mitglieder: namenLesen(f.namen.value),
+        schuljahr: f.schuljahr.value, vorlage: f.vorlage.value,
         lehrkraefte: gewaehlteLehrkraefte(form),
       });
       return projekt.id;
@@ -174,27 +166,83 @@ async function neuesProjekt() {
   if (id) { T.meldung('Projekt angelegt.'); location.hash = 'projekt/' + id; }
 }
 
-async function projektZeigen(id) {
-  const { projekt: p } = await T.api('GET', '/api/projekte/' + id);
-  const alle = await lehrkraefte();
-  titelSetzen(p.titel);
-  // Team-Links ueber HTTP: die Schuelergeraete kennen das Stammzertifikat nicht
-  const link = (S.teamPort ? 'http://' + location.hostname + (S.teamPort === 80 ? '' : ':' + S.teamPort) : location.origin) + '/t/' + p.link_token;
-  const namen = p.lehrkraft_ids.map(i => (alle.find(l => l.id === i) || { name: '?' }).name);
+// Projektseite mit Reitern wie in der Team-Ansicht: #projekt/<id>[/<reiter>[/<vorgang>]]
+const P_REITER = [['uebersicht', 'Übersicht', 'Start', 'start'], ['sheet', 'Tracking-Sheet', 'Sheet', 'sheet'],
+  ['besprechung', 'Besprechung', 'Bespr.', 'bespr'], ['anfragen', 'Anfragen', 'Anfr.', 'anfr'],
+  ['fotos', 'Fotos & Notizen', 'Fotos', 'fotos'], ['projekt', 'Projekt & Team', 'Projekt', 'projekt']];
 
+async function projektZeigen(id, reiter, unter) {
+  const [{ projekt: p }] = await Promise.all([T.api('GET', '/api/projekte/' + id), lehrkraefte()]);
+  const reiterListe = P_REITER.filter(([k]) => !(p.archiviert && k === 'besprechung'));
+  const wahl = reiterListe.some(([k]) => k === reiter) ? reiter : 'uebersicht';
+  titelSetzen(p.titel);
+  const leiste = T.reiterleiste(reiterListe.map(([k, lang, kurz, symbol]) =>
+    ({ schluessel: k, ziel: '#projekt/' + p.id + (k === 'uebersicht' ? '' : '/' + k), lang, kurz, symbol, zahl: k === 'anfragen' })));
+  T.reiterAktiv(leiste, wahl);
+
+  const warnOrt = el('div');
+  const warnungenZeigen = liste => T.setzen(warnOrt, T.warnungen((liste || []).filter(w => w.stufe !== 'hinweis')));
+  warnungenZeigen(p.warnungen);
+  const warnungenLaden = async () => {
+    try { warnungenZeigen((await T.api('GET', '/api/projekte/' + p.id + '/termine')).warnungen); } catch (e) { /* bleibt */ }
+  };
+  const ort = el('div', { class: 'stapel' });
+  T.setzen(inhalt,
+    el('div', { class: 'werkzeug' },
+      el('h1', { class: 'dreieck', text: p.titel }),
+      el('span', { class: 'chip blau', text: p.klasse }),
+      p.archiviert ? el('span', { class: 'chip rot', text: 'archiviert' }) : null,
+      el('a', { class: 'knopf', href: '/api/projekte/' + p.id + '/export.xlsx', download: '' }, 'Excel'),
+      el('a', { class: 'knopf', href: '/bericht?projekt=' + p.id, target: '_blank', rel: 'noopener' }, 'Bericht (PDF)')),
+    leiste, warnOrt, ort);
+  T.hoehenMerken();
+  Vorgang.projektZahl(leiste, p.id);
+  const basis = '/api/projekte/' + p.id;
+
+  if (wahl === 'sheet') {
+    Raster.erzeugen({ ort, basis, rolle: 'lehrkraft', beiAenderung: warnungenLaden }).laden();
+  } else if (wahl === 'besprechung') {
+    await Besprechung.lehrerZeigen(p.id, ort);
+  } else if (wahl === 'anfragen') {
+    await Vorgang.eingang(unter ? Number(unter) : null, { projektId: p.id, ort, ziel: '#projekt/' + p.id + '/anfragen' });
+  } else if (wahl === 'fotos') {
+    T.setzen(ort, Extras.lehrerKarten(p.id, p.archiviert, p.phasen.flatMap(ph => ph.aufgaben).filter(a => !a.verworfen).map(a => ({ id: a.id, titel: a.titel }))));
+  } else if (wahl === 'projekt') {
+    T.setzen(ort, projektVerwaltung(p));
+  } else {
+    projektUebersicht(p, ort, warnungenZeigen, warnungenLaden);
+  }
+}
+
+function projektUebersicht(p, ort, warnungenZeigen, warnungenLaden) {
+  const namen = p.lehrkraft_ids.map(i => ((S.lehrkraefte || []).find(l => l.id === i) || { name: '?' }).name);
+  const aktive = p.mitglieder.filter(m => m.aktiv);
   const ueberblick = el('section', { class: 'karte' },
-    el('div', { class: 'zeile' }, el('span', { class: 'chip blau', text: p.klasse }), el('span', { class: 'leise', text: p.schuljahr }),
-      p.archiviert ? el('span', { class: 'chip rot', text: 'archiviert' }) : null),
+    el('h2', { class: 'dreieck', text: 'Überblick' }),
     el('dl', { class: 'daten', style: 'margin-top:10px' },
       el('dt', { text: 'Zeitraum' }), el('dd', { text: T.zeitraum(p.start, p.ende) + ' (' + T.tagText(p.start) + ' bis ' + T.tagText(p.ende) + ')' }),
+      el('dt', { text: 'Schuljahr' }), el('dd', { text: p.schuljahr }),
       el('dt', { text: 'Betreut von' }), el('dd', { text: namen.join(', ') }),
+      el('dt', { text: 'Team' }), el('dd', {}, aktive.length ? aktive.map(m => m.vorname + ' ' + m.nachname + ' (' + m.kuerzel + ')').join(', ')
+        : el('a', { href: '#projekt/' + p.id + '/projekt', text: 'noch niemand eingetragen – das Team trägt sich über den Team-Link selbst ein' })),
       p.beschreibung ? [el('dt', { text: 'Beschreibung' }), el('dd', { text: p.beschreibung })] : null));
+  const terminOrt = el('div'), wocheOrt = el('div');
+  T.setzen(ort, el('div', { class: 'uebersicht' },
+    el('div', { class: 'stapel' }, ueberblick,
+      p.archiviert ? null : el('section', { class: 'karte' }, el('h2', { class: 'dreieck', text: 'Besprechungstermine' }), terminOrt)),
+    el('section', { class: 'karte' }, el('h2', { class: 'dreieck', text: 'Diese Woche' }), wocheOrt)));
+  const basis = '/api/projekte/' + p.id;
+  Raster.erzeugen({ ort: wocheOrt, basis, rolle: 'lehrkraft', ansicht: 'woche', beiAenderung: warnungenLaden }).laden();
+  if (!p.archiviert) Termine.erzeugen({ ort: terminOrt, basis, rolle: 'lehrkraft', beiAenderung: a => warnungenZeigen(a.warnungen) }).laden();
+}
 
+function projektVerwaltung(p) {
+  // Team-Links ueber HTTP: die Schuelergeraete kennen das Stammzertifikat nicht
+  const link = (S.teamPort ? 'http://' + location.hostname + (S.teamPort === 80 ? '' : ':' + S.teamPort) : location.origin) + '/t/' + p.link_token;
   const linkFeld = el('input', { readonly: true, value: link, 'aria-label': 'Team-Link', onfocus: e => e.target.select() });
   const teamlink = el('section', { class: 'karte' },
     el('h2', { class: 'dreieck', text: 'Team-Link' }),
-    el('p', { class: 'leise', text: p.archiviert ? 'Archivierte Projekte sind über den Link nicht erreichbar.'
-      : 'Diesen Link im Teams-Chat der Gruppe teilen. Wer ihn hat, kann für das Team eintragen. Erneuern macht den alten Link sofort ungültig.' }),
+    el('p', { class: 'leise', text: 'Diesen Link im Teams-Chat der Gruppe teilen. Wer ihn hat, kann für das Team eintragen. Erneuern macht den alten Link sofort ungültig.' }),
     el('div', { class: 'link-feld' }, linkFeld,
       el('button', { type: 'button', onclick: () => T.kopieren(link) }, 'Kopieren'),
       el('a', { class: 'knopf', href: link, target: '_blank', rel: 'noopener' }, 'Öffnen'),
@@ -203,6 +251,7 @@ async function projektZeigen(id) {
   const mitglieder = el('section', { class: 'karte' },
     el('div', { class: 'zeile' }, el('h2', { class: 'dreieck', text: 'Teammitglieder' }),
       el('span', { class: 'rechts' }, el('button', { type: 'button', onclick: () => mitgliedDialog(p) }, '+ Mitglied'))),
+    el('p', { class: 'leise klein-text', text: 'Das Team trägt sich selbst ein und darf Schreibweisen korrigieren. Austragen kannst nur du (Bearbeiten → nicht mehr im Team).' }),
     p.mitglieder.length ? el('div', { class: 'rollbar' }, el('table', { class: 'liste' },
       el('thead', {}, el('tr', {}, el('th', { text: 'Kürzel' }), el('th', { text: 'Name' }), el('th', { text: 'Status' }), el('th', {}))),
       el('tbody', {}, p.mitglieder.map(m => el('tr', {},
@@ -210,16 +259,17 @@ async function projektZeigen(id) {
         el('td', { text: m.vorname + ' ' + m.nachname }),
         el('td', {}, m.aktiv ? 'aktiv' : el('span', { class: 'chip rot', text: 'nicht mehr im Team' })),
         el('td', {}, el('button', { type: 'button', class: 'leicht', onclick: () => mitgliedDialog(p, m) }, 'Bearbeiten')))))))
-      : el('div', { class: 'leer', text: 'Noch keine Teammitglieder.' }));
+      : el('div', { class: 'leer', text: 'Noch niemand eingetragen. Das Team trägt sich beim ersten Öffnen des Team-Links selbst ein.' }));
 
-  const terminOrt = el('div');
-  const termine = el('section', { class: 'karte' }, el('h2', { class: 'dreieck', text: 'Besprechungstermine' }), terminOrt);
-  const warnOrt = el('div');
-  const warnungenZeigen = liste => T.setzen(warnOrt, T.warnungen((liste || []).filter(w => w.stufe !== 'hinweis')));
-  warnungenZeigen(p.warnungen);
-
-  const sheetOrt = el('div');
-  const struktur = el('section', { class: 'karte' }, el('h2', { class: 'dreieck', text: 'Tracking-Sheet' }), sheetOrt);
+  const verwaltung = el('section', { class: 'karte' },
+    el('h2', { class: 'dreieck', text: 'Projekt' }),
+    el('div', { class: 'zeile', style: 'margin-top:10px' },
+      el('button', { type: 'button', onclick: () => projektBearbeiten(p) }, 'Bearbeiten'),
+      el('button', { type: 'button', onclick: () => vorlageSpeichern(p) }, 'Als Vorlage'),
+      el('button', { type: 'button', class: p.archiviert ? '' : 'warnen', onclick: () => archivieren(p) },
+        p.archiviert ? 'Wieder aktivieren' : 'Archivieren'),
+      p.archiviert ? el('button', { type: 'button', class: 'warnen', onclick: () => endgueltigLoeschen(p) }, 'Endgültig löschen') : null),
+    p.archiviert ? el('p', { class: 'leise', text: 'Archivierte Projekte sind über den Team-Link nicht erreichbar.' }) : null);
 
   const verlauf = el('section', { class: 'karte' },
     el('h2', { class: 'dreieck', text: 'Verlauf' }),
@@ -227,27 +277,7 @@ async function projektZeigen(id) {
       el('span', { class: 'zeit', text: T.zeitText(e.zeit) }),
       el('span', {}, el('b', { text: T.werText(e) }), ' ', T.verlaufText(e))))));
 
-  T.setzen(inhalt,
-    el('div', { class: 'werkzeug' },
-      el('h1', { class: 'dreieck', text: p.titel }),
-      p.archiviert ? null : el('a', { class: 'knopf', href: '#besprechung/' + p.id }, 'Besprechung ▶'),
-      el('a', { class: 'knopf', href: '/api/projekte/' + p.id + '/export.xlsx', download: '' }, 'Excel'),
-      el('a', { class: 'knopf', href: '/bericht?projekt=' + p.id, target: '_blank', rel: 'noopener' }, 'Bericht (PDF)'),
-      el('button', { type: 'button', onclick: () => vorlageSpeichern(p) }, 'Als Vorlage'),
-      el('button', { type: 'button', onclick: () => projektBearbeiten(p) }, 'Bearbeiten'),
-      el('button', { type: 'button', class: p.archiviert ? '' : 'warnen', onclick: () => archivieren(p) },
-        p.archiviert ? 'Wieder aktivieren' : 'Archivieren'),
-      p.archiviert ? el('button', { type: 'button', class: 'warnen', onclick: () => endgueltigLoeschen(p) }, 'Endgültig löschen') : null),
-    warnOrt, ueberblick, struktur, p.archiviert ? null : termine,
-    Extras.lehrerKarten(p.id, p.archiviert, p.phasen.flatMap(ph => ph.aufgaben).filter(a => !a.verworfen).map(a => ({ id: a.id, titel: a.titel }))),
-    p.archiviert ? null : teamlink, mitglieder, verlauf);
-  const warnungenLaden = async () => {
-    try { warnungenZeigen((await T.api('GET', '/api/projekte/' + p.id + '/termine')).warnungen); } catch (e) { /* bleibt */ }
-  };
-  Raster.erzeugen({ ort: sheetOrt, basis: '/api/projekte/' + p.id, rolle: 'lehrkraft', beiAenderung: warnungenLaden }).laden();
-  if (!p.archiviert) {
-    Termine.erzeugen({ ort: terminOrt, basis: '/api/projekte/' + p.id, rolle: 'lehrkraft', beiAenderung: a => warnungenZeigen(a.warnungen) }).laden();
-  }
+  return [verwaltung, p.archiviert ? null : teamlink, mitglieder, verlauf];
 }
 
 async function vorlageSpeichern(p) {

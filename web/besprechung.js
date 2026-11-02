@@ -1,4 +1,4 @@
-// Besprechung: Lehreransicht (#besprechung/<projekt>: Kurzzusammenfassung, Ergebnis, Lehrernotizen, Abschliessen) und
+// Besprechung: Lehreransicht (Reiter der Projektseite, #projekt/<id>/besprechung: Kurzzusammenfassung, Ergebnis, Lehrernotizen, Abschliessen) und
 // Team-Reiter "Besprechung" (Stand vorbereiten, Fragen und Themen, Post-its und Fotos an die Tafel, Auftraege
 // abhaken, Protokolle mit eingefrorener Tafel).
 // Lehrernotizen kommen nur ueber die Lehrer-Schnittstelle und erscheinen nie beim Team.
@@ -48,11 +48,11 @@ const Besprechung = (() => {
 
   // --- Lehreransicht ---
 
-  async function lehrerZeigen(pid) {
+  async function lehrerZeigen(pid, ort) {
     const basis = '/api/projekte/' + pid;
     const [{ projekt }, start] = await Promise.all([T.api('GET', basis), T.api('GET', basis + '/besprechung')]);
     let B = start.besprechung;
-    titelSetzen('Besprechung · ' + projekt.titel);
+    if (!ort) titelSetzen('Besprechung · ' + projekt.titel);
     const links = el('div', { class: 'stapel' }), ergebnisOrt = el('div'), frueher = el('div');
     const unter = el('span', { class: 'leise' });
     const notizen = el('textarea', { rows: '10', maxlength: '20000', 'aria-label': 'Lehrernotizen', value: B.notizen });
@@ -190,9 +190,9 @@ const Besprechung = (() => {
         protokolle(B.protokolle, true, basis)));
     }
 
-    T.setzen(inhalt,
-      el('div', { class: 'werkzeug' }, el('h1', { class: 'dreieck', text: 'Besprechung · ' + projekt.titel }), unter,
-        el('a', { class: 'knopf', href: '#projekt/' + pid }, 'Zum Projekt'),
+    T.setzen(ort || inhalt,
+      el('div', { class: 'werkzeug' }, ort ? el('h2', { class: 'dreieck', text: 'Besprechung' }) : el('h1', { class: 'dreieck', text: 'Besprechung · ' + projekt.titel }), unter,
+        ort ? null : el('a', { class: 'knopf', href: '#projekt/' + pid }, 'Zum Projekt'),
         el('button', { type: 'button', onclick: () => Tafel.aufsBoard(pid) }, 'Tafel aufs Board ▶'),
         el('button', { type: 'button', class: 'haupt', onclick: abschliessen }, 'Abschließen')),
       el('div', { class: 'bespr' }, links, el('div', { class: 'stapel' }, ergebnisOrt,

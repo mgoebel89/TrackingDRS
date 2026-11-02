@@ -175,6 +175,28 @@ class Projekte(MitDatenbank):
         sicht = projekte.team_sicht(self.con, projekte.details(self.con, pid)["link_token"])
         self.assertNotIn("Mia", [m["vorname"] for m in sicht["mitglieder"]])
 
+    def test_team_traegt_sich_selbst_ein(self):
+        _k, pid = self.projekt(mitglieder=[])
+        token = projekte.details(self.con, pid)["link_token"]
+        with self.assertRaises(projekte.ProjektFehler):
+            projekte.mitglieder_anlegen(self.con, "Team", pid, [], "team")
+        with self.assertRaises(projekte.ProjektFehler):   # doppelt in der Liste: nichts wird eingetragen
+            projekte.mitglieder_anlegen(self.con, "Team", pid, [{"vorname": "Ben", "nachname": "Weber"}, {"vorname": "ben", "nachname": "weber"}], "team")
+        self.assertEqual(projekte.team_sicht(self.con, token)["mitglieder"], [])
+        ben, mia = projekte.mitglieder_anlegen(self.con, "Team", pid, [{"vorname": "Ben", "nachname": "Weber"}, {"vorname": "Mia", "nachname": "Kline"}], "team")
+        with self.assertRaises(projekte.ProjektFehler):   # schon eingetragen
+            projekte.mitglied_anlegen(self.con, "Team", pid, "Ben", "Weber", "team")
+        # Tippfehler korrigieren ja, austragen nein
+        projekte.mitglied_aendern(self.con, "Team", pid, mia, {"nachname": "Klein", "aktiv": False}, "team")
+        sicht = projekte.team_sicht(self.con, token)
+        self.assertEqual([(m["vorname"], m["nachname"], m["kuerzel"]) for m in sicht["mitglieder"]], [("Mia", "Klein", "MK"), ("Ben", "Weber", "BW")])
+        projekte.mitglied_aendern(self.con, "gob", pid, ben, {"aktiv": False})   # die Lehrkraft traegt aus
+        with self.assertRaises(projekte.ProjektFehler):   # ausgetragen: fuer das Team weg
+            projekte.mitglied_aendern(self.con, "Team", pid, ben, {"vorname": "Benno"}, "team")
+        verlauf = projekte.details(self.con, pid)["verlauf"]
+        self.assertEqual([(e["wer_art"], e["art"]) for e in verlauf[:4]], [("lehrkraft", "mitglied_geaendert"), ("team", "mitglied_geaendert"),
+                                                                         ("team", "mitglied_angelegt"), ("team", "mitglied_angelegt")])
+
 
 class Webserver(unittest.TestCase):
     @classmethod

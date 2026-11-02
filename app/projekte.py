@@ -211,30 +211,52 @@ def aendern(con, wer, pid, felder):
                 db.ereignis(con, pid, "lehrkraft", wer, "lehrkraefte_geaendert", lehrkraefte=kuerzel)
 
 
-def mitglied_anlegen(con, wer, pid, vorname, nachname):
-    vorname, nachname = _mitglied_pruefen({"vorname": vorname, "nachname": nachname})
+def _schon_da(con, pid, vorname, nachname, ohne=None):
+    z = con.execute("SELECT 1 FROM mitglied WHERE projekt_id = ? AND aktiv = 1 AND id != ? AND LOWER(vorname) = LOWER(?) "
+                    "AND LOWER(nachname) = LOWER(?)", (pid, ohne or -1, vorname, nachname)).fetchone()
+    if z:
+        raise ProjektFehler("%s %s ist schon im Team eingetragen." % (vorname, nachname))
+
+
+def mitglied_anlegen(con, wer, pid, vorname, nachname, wer_art="lehrkraft"):
+    return mitglieder_anlegen(con, wer, pid, [{"vorname": vorname, "nachname": nachname}], wer_art)[0]
+
+
+def mitglieder_anlegen(con, wer, pid, leute, wer_art="lehrkraft"):
+    """Traegt Teammitglieder ein (alle oder keines). Das Team traegt sich ueber seinen Link selbst ein (wer_art team)."""
+    leute = [_mitglied_pruefen(m) for m in leute or []]
+    if not leute:
+        raise ProjektFehler("Bitte mindestens einen Namen eintragen.")
+    if len({(v.lower(), n.lower()) for v, n in leute}) < len(leute):
+        raise ProjektFehler("Ein Name steht doppelt in der Liste.")
+    ids = []
     with db.transaktion(con):
-        kuerzel = _kuerzel(con, pid, vorname, nachname)
-        mid = con.execute("INSERT INTO mitglied (projekt_id, vorname, nachname, kuerzel) VALUES (?, ?, ?, ?)",
-                          (pid, vorname, nachname, kuerzel)).lastrowid
-        db.ereignis(con, pid, "lehrkraft", wer, "mitglied_angelegt", name="%s %s" % (vorname, nachname), kuerzel=kuerzel)
-    return mid
+        for vorname, nachname in leute:
+            _schon_da(con, pid, vorname, nachname)
+            kuerzel = _kuerzel(con, pid, vorname, nachname)
+            ids.append(con.execute("INSERT INTO mitglied (projekt_id, vorname, nachname, kuerzel) VALUES (?, ?, ?, ?)",
+                                   (pid, vorname, nachname, kuerzel)).lastrowid)
+            db.ereignis(con, pid, wer_art, wer, "mitglied_angelegt", name="%s %s" % (vorname, nachname), kuerzel=kuerzel)
+    return ids
 
 
-def mitglied_aendern(con, wer, pid, mid, felder):
+def mitglied_aendern(con, wer, pid, mid, felder, wer_art="lehrkraft"):
+    """Name korrigieren, aktiv/inaktiv setzen. Das Team darf nur Schreibweisen korrigieren; austragen kann nur die Lehrkraft."""
     alt = con.execute("SELECT * FROM mitglied WHERE id = ? AND projekt_id = ?", (mid, pid)).fetchone()
-    if alt is None:
+    if alt is None or (wer_art == "team" and not alt["aktiv"]):
         raise ProjektFehler("Dieses Teammitglied gibt es nicht.")
     vorname, nachname = _mitglied_pruefen({"vorname": felder.get("vorname", alt["vorname"]),
                                            "nachname": felder.get("nachname", alt["nachname"])})
-    aktiv = bool(felder.get("aktiv", bool(alt["aktiv"])))
+    aktiv = bool(alt["aktiv"]) if wer_art == "team" else bool(felder.get("aktiv", bool(alt["aktiv"])))
+    if aktiv:
+        _schon_da(con, pid, vorname, nachname, ohne=mid)
     with db.transaktion(con):
         kuerzel = alt["kuerzel"]
         if (vorname, nachname) != (alt["vorname"], alt["nachname"]):
             kuerzel = _kuerzel(con, pid, vorname, nachname, ohne=mid)
         con.execute("UPDATE mitglied SET vorname = ?, nachname = ?, kuerzel = ?, aktiv = ? WHERE id = ?",
                     (vorname, nachname, kuerzel, 1 if aktiv else 0, mid))
-        db.ereignis(con, pid, "lehrkraft", wer, "mitglied_geaendert", name="%s %s" % (vorname, nachname),
+        db.ereignis(con, pid, wer_art, wer, "mitglied_geaendert", name="%s %s" % (vorname, nachname),
                     kuerzel=kuerzel, aktiv=aktiv)
 
 

@@ -103,17 +103,19 @@ const Vorgang = (() => {
 
   // --- Lehrkraft: Eingang ---
 
-  async function eingang(aid) {
-    titelSetzen('Anfragen');
-    const F = S.eingang || (S.eingang = { filter: 'aktiv', projekt: '', art: '' });
+  // opt (Projektseite): {projektId, ort, ziel} – nur dieses Projekt, eingebettet, Links auf ziel/<vorgang>
+  async function eingang(aid, opt = {}) {
+    if (!opt.ort) titelSetzen('Anfragen');
+    const ziel = opt.ziel || '#anfragen';
+    const F = opt.projektId ? { filter: 'aktiv', projekt: String(opt.projektId), art: '' } : S.eingang || (S.eingang = { filter: 'aktiv', projekt: '', art: '' });
     const liste = el('div', { class: 'vg-liste' });
     const detail = el('div', { class: 'vg-detail' });
     const rahmen = el('div', { class: 'eingang' + (aid ? ' mit-detail' : '') }, el('div', { class: 'vg-links' }, filterLeiste(), liste), detail);
     let L = [];
 
     function filterLeiste() {
-      const wahl = (wert, optionen, name) => {
-        const s = el('select', { class: 'klein', 'aria-label': name, onchange: ev => { F[name] = ev.target.value; listeLaden(); } },
+      const wahl = (wert, optionen, name, versteckt) => {
+        const s = el('select', { class: 'klein', 'aria-label': name, hidden: !!versteckt, onchange: ev => { F[name] = ev.target.value; listeLaden(); } },
           optionen.map(([v, t]) => el('option', { value: v, text: t })));
         s.value = wert;
         return s;
@@ -122,7 +124,7 @@ const Vorgang = (() => {
         ['meine', 'Meine'], ['erledigt', 'Erledigt'], ['alle', 'Alle']].map(([k, t]) => el('button', { type: 'button', class: F.filter === k ? 'an' : '',
         onclick: ev => { F.filter = k; chips.querySelectorAll('button').forEach(b => b.classList.toggle('an', b === ev.currentTarget)); listeLaden(); } }, t)));
       return el('div', { class: 'stapel-eng' }, chips,
-        el('div', { class: 'zeile' }, F.projektWahl = wahl(F.projekt, [['', 'Alle Teams']], 'projekt'),
+        el('div', { class: 'zeile' }, F.projektWahl = wahl(F.projekt, [['', 'Alle Teams']], 'projekt', opt.projektId),
           wahl(F.art, [['', 'Alle Arten']].concat(Object.entries(ARTEN)), 'art')));
     }
 
@@ -143,7 +145,7 @@ const Vorgang = (() => {
         teams.forEach(([id, t]) => F.projektWahl.appendChild(el('option', { value: String(id), text: t })));
         F.projektWahl.value = F.projekt;
       }
-      T.setzen(liste, L.length ? L.map(v => el('a', { class: 'vg-zeile' + (v.ungelesen ? ' neu' : '') + (v.id === aid ? ' an' : ''), href: '#anfragen/v/' + v.id },
+      T.setzen(liste, L.length ? L.map(v => el('a', { class: 'vg-zeile' + (v.ungelesen ? ' neu' : '') + (v.id === aid ? ' an' : ''), href: ziel + (opt.projektId ? '/' : '/v/') + v.id },
         el('div', { class: 'zeile' }, v.ungelesen ? el('span', { class: 'vg-punkt', title: 'ungelesen' }) : null,
           el('span', { class: 'chip', text: ARTEN[v.art] }), el('span', { class: 'vg-titel', text: v.titel })),
         el('div', { class: 'zeile leise klein-text' }, el('span', { text: v.projekt }), standChip(v), v.zustaendig ? el('span', { text: v.zustaendig }) : null,
@@ -217,7 +219,7 @@ const Vorgang = (() => {
     function detailKopf(v) {
       return el('div', { class: 'vg-detail-kopf stapel-eng' },
         el('div', { class: 'zeile' },
-          el('a', { class: 'knopf klein vg-zurueck', href: '#anfragen' }, '‹ Liste'),
+          el('a', { class: 'knopf klein vg-zurueck', href: ziel }, '‹ Liste'),
           el('span', { class: 'chip', text: ARTEN[v.art] }), el('h2', { text: v.titel })),
         el('div', { class: 'zeile' }, el('a', { href: '#projekt/' + v.projekt_id, text: v.projekt + ' · ' + v.klasse }), standChip(v),
           v.status !== 'neu' && v.art !== 'bestellung' ? el('span', { class: 'chip', text: SCHRITT[v.status] }) : null,
@@ -231,8 +233,9 @@ const Vorgang = (() => {
         aktionen(v).length ? el('div', { class: 'zeile' }, aktionen(v)) : null);
     }
 
-    T.setzen(inhalt, Anfragen.kopf('eingang'), rahmen);
-    await Promise.all([listeLaden(), detailLaden()]);
+    if (opt.ort) T.setzen(opt.ort, rahmen); else T.setzen(inhalt, Anfragen.kopf('eingang'), rahmen);
+    await detailLaden();   // erst lesen, dann Liste und Zaehler (sonst zaehlt der gerade geoeffnete noch mit)
+    await listeLaden();
     const timer = setInterval(() => {
       if (!rahmen.isConnected) { clearInterval(timer); return; }
       if (document.visibilityState !== 'visible' || document.querySelector('dialog[open]')) return;
@@ -253,6 +256,22 @@ const Vorgang = (() => {
     b.classList.toggle('neu', !!z.ungelesen);
     b.title = z.ungelesen ? z.ungelesen + ' ungelesen' : z.offen + ' offen';
     T.titelZahl(z.ungelesen);
+    letzter = z;
+    projektZahlZeigen();
+  }
+
+  let letzter = null, projektLeiste = null;
+
+  // Roter Zaehler am Reiter "Anfragen" der Projektseite: Ungelesenes dieses Projekts
+  function projektZahl(leiste, pid) {
+    projektLeiste = { leiste, pid };
+    projektZahlZeigen();
+  }
+
+  function projektZahlZeigen() {
+    if (!letzter || !projektLeiste || !projektLeiste.leiste.isConnected) return;
+    const n = (letzter.neu || []).filter(v => v.projekt_id === projektLeiste.pid).length;
+    T.reiterZahl(projektLeiste.leiste, n, n === 1 ? '1 ungelesen' : n + ' ungelesen');
   }
 
   // --- Melden: Zaehler im Menue und im Browser-Tab, Einblendung, Windows-Benachrichtigung ---
@@ -351,5 +370,5 @@ const Vorgang = (() => {
     })();
   }
 
-  return { eingang, zaehlerLaden: () => zaehlerLaden(), zaehlerZeigen, beobachten, glocke, teamListe, teamDetail };
+  return { eingang, zaehlerLaden: () => zaehlerLaden(), zaehlerZeigen, beobachten, glocke, projektZahl, teamListe, teamDetail };
 })();

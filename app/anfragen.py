@@ -372,8 +372,9 @@ def _neu(con, liste_, mit_intern):
     """Die ungelesenen Vorgaenge zum Melden (Einblendung, Benachrichtigung). nid = letzter Eintrag im Verlauf: aendert
     er sich, ist etwas Neues dazugekommen."""
     sql = "SELECT MAX(id) FROM nachricht WHERE anfrage_id = ?" + ("" if mit_intern else " AND art != 'intern'")
-    return [{"id": d["id"], "titel": d["titel"], "projekt": d.get("projekt"), "nid": con.execute(sql, (d["id"],)).fetchone()[0] or 0,
-             "text": d["letzte"]["text"] if d["letzte"] else d["text"]} for d in liste_ if d["ungelesen"]][:10]
+    return [{"id": d["id"], "titel": d["titel"], "projekt": d.get("projekt"), "projekt_id": d.get("projekt_id"),
+             "nid": con.execute(sql, (d["id"],)).fetchone()[0] or 0, "text": d["letzte"]["text"] if d["letzte"] else d["text"]}
+            for d in liste_ if d["ungelesen"]]
 
 
 def zaehler(con, konto):

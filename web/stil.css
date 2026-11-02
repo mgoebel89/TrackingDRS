@@ -129,32 +129,35 @@ dialog .knoepfe { display: flex; justify-content: flex-end; gap: 8px; flex-wrap:
 
 /* Team-Ansicht */
 .team-kopf { display: grid; gap: 4px; }
-/* Team-Reiter: eigene Leiste mit Symbolen, klebt unter der Kopfzeile; am Handy feste Leiste unten */
-.team-reiter { position: sticky; top: var(--kopf-h, 56px); z-index: 15; display: flex; gap: 6px; padding: 6px;
+/* Reiterleiste (Team, Projektseite der Lehrkraft): eigene Leiste mit Symbolen, klebt unter der Kopfzeile; am Handy feste Leiste unten */
+.reiterleiste { position: sticky; top: var(--kopf-h, 56px); z-index: 15; display: flex; gap: 6px; padding: 6px;
   background: var(--karte); border: 1px solid var(--linie); border-radius: var(--ecke) var(--r) var(--r) var(--r); box-shadow: var(--schatten-1); }
-.team-reiter a { position: relative; flex: 1 1 0; display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 0;
+.reiterleiste a { position: relative; flex: 1 1 0; display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 0;
   padding: 10px 12px; border-radius: var(--r); font-weight: 600; text-decoration: none; color: var(--text); white-space: nowrap; }
-.team-reiter a:hover { background: var(--blau-hell); color: var(--blau); }
-.team-reiter a.an { background: var(--blau); color: #fff; }
-.team-reiter a:focus-visible { outline: 2px solid var(--blau); outline-offset: 2px; }
-.team-reiter .symbol { width: 22px; height: 22px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.team-reiter .kurz { display: none; }
-.team-reiter .lang { overflow: hidden; text-overflow: ellipsis; }
+.reiterleiste a:hover { background: var(--blau-hell); color: var(--blau); }
+.reiterleiste a.an { background: var(--blau); color: #fff; }
+.reiterleiste a:focus-visible { outline: 2px solid var(--blau); outline-offset: 2px; }
+.reiterleiste .symbol { width: 22px; height: 22px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.reiterleiste .kurz { display: none; }
+.reiterleiste .lang { overflow: hidden; text-overflow: ellipsis; }
 .reiter-zahl { position: absolute; top: 2px; right: 4px; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px;
   background: var(--rot); color: #fff; font-size: .72rem; font-weight: 700; line-height: 20px; text-align: center; box-shadow: 0 0 0 2px var(--karte); }
-.team-seite .pc-panel { top: calc(var(--kopf-h, 56px) + var(--reiter-h, 60px) + 12px); }
+.mit-unterleiste .pc-panel, .mit-unterleiste .vg-links { top: calc(var(--kopf-h, 56px) + var(--reiter-h, 60px) + 12px); }
+.team-name { cursor: pointer; border: 1px solid transparent; font: inherit; }
+.team-name:hover { border-color: var(--blau-mittel); color: var(--blau); }
+.eintragen { max-width: 640px; }
 .meldung.hinweis { display: block; background: var(--blau); text-decoration: none; cursor: pointer; }
 .meldung.hinweis:hover { background: var(--blau-dunkel); }
-@media (max-width: 1100px) { .team-reiter a { flex-direction: column; gap: 2px; padding: 8px 4px; font-size: .85em; } }
+@media (max-width: 1100px) { .reiterleiste a { flex-direction: column; gap: 2px; padding: 8px 4px; font-size: .85em; } }
 @media (max-width: 760px) {
-  .team-reiter { position: fixed; top: auto; left: 0; right: 0; bottom: 0; z-index: 40; gap: 2px; border-radius: 0; border-width: 1px 0 0;
+  .reiterleiste { position: fixed; top: auto; left: 0; right: 0; bottom: 0; z-index: 40; gap: 2px; border-radius: 0; border-width: 1px 0 0;
     padding: 4px max(4px, env(safe-area-inset-right)) max(4px, env(safe-area-inset-bottom)) max(4px, env(safe-area-inset-left));
     box-shadow: 0 -4px 16px rgba(16,24,40,.08); }
-  .team-reiter a { padding: 6px 2px; font-size: .72rem; }
-  .team-reiter .lang { display: none; }
-  .team-reiter .kurz { display: inline; }
+  .reiterleiste a { padding: 6px 2px; font-size: .72rem; }
+  .reiterleiste .lang { display: none; }
+  .reiterleiste .kurz { display: inline; }
   .reiter-zahl { right: calc(50% - 26px); }
-  .mit-unterleiste .team-seite { padding-bottom: 96px; }
+  .mit-unterleiste .team-seite, .mit-unterleiste main.inhalt { padding-bottom: 96px; }
   .mit-unterleiste #meldungen { bottom: calc(72px + env(safe-area-inset-bottom)); }
 }
 .team-seite.breit { max-width: 1500px; }
@@ -499,7 +502,7 @@ table.pruefen td { vertical-align: top; }
 input.menge { width: 80px; min-height: 32px; }
 .umschalter.wege { flex-wrap: wrap; }
 @media print {
-  header.kopf, nav.seite, .team-reiter, .werkzeug button, .werkzeug .knopf, #meldungen { display: none !important; }
+  header.kopf, nav.seite, .reiterleiste, .werkzeug button, .werkzeug .knopf, #meldungen { display: none !important; }
   .rahmen { display: block; } main.inhalt { padding: 0; } body { background: #fff; }
   .karte { border: none; padding: 0; break-inside: avoid; }
 }

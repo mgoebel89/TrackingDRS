@@ -461,6 +461,16 @@ def api_team(h, con, daten, token):
     h.antwort(200, {"projekt": sicht})
 
 
+def api_team_mitglieder(h, con, daten, token):
+    projekte.mitglieder_anlegen(con, "Team", _team_projekt(con, token), daten.get("mitglieder"), "team")
+    h.antwort(200, {"projekt": projekte.team_sicht(con, token)})
+
+
+def api_team_mitglied(h, con, daten, token, mid):
+    projekte.mitglied_aendern(con, "Team", _team_projekt(con, token), _ganzzahl(mid), daten, "team")
+    h.antwort(200, {"projekt": projekte.team_sicht(con, token)})
+
+
 # --- Tracking-Sheet: gleiche Aktionen fuer Team (ueber den Link) und Lehrkraft (angemeldet) ---
 
 def _team_projekt(con, token):
@@ -1070,6 +1080,8 @@ ROUTEN = [(m, re.compile(p), f) for m, p, f in [
     ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/termine", api_team_termine),
     ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/anfragen", api_team_anfragen),
     ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/zaehler", api_team_zaehler),
+    ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/mitglieder", api_team_mitglieder),
+    ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/mitglieder/(\d+)", api_team_mitglied),
     ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/extras", api_team_extras),
     ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/fotos", api_team_foto),
     ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/fotos/(\d+)/verwerfen", api_team_foto_weg),
