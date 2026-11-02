@@ -92,7 +92,7 @@ class Update(unittest.TestCase):
 @unittest.skipUnless(shutil.which("bash"), "ohne bash")
 class Skripte(unittest.TestCase):
     def test_bash_syntax(self):
-        for name in ("install.sh", "update.sh", "selbstupdate.sh", "tls.sh"):
+        for name in ("install.sh", "update.sh", "selbstupdate.sh", "tls.sh", "vpn.sh", "trackingdrs-cli.sh"):
             with self.subTest(name=name):
                 r = subprocess.run(["bash", "-n", str(DEPLOY / name)], capture_output=True, text=True)
                 self.assertEqual(r.returncode, 0, r.stderr)

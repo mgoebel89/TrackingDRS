@@ -5,6 +5,7 @@
   trackingdrs admin <kuerzel> <name...>   Admin-Konto mit vorlaeufigem Passwort anlegen (Notfall)
   trackingdrs passwort <kuerzel>          vorlaeufiges Passwort setzen und Konto entsperren (Notfall)
   trackingdrs sicherung                   Sicherung (ZIP) nach /var/lib/trackingdrs/sicherungen (vor jedem Update)
+  trackingdrs vpn einrichten|status|server|aus   WireGuard zum Server (als root, siehe deploy/vpn.sh)
 """
 import os
 import secrets

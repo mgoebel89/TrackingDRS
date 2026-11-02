@@ -1,6 +1,7 @@
 #!/usr/sbin/nft -f
 # TrackingDRS: Firewall im Container (install.sh legt sie als /etc/trackingdrs/firewall.nft ab,
-# trackingdrs-firewall.service laedt sie beim Start). Von aussen nur Webseite (80, 443) und SSH.
+# trackingdrs-firewall.service laedt sie beim Start). Von aussen nur Webseite (80, 443) und SSH, ueber das VPN
+# (wg0) nur HTTPS.
 # Ausgehende Verbindungen (Updates, spaeter Kalender-Abo) und ihre Antworten bleiben frei.
 # Eigene Tabelle: andere Regeln im Container bleiben unberuehrt.
 table inet trackingdrs
@@ -11,6 +12,9 @@ table inet trackingdrs {
 		iif "lo" accept
 		ct state established,related accept
 		ct state invalid drop
+		# VPN (trackingdrs vpn): von dort nur HTTPS, kein SSH, kein HTTP, kein Ping
+		iifname "wg0" tcp dport 443 accept
+		iifname "wg0" drop
 		meta l4proto { icmp, ipv6-icmp } accept
 		tcp dport { 22, 80, 443 } accept
 	}

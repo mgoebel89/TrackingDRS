@@ -54,12 +54,22 @@ abgelehnt. Der Lehrerbereich zeigt den Team-Link schon mit `http://` an.
 |---|---|
 | `trackingdrs-update` | neuesten Stand holen und neu installieren, Daten bleiben |
 | `trackingdrs sicherung` | Sicherung (ZIP) nach `/var/lib/trackingdrs/sicherungen` |
+| `trackingdrs vpn einrichten` | WireGuard zum VPN-Server einrichten (fragt Server, Schlüssel, Adresse; zeigt den Block für die Server-Config) |
+| `trackingdrs vpn status` | Verbindung und letzten Handshake zeigen |
 | `trackingdrs einrichtungscode` | Code für die erste Einrichtung zeigen |
 | `trackingdrs konten` | Lehrkraft-Konten auflisten |
 | `trackingdrs passwort <kürzel>` | vorläufiges Passwort setzen und Konto entsperren |
 | `journalctl -u trackingdrs -f` | Protokoll der Webseite |
 
 Daten: `/var/lib/trackingdrs` (SQLite-Datenbank, Zertifikate). Programm: `/opt/trackingdrs` (gehört root).
+
+**VPN (von zuhause):** `trackingdrs vpn einrichten` macht den Container zum Teilnehmer im vorhandenen WireGuard-VPN.
+Gebraucht werden die Adresse und der `ListenPort` des Servers, sein öffentlicher Schlüssel (auf dem Server
+`wg show wg0 public-key`, nicht der `PrivateKey` aus der Config) und eine freie VPN-Adresse für den Container. Der
+Schlüssel des Containers entsteht im Container und verlässt ihn nicht; am Ende steht der `[Peer]`-Block zum Einfügen
+auf dem Server (`AllowedIPs` nur die eine Adresse). Über das VPN ist nur HTTPS erreichbar. Die VPN-Adresse kommt ins
+Zertifikat; liegt sie außerhalb des Schulnetzes, entsteht dabei einmalig eine neue Zertifizierungsstelle (Stamm-
+zertifikat auf den Geräten neu installieren). Darum das VPN am besten vor dem Verteilen des Zertifikats einrichten.
 
 **Update ohne Konsole:** Unter *Einstellungen → Version und Update* sehen Admins die installierte Version und ob es auf
 GitHub eine neuere gibt (geprüft wird täglich und auf Knopfdruck). *Jetzt aktualisieren* legt erst eine Sicherung an

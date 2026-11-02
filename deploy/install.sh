@@ -42,6 +42,7 @@ echo "==> Befehle, Dienste, Firewall"
 install -o root -g root -m 755 deploy/tls.sh /usr/local/sbin/trackingdrs-tls
 install -o root -g root -m 755 deploy/update.sh /usr/local/sbin/trackingdrs-update
 install -o root -g root -m 755 deploy/selbstupdate.sh /usr/local/sbin/trackingdrs-selbstupdate
+install -o root -g root -m 755 deploy/vpn.sh /usr/local/sbin/trackingdrs-vpn
 install -o root -g root -m 755 deploy/trackingdrs-cli.sh /usr/local/bin/trackingdrs
 install -o root -g root -m 644 deploy/firewall.nft /etc/trackingdrs/firewall.nft
 UPDATE_EINHEITEN="trackingdrs-update-pruefen.path trackingdrs-update-pruefen.timer trackingdrs-update-ausfuehren.path"
