@@ -28,9 +28,13 @@ REPO=/opt/trackingdrs
 
 fehler() { echo "Fehler: $*" >&2; exit 1; }
 
-frage() {   # frage <Text> <Vorgabe>: Antwort von der Konsole, leer = Vorgabe
+frage() {   # frage <Text> <Vorgabe>: Antwort von der Konsole, leer = Vorgabe (ohne Konsole: die Vorgabe)
   local antwort
-  [ -t 0 ] || fehler "$1: bitte als Option angeben (siehe Kopf von trackingdrs-vpn)."
+  if [ ! -t 0 ]; then
+    [ -n "${2:-}" ] || fehler "$1: bitte als Option angeben (siehe Kopf von trackingdrs-vpn)."
+    echo "$2"
+    return
+  fi
   read -r -p "$1${2:+ [$2]}: " antwort
   echo "${antwort:-$2}"
 }
