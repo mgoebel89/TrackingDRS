@@ -20,7 +20,7 @@ async function lehrkraefte() {
 
 function titelSetzen(text) {
   document.getElementById('unter').textContent = text;
-  document.title = text ? text + ' · ' + T.NAME : T.NAME;
+  T.titel(text);
 }
 
 function fehlerZeigen(e) {
@@ -48,8 +48,7 @@ async function start() {
   if (S.konto.pw_vorlaeufig) await passwortPflicht();
   window.addEventListener('hashchange', zeigen);
   zeigen();
-  Vorgang.zaehlerLaden();
-  setInterval(() => { if (document.visibilityState === 'visible') Vorgang.zaehlerLaden(); }, 60000);
+  Vorgang.beobachten();
 }
 
 async function zeigen() {

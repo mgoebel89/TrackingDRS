@@ -84,6 +84,25 @@ class Anfragen(Basis):
         with self.assertRaises(projekte.ProjektFehler):   # Team kann nur Offenes zurueckziehen
             anfragen.team_aendern(self.con, self.klima, {"aktion": "zurueckziehen", "anfrage_id": aid})
 
+    def test_zaehler_zum_melden(self):
+        aid = anfragen.anlegen(self.con, self.klima, {"art": "rueckfrage", "titel": "Kabelquerschnitt?", "text": "Reichen 0,75 mm²?"})
+        z = anfragen.zaehler(self.con, self.gob)
+        self.assertEqual((z["ungelesen"], z["offen"]), (1, 1))
+        self.assertEqual((z["neu"][0]["id"], z["neu"][0]["projekt"], z["neu"][0]["text"]), (aid, "Klimaanlage", "Reichen 0,75 mm²?"))
+        nid = z["neu"][0]["nid"]
+        anfragen.nachricht(self.con, self.klima, aid, "team", {"text": "Oder lieber 1,5?"})
+        z = anfragen.zaehler(self.con, self.gob)
+        self.assertGreater(z["neu"][0]["nid"], nid)   # neuer Eintrag: wird wieder gemeldet
+        self.assertEqual(z["neu"][0]["text"], "Oder lieber 1,5?")
+        self.assertEqual(anfragen.team_zaehler(self.con, self.klima), {"ungelesen": 0, "neu": []})
+        # interne Notiz meldet das Team nicht, die Antwort schon
+        anfragen.nachricht(self.con, self.klima, aid, "lehrkraft", {"text": "Frag mal Schu", "intern": True}, self.gob)
+        self.assertEqual(anfragen.team_zaehler(self.con, self.klima)["ungelesen"], 0)
+        anfragen.nachricht(self.con, self.klima, aid, "lehrkraft", {"text": "1,5 mm²."}, self.gob)
+        t = anfragen.team_zaehler(self.con, self.klima)
+        self.assertEqual((t["ungelesen"], t["neu"][0]["text"]), (1, "1,5 mm²."))
+        self.assertEqual(anfragen.zaehler(self.con, self.gob)["ungelesen"], 0)   # eigene Antwort ist gelesen
+
     def test_rueckfrage_ueber_die_tafel_geklaert(self):
         aid = anfragen.anlegen(self.con, self.klima, {"art": "rueckfrage", "titel": "Dürfen wir 24 V nehmen?", "in_besprechung": True})
         frage = [z for z in tafel.lesen(self.con, self.klima)["postits"] if z["text"] == "Dürfen wir 24 V nehmen?"][0]

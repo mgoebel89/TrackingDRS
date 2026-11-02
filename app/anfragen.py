@@ -368,10 +368,25 @@ def vorgang(con, pid, aid, konto=None):
     return d
 
 
+def _neu(con, liste_, mit_intern):
+    """Die ungelesenen Vorgaenge zum Melden (Einblendung, Benachrichtigung). nid = letzter Eintrag im Verlauf: aendert
+    er sich, ist etwas Neues dazugekommen."""
+    sql = "SELECT MAX(id) FROM nachricht WHERE anfrage_id = ?" + ("" if mit_intern else " AND art != 'intern'")
+    return [{"id": d["id"], "titel": d["titel"], "projekt": d.get("projekt"), "nid": con.execute(sql, (d["id"],)).fetchone()[0] or 0,
+             "text": d["letzte"]["text"] if d["letzte"] else d["text"]} for d in liste_ if d["ungelesen"]][:10]
+
+
 def zaehler(con, konto):
-    """Fuer das Menue: ungelesene Vorgaenge und offene (noch niemand dran)."""
+    """Fuer das Menue: ungelesene Vorgaenge und offene (noch niemand dran), dazu die ungelesenen zum Melden."""
     liste_ = vorgaenge_lehrkraft(con, konto)
-    return {"ungelesen": sum(1 for d in liste_ if d["ungelesen"]), "offen": sum(1 for d in liste_ if d["stand"] == "offen")}
+    return {"ungelesen": sum(1 for d in liste_ if d["ungelesen"]), "offen": sum(1 for d in liste_ if d["stand"] == "offen"),
+            "neu": _neu(con, liste_, True)}
+
+
+def team_zaehler(con, pid):
+    """Fuer die Reiter des Teams: Vorgaenge mit neuer Antwort einer Lehrkraft."""
+    liste_ = vorgaenge_team(con, pid)
+    return {"ungelesen": sum(1 for d in liste_ if d["ungelesen"]), "neu": _neu(con, liste_, False)}
 
 
 def _schultage_seit(zeit, heute):

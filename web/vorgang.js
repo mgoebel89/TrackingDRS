@@ -252,10 +252,65 @@ const Vorgang = (() => {
     b.hidden = !n;
     b.classList.toggle('neu', !!z.ungelesen);
     b.title = z.ungelesen ? z.ungelesen + ' ungelesen' : z.offen + ' offen';
+    T.titelZahl(z.ungelesen);
   }
 
-  async function zaehlerLaden() {
-    try { zaehlerZeigen(await T.api('GET', '/api/vorgaenge/zaehler')); } catch (e) { /* naechster Versuch */ }
+  // --- Melden: Zaehler im Menue und im Browser-Tab, Einblendung, Windows-Benachrichtigung ---
+  // Abfrage jede Minute, auch wenn der Tab im Hintergrund liegt (dafuer ist die Benachrichtigung da). Die
+  // Benachrichtigung kommt nur, solange die Seite irgendwo offen ist, und nur wenn sie gerade nicht vorne ist.
+
+  const BENACHRICHTIGUNG = 'tdrs-benachrichtigung';
+
+  function benachrichtigungAn() {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return false;
+    try { return localStorage.getItem(BENACHRICHTIGUNG) !== 'aus'; } catch (e) { return true; }
+  }
+
+  function melden(v) {
+    const text = v.projekt + ': ' + v.text;
+    T.meldung('Neu bei Anfragen – ' + text, false, '#anfragen/v/' + v.id);
+    if (!benachrichtigungAn() || (document.visibilityState === 'visible' && document.hasFocus())) return;
+    try {
+      const n = new Notification(T.NAME + ' · ' + v.projekt, { body: v.titel + '\n' + v.text, tag: 'tdrs-' + v.id });
+      n.onclick = () => { window.focus(); location.hash = '#anfragen/v/' + v.id; n.close(); };
+    } catch (e) { /* manche Browser erlauben das nur ueber einen Service Worker */ }
+  }
+
+  let zaehlerLaden = async () => {};
+
+  function beobachten() {
+    zaehlerLaden = T.beobachten(async () => { const z = await T.api('GET', '/api/vorgaenge/zaehler'); zaehlerZeigen(z); return z; }, melden);
+  }
+
+  // Knopf im Kopf der Anfragen: Windows-Benachrichtigung ein- und ausschalten
+  function glocke() {
+    if (!('Notification' in window)) return null;
+    const ort = el('span', { class: 'glocke' });
+    function zeichnen() {
+      const erlaubt = Notification.permission;
+      if (erlaubt === 'denied') {
+        T.setzen(ort, el('span', { class: 'leise klein-text', title: 'In den Website-Einstellungen des Browsers wieder erlauben.',
+          text: 'Benachrichtigungen im Browser blockiert' }));
+        return;
+      }
+      const an = benachrichtigungAn();
+      T.setzen(ort, el('button', { type: 'button', class: 'leicht' + (an ? ' an' : ''), 'aria-pressed': an ? 'true' : 'false',
+        title: an ? 'Neue Anfragen melden sich auch als Windows-Benachrichtigung, solange diese Seite offen ist.'
+          : 'Neue Anfragen zusätzlich als Windows-Benachrichtigung melden', onclick: umschalten },
+      an ? '🔔 Benachrichtigung an' : '🔕 Benachrichtigung aus'));
+    }
+    async function umschalten() {
+      if (benachrichtigungAn()) {
+        try { localStorage.setItem(BENACHRICHTIGUNG, 'aus'); } catch (e) { /* ohne Speicher */ }
+      } else {
+        if (Notification.permission !== 'granted') await Notification.requestPermission();
+        try { localStorage.setItem(BENACHRICHTIGUNG, 'an'); } catch (e) { /* ohne Speicher */ }
+        if (benachrichtigungAn()) T.meldung('Neue Anfragen melden sich jetzt auch als Windows-Benachrichtigung, solange die Seite offen ist.');
+      }
+      zeichnen();
+    }
+    zeichnen();
+    return ort;
   }
 
   // --- Team ---
@@ -296,5 +351,5 @@ const Vorgang = (() => {
     })();
   }
 
-  return { eingang, zaehlerLaden, zaehlerZeigen, teamListe, teamDetail };
+  return { eingang, zaehlerLaden: () => zaehlerLaden(), zaehlerZeigen, beobachten, glocke, teamListe, teamDetail };
 })();

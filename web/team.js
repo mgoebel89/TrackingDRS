@@ -2,18 +2,48 @@
 // Projekt.
 // Uebersicht = Hinweise, Besprechungstermin der aktuellen Woche (buchen), Ampeln dieser Woche und "Demnaechst"
 // (entfallende Projekttage, Meilensteine, Endtermine). Ueber dem Inhalt stehen die Warnungen und Hinweise.
+// Die Reiter sind eine eigene Leiste mit Symbolen, die beim Scrollen oben bleibt (am Handy unten); neue Antworten der
+// Lehrkraft zeigt ein roter Zaehler an "Anfragen", die Zahl im Browser-Tab und eine kurze Einblendung.
 'use strict';
 const { el } = T;
 const inhalt = document.getElementById('inhalt');
 const token = location.pathname.split('/')[2] || '';
 const basis = '/api/t/' + encodeURIComponent(token);
-const REITER = [['uebersicht', 'Übersicht'], ['sheet', 'Tracking-Sheet'], ['besprechung', 'Besprechung'], ['anfragen', 'Anfragen'],
-  ['fotos', 'Fotos'], ['projekt', 'Projekt']];
+const REITER = [['uebersicht', 'Übersicht', 'Start', 'start'], ['sheet', 'Tracking-Sheet', 'Sheet', 'sheet'],
+  ['besprechung', 'Besprechung', 'Bespr.', 'bespr'], ['anfragen', 'Anfragen', 'Anfr.', 'anfr'], ['fotos', 'Fotos', 'Fotos', 'fotos'],
+  ['projekt', 'Projekt', 'Projekt', 'projekt']];
 const U = { sheet: null, entfallen: [] };   // was "Demnaechst" braucht
 let projekt = null;
 const bereich = el('div', { class: 'stapel' });
 const hinweise = el('div', { hidden: true });
 const demOrt = el('div');
+let zaehlerAbfragen = () => {};
+
+function reiterLeiste() {
+  return el('nav', { class: 'team-reiter', 'aria-label': 'Bereiche' }, REITER.map(([k, lang, kurz, sym]) =>
+    el('a', { href: '#' + k, 'data-reiter': k, title: lang }, T.symbol(sym), el('span', { class: 'lang', text: lang }),
+      el('span', { class: 'kurz', text: kurz }), k === 'anfragen' ? el('span', { class: 'reiter-zahl', hidden: true }) : null)));
+}
+
+function zaehlerZeigen(z) {
+  const b = document.querySelector('.team-reiter .reiter-zahl');
+  if (b) {
+    b.textContent = String(z.ungelesen);
+    b.hidden = !z.ungelesen;
+    b.title = z.ungelesen === 1 ? '1 neue Antwort' : z.ungelesen + ' neue Antworten';
+  }
+  T.titelZahl(z.ungelesen);
+}
+
+// Die Hoehe von Kopfzeile und Reiterleiste, damit Klebendes (Reiter, Seitenleiste im Sheet) darunter bleibt
+function hoehenMerken() {
+  const kopf = document.querySelector('header.kopf'), leiste = document.querySelector('.team-reiter');
+  const wurzel = document.documentElement.style;
+  if (kopf) wurzel.setProperty('--kopf-h', kopf.offsetHeight + 'px');
+  if (leiste) wurzel.setProperty('--reiter-h', leiste.offsetHeight + 'px');
+}
+
+function nachAenderung() { warnungenLaden(); zaehlerAbfragen(); }
 
 function warnungenZeigen(liste) {
   T.setzen(hinweise, T.warnungen(liste));
@@ -86,7 +116,10 @@ function projektSeite(p) {
 
 function zeigen() {
   const wahl = reiterWahl();
-  document.querySelectorAll('.reiter a').forEach(a => a.classList.toggle('an', a.dataset.reiter === wahl));
+  document.querySelectorAll('.team-reiter a').forEach(a => {
+    a.classList.toggle('an', a.dataset.reiter === wahl);
+    if (a.dataset.reiter === wahl) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+  });
   inhalt.classList.toggle('breit', wahl === 'sheet');
   if (wahl === 'projekt') {
     const seite = projektSeite(projekt);
@@ -110,7 +143,7 @@ function zeigen() {
   if (wahl === 'anfragen') {
     const ort = el('div');
     T.setzen(bereich, ort);
-    Anfragen.teamErzeugen({ ort, basis, beiAenderung: warnungenLaden }).laden();
+    Anfragen.teamErzeugen({ ort, basis, beiAenderung: nachAenderung }).laden();
     return;
   }
   const ort = el('div');
@@ -128,16 +161,19 @@ async function start() {
     return;
   }
   document.getElementById('unter').textContent = projekt.titel;
-  document.title = projekt.titel + ' · ' + T.NAME;
+  T.titel(projekt.titel);
+  document.body.classList.add('mit-unterleiste');
   T.setzen(inhalt,
     el('div', { class: 'team-kopf' },
       el('div', { class: 'zeile' }, el('span', { class: 'chip blau', text: projekt.klasse }), el('span', { class: 'leise', text: projekt.schuljahr })),
       el('h1', { class: 'dreieck', text: projekt.titel }),
       el('div', { class: 'leise', text: T.zeitraum(projekt.start, projekt.ende) + ' · betreut von ' + projekt.lehrkraefte.map(l => l.name).join(', ') })),
-    el('nav', { class: 'reiter', 'aria-label': 'Bereiche' },
-      REITER.map(([k, t]) => el('a', { href: '#' + k, 'data-reiter': k, text: t }))),
-    hinweise, bereich);
+    reiterLeiste(), hinweise, bereich);
+  hoehenMerken();
+  window.addEventListener('resize', hoehenMerken);
   window.addEventListener('hashchange', zeigen);
+  zaehlerAbfragen = T.beobachten(async () => { const z = await T.api('GET', basis + '/zaehler'); zaehlerZeigen(z); return z; },
+    v => T.meldung('Neue Antwort der Lehrkraft zu „' + v.titel + '“: ' + v.text, false, '#anfragen'));
   zeigen();
   if (reiterWahl() !== 'uebersicht') warnungenLaden();
 }

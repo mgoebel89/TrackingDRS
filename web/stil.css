@@ -129,10 +129,34 @@ dialog .knoepfe { display: flex; justify-content: flex-end; gap: 8px; flex-wrap:
 
 /* Team-Ansicht */
 .team-kopf { display: grid; gap: 4px; }
-.reiter { display: flex; gap: 4px; overflow-x: auto; border-bottom: 1px solid var(--linie); padding-bottom: 6px; }
-.reiter a, .reiter span { padding: 7px 12px; border-radius: var(--r); font-weight: 600; font-size: .92em; text-decoration: none; color: var(--leise); white-space: nowrap; }
-.reiter .an { background: var(--blau-hell); color: var(--blau); }
-.reiter .spaeter { opacity: .55; }
+/* Team-Reiter: eigene Leiste mit Symbolen, klebt unter der Kopfzeile; am Handy feste Leiste unten */
+.team-reiter { position: sticky; top: var(--kopf-h, 56px); z-index: 15; display: flex; gap: 6px; padding: 6px;
+  background: var(--karte); border: 1px solid var(--linie); border-radius: var(--ecke) var(--r) var(--r) var(--r); box-shadow: var(--schatten-1); }
+.team-reiter a { position: relative; flex: 1 1 0; display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 0;
+  padding: 10px 12px; border-radius: var(--r); font-weight: 600; text-decoration: none; color: var(--text); white-space: nowrap; }
+.team-reiter a:hover { background: var(--blau-hell); color: var(--blau); }
+.team-reiter a.an { background: var(--blau); color: #fff; }
+.team-reiter a:focus-visible { outline: 2px solid var(--blau); outline-offset: 2px; }
+.team-reiter .symbol { width: 22px; height: 22px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.team-reiter .kurz { display: none; }
+.team-reiter .lang { overflow: hidden; text-overflow: ellipsis; }
+.reiter-zahl { position: absolute; top: 2px; right: 4px; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px;
+  background: var(--rot); color: #fff; font-size: .72rem; font-weight: 700; line-height: 20px; text-align: center; box-shadow: 0 0 0 2px var(--karte); }
+.team-seite .pc-panel { top: calc(var(--kopf-h, 56px) + var(--reiter-h, 60px) + 12px); }
+.meldung.hinweis { display: block; background: var(--blau); text-decoration: none; cursor: pointer; }
+.meldung.hinweis:hover { background: var(--blau-dunkel); }
+@media (max-width: 1100px) { .team-reiter a { flex-direction: column; gap: 2px; padding: 8px 4px; font-size: .85em; } }
+@media (max-width: 760px) {
+  .team-reiter { position: fixed; top: auto; left: 0; right: 0; bottom: 0; z-index: 40; gap: 2px; border-radius: 0; border-width: 1px 0 0;
+    padding: 4px max(4px, env(safe-area-inset-right)) max(4px, env(safe-area-inset-bottom)) max(4px, env(safe-area-inset-left));
+    box-shadow: 0 -4px 16px rgba(16,24,40,.08); }
+  .team-reiter a { padding: 6px 2px; font-size: .72rem; }
+  .team-reiter .lang { display: none; }
+  .team-reiter .kurz { display: inline; }
+  .reiter-zahl { right: calc(50% - 26px); }
+  .mit-unterleiste .team-seite { padding-bottom: 96px; }
+  .mit-unterleiste #meldungen { bottom: calc(72px + env(safe-area-inset-bottom)); }
+}
 .team-seite.breit { max-width: 1500px; }
 .team-seite { max-width: 980px; margin: 0 auto; padding: 18px max(16px, env(safe-area-inset-right)) 40px max(16px, env(safe-area-inset-left)); display: grid; gap: 16px; }
 
@@ -475,7 +499,7 @@ table.pruefen td { vertical-align: top; }
 input.menge { width: 80px; min-height: 32px; }
 .umschalter.wege { flex-wrap: wrap; }
 @media print {
-  header.kopf, nav.seite, .werkzeug button, .werkzeug .knopf, #meldungen { display: none !important; }
+  header.kopf, nav.seite, .team-reiter, .werkzeug button, .werkzeug .knopf, #meldungen { display: none !important; }
   .rahmen { display: block; } main.inhalt { padding: 0; } body { background: #fff; }
   .karte { border: none; padding: 0; break-inside: avoid; }
 }
@@ -567,6 +591,7 @@ body.bericht-seite { background: #fff; }
 .vg-antwort .rechts { margin-left: auto; display: flex; gap: 6px; }
 .nav-zahl { margin-left: auto; min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--knopf); font-size: .75em; text-align: center; }
 .nav-zahl.neu { background: var(--rot); color: #fff; }
+.glocke button.an { color: var(--blau); background: var(--blau-hell); }
 @media (max-width: 900px) {
   .eingang { grid-template-columns: minmax(0, 1fr); }
   .eingang.mit-detail .vg-links { display: none; }
@@ -591,7 +616,7 @@ body.bericht-seite { background: #fff; }
   .pc-panel { position: static; }
 }
 
-.reiter, nav.seite { scrollbar-width: thin; }
+nav.seite { scrollbar-width: thin; }
 @media (max-width: 760px) {
   .rahmen { grid-template-columns: 1fr; grid-template-rows: auto 1fr; align-content: start; }
   #wer { display: none; }

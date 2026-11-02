@@ -674,6 +674,10 @@ def api_team_anfragen(h, con, daten, token):
     h.antwort(200, _team_anfragen(con, _team_projekt(con, token)))
 
 
+def api_team_zaehler(h, con, daten, token):
+    h.antwort(200, anfragen.team_zaehler(con, _team_projekt(con, token)))
+
+
 def api_team_anfragen_aendern(h, con, daten, token):
     pid = _team_projekt(con, token)
     if daten.get("aktion") == "neu":
@@ -1065,6 +1069,7 @@ ROUTEN = [(m, re.compile(p), f) for m, p, f in [
     ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/aufgabe/(\d+)/verlauf", api_team_verlauf),
     ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/termine", api_team_termine),
     ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/anfragen", api_team_anfragen),
+    ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/zaehler", api_team_zaehler),
     ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/extras", api_team_extras),
     ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/fotos", api_team_foto),
     ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/fotos/(\d+)/verwerfen", api_team_foto_weg),

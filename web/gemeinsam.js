@@ -60,12 +60,59 @@ const T = {
     return e;
   },
 
-  meldung(text, fehler) {
+  // Kurze Einblendung unten rechts; mit ziel (Adresse) ein Link, der laenger stehen bleibt (Neues bei Anfragen)
+  meldung(text, fehler, ziel) {
     let ort = document.getElementById('meldungen');
     if (!ort) { ort = T.el('div', { id: 'meldungen', 'aria-live': 'polite' }); document.body.appendChild(ort); }
-    const m = T.el('div', { class: 'meldung' + (fehler ? ' fehler' : ''), text });
+    const m = ziel ? T.el('a', { class: 'meldung hinweis', href: ziel, onclick: () => m.remove() }, text)
+      : T.el('div', { class: 'meldung' + (fehler ? ' fehler' : ''), text });
     ort.appendChild(m);
-    setTimeout(() => m.remove(), fehler ? 7000 : 3500);
+    setTimeout(() => m.remove(), ziel ? 12000 : fehler ? 7000 : 3500);
+  },
+
+  // Seitentitel mit der Zahl des Ungelesenen davor ("(2) Cockpit · Projektarbeit MT"), damit es im Browser-Tab auffaellt
+  titel(text) { T.titelText = text; T.titelZeigen(); },
+  titelZahl(n) { T.titelN = n; T.titelZeigen(); },
+  titelZeigen() { document.title = (T.titelN ? '(' + T.titelN + ') ' : '') + (T.titelText ? T.titelText + ' · ' + T.NAME : T.NAME); },
+
+  // Neues beobachten: laden() liefert {neu: [{id, nid, ...}]}; was seit dem letzten Abruf dazugekommen ist, geht an
+  // melden(v). Der erste Abruf merkt sich nur den Stand, sonst poppt nach dem Oeffnen der Seite alles auf einmal auf.
+  // Rueckgabe: Funktion fuer einen Abruf sofort (z. B. nachdem etwas gelesen wurde).
+  beobachten(laden, melden, alle = 60000) {
+    let gesehen = null;
+    const schluessel = v => v.id + ':' + v.nid;
+    async function abfragen() {
+      let z;
+      try { z = await laden(); } catch (e) { return; }
+      const liste = z.neu || [];
+      if (gesehen) liste.filter(v => !gesehen.has(schluessel(v))).forEach(melden);
+      else gesehen = new Set();
+      liste.forEach(v => gesehen.add(schluessel(v)));
+    }
+    abfragen();
+    setInterval(abfragen, alle);
+    return abfragen;
+  },
+
+  // Strichsymbole (24er Raster) fuer die Team-Reiter
+  SYMBOLE: {
+    start: 'M3 11.5 12 4l9 7.5M5.5 9.5V20h4.5v-6h4v6h4.5V9.5',
+    sheet: 'M3.5 4.5h17v15h-17zM3.5 9.5h17M3.5 14.5h17M9 4.5v15',
+    bespr: 'M4 5h16v10.5H10L5.5 19.5v-4H4zM8 9.5h8M8 12.5h5',
+    anfr: 'M3.5 6h17v12h-17zM3.5 7l8.5 6.5L20.5 7',
+    fotos: 'M3.5 8h4l1.8-2.5h5.4L16.5 8h4v11h-17zM12 10.5a3.25 3.25 0 1 0 0 6.5a3.25 3.25 0 1 0 0-6.5',
+    projekt: 'M3.5 6h6l2 2.5h9v10.5h-17z',
+  },
+  symbol(name) {
+    const ns = 'http://www.w3.org/2000/svg';
+    const s = document.createElementNS(ns, 'svg');
+    s.setAttribute('viewBox', '0 0 24 24');
+    s.setAttribute('aria-hidden', 'true');
+    s.setAttribute('class', 'symbol');
+    const p = document.createElementNS(ns, 'path');
+    p.setAttribute('d', T.SYMBOLE[name]);
+    s.appendChild(p);
+    return s;
   },
 
   // Dialog mit Formular. felder: Element(e) im Formular. Rueckgabe: Promise, das mit dem Ergebnis von speichern()

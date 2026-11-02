@@ -177,7 +177,8 @@ const Anfragen = (() => {
     return el('div', { class: 'werkzeug' }, el('h1', { class: 'dreieck', text: 'Anfragen' }),
       el('span', { class: 'umschalter' },
         el('a', { class: 'knopf' + (aktiv === 'eingang' ? ' an' : ''), href: '#anfragen' }, 'Eingang'),
-        el('a', { class: 'knopf' + (aktiv === 'fenster' ? ' an' : ''), href: '#anfragen/fenster' }, 'Einreichfenster')));
+        el('a', { class: 'knopf' + (aktiv === 'fenster' ? ' an' : ''), href: '#anfragen/fenster' }, 'Einreichfenster')),
+      el('span', { class: 'rechts' }, Vorgang.glocke()));
   }
 
   async function lehrerZeigen(teil, id) {
