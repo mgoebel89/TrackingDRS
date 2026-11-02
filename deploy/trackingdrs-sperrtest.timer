@@ -1,0 +1,12 @@
+# Einmal am Tag pruefen, ob die Sperre auf dem VPN-Server noch wirkt (z. B. nach einer Aenderung dort).
+[Unit]
+Description=TrackingDRS: taeglicher Sperrtest ueber das VPN
+
+[Timer]
+OnCalendar=*-*-* 05:30
+RandomizedDelaySec=1h
+Persistent=true
+Unit=trackingdrs-sperrtest.service
+
+[Install]
+WantedBy=timers.target

@@ -55,7 +55,8 @@ abgelehnt. Der Lehrerbereich zeigt den Team-Link schon mit `http://` an.
 | `trackingdrs-update` | neuesten Stand holen und neu installieren, Daten bleiben |
 | `trackingdrs sicherung` | Sicherung (ZIP) nach `/var/lib/trackingdrs/sicherungen` |
 | `trackingdrs vpn einrichten` | WireGuard zum VPN-Server einrichten (fragt Server, Schlüssel, Adresse; zeigt den Block für die Server-Config) |
-| `trackingdrs vpn status` | Verbindung und letzten Handshake zeigen |
+| `trackingdrs vpn status` | Verbindung, letzten Handshake und Sperrtest zeigen |
+| `trackingdrs vpn sperrtest` | versuchen, über das VPN Server und Heimnetz zu erreichen (alles muss „gesperrt“ sein) |
 | `trackingdrs einrichtungscode` | Code für die erste Einrichtung zeigen |
 | `trackingdrs konten` | Lehrkraft-Konten auflisten |
 | `trackingdrs passwort <kürzel>` | vorläufiges Passwort setzen und Konto entsperren |
@@ -70,6 +71,21 @@ Schlüssel des Containers entsteht im Container und verlässt ihn nicht; am Ende
 auf dem Server (`AllowedIPs` nur die eine Adresse). Über das VPN ist nur HTTPS erreichbar. Die VPN-Adresse kommt ins
 Zertifikat; liegt sie außerhalb des Schulnetzes, entsteht dabei einmalig eine neue Zertifizierungsstelle (Stamm-
 zertifikat auf den Geräten neu installieren). Darum das VPN am besten vor dem Verteilen des Zertifikats einrichten.
+
+**Sperre auf dem VPN-Server:** Damit der Container über das VPN nichts erreicht (auch nicht, wenn ihn jemand als root
+übernimmt), kommt auf den Server einmalig `vps/sperre.sh`:
+
+```bash
+curl -fsSLO https://raw.githubusercontent.com/mgoebel89/TrackingDRS/main/vps/sperre.sh
+sudo bash sperre.sh einrichten 10.8.0.20
+```
+
+Es legt eine eigene nft-Tabelle an (andere Regeln, auch ufw, bleiben unberührt) und lädt sie bei jedem Start vor dem
+Netz: Vom Container kommen nur Antworten durch, jede neue Verbindung von ihm wird verworfen (Server, Heimnetz, andere
+Teilnehmer). Zum Container sind neue Verbindungen nur auf HTTPS erlaubt. `bash sperre.sh status` zeigt die Regeln mit
+Zählern, `bash sperre.sh aus` entfernt sie. Der Container prüft das täglich selbst (`trackingdrs-sperrtest.timer`:
+Ping und TCP 22/53/80/443/8080 an Server, Fritzbox und Nachbaradressen); kommt etwas durch, zeigt der Lehrerbereich
+im Cockpit eine rote Warnung, den Stand unter *Einstellungen → VPN*.
 
 **Update ohne Konsole:** Unter *Einstellungen → Version und Update* sehen Admins die installierte Version und ob es auf
 GitHub eine neuere gibt (geprüft wird täglich und auf Knopfdruck). *Jetzt aktualisieren* legt erst eine Sicherung an

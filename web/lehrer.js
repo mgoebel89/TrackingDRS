@@ -36,6 +36,7 @@ async function start() {
     S.konto = ich.konto;
     S.teamPort = ich.team_port;
     S.update = ich.update;
+    S.vpn = ich.vpn;
   } catch (e) {
     if (e.status === 401) { location.replace('/anmelden'); return; }
     fehlerZeigen(e);
@@ -716,6 +717,7 @@ async function einstellungenZeigen() {
           catch (e) { T.meldung(e.message, true); }
         } }, 'Entfernen') : el('span', { class: 'chip', text: 'mitgeliefert' })))),
     updateKarte(),
+    vpnKarte(),
     el('section', { class: 'karte stapel-eng' },
       el('h2', { class: 'dreieck', text: 'Sicherung' }),
       el('p', { class: 'leise', text: 'ZIP mit Datenbank, Fotos, Mindmaps und Logo (ohne Zertifikate). Zusätzlich sichert Proxmox den ganzen Container. ' +
@@ -819,6 +821,34 @@ function updateKarte() {
 
   laden();
   return ort;
+}
+
+// --- VPN-Sperrtest (nur Admins, nur mit VPN) ---
+// Der Container prueft taeglich als root, ob er ueber das VPN etwas erreicht (trackingdrs vpn sperrtest). Die Karte
+// zeigt nur das Ergebnis; testen geht an der Konsole.
+
+const VPN_STATUS = {
+  dicht: ['gruen', '✓ Sperre wirkt', 'Über das VPN erreicht der Container weder den Server noch dein Heimnetz.'],
+  offen: ['rot', 'Sperre fehlt', 'Der Container erreicht über das VPN andere Geräte. Auf dem Server: bash sperre.sh einrichten '],
+  keine_verbindung: ['', 'Keine Verbindung', 'Beim letzten Test stand keine Verbindung zum Server, die Sperre wurde nicht geprüft.'],
+  aus: ['', 'VPN aus', 'Die VPN-Verbindung ist ausgeschaltet.'],
+};
+
+function vpnKarte() {
+  const v = S.vpn;
+  if (!v) return null;
+  const [farbe, chip, text] = VPN_STATUS[v.ergebnis] || ['', v.ergebnis, ''];
+  return el('section', { class: 'karte stapel-eng' },
+    el('h2', { class: 'dreieck', text: 'VPN' }),
+    el('div', { class: 'zeile' }, el('span', { class: 'chip ' + farbe, text: chip }),
+      el('span', { class: 'leise', text: v.ergebnis === 'offen' ? text + (v.adresse || '') : text })),
+    v.durch.length ? el('ul', { class: 'update-liste' }, v.durch.map(d => el('li', { class: 'mono', text: d }))) : null,
+    el('dl', { class: 'daten' },
+      el('dt', { text: 'Adresse' }), el('dd', { class: 'mono', text: v.adresse || '–' }),
+      el('dt', { text: 'Getestet' }), el('dd', { text: T.zeitText(v.zeit) + ' · täglich automatisch' }),
+      v.ziele.length ? [el('dt', { text: 'Versucht' }), el('dd', { class: 'mono klein-text', text: v.ziele.join(', ') })] : null),
+    v.alt ? el('p', { class: 'warnung-text', text: 'Seit mehr als drei Tagen kein Sperrtest. Läuft der Timer? Konsole: trackingdrs vpn status' }) : null,
+    el('p', { class: 'leise klein-text', text: 'Neu testen an der Konsole: trackingdrs vpn sperrtest' }));
 }
 
 // --- Eigenes Konto ---

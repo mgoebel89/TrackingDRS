@@ -24,7 +24,7 @@ import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from . import (VERSION, anfragen, besprechung, bestellung, cockpit, db, einstellungen, export, extras, kalender, konten, projekte,
-               sheet, tafel, termine, updates)
+               sheet, tafel, termine, updates, vpn)
 
 BASIS = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WEB_DIR = os.path.join(BASIS, "web")
@@ -295,7 +295,8 @@ def api_ich(h, con, daten):
     # Team-Links gehen ueber HTTP (team_port), solange der Lehrerbereich ueber HTTPS laeuft
     k = h.konto(con, vorlaeufig_ok=True)
     h.antwort(200, {"konto": k, "team_port": HTTP_PORT if h.server.ist_tls else None,
-                    "update": updates.kurz() if k["rolle"] == "admin" else None})
+                    "update": updates.kurz() if k["rolle"] == "admin" else None,
+                    "vpn": vpn.kurz() if k["rolle"] == "admin" else None})
 
 
 def api_passwort(h, con, daten):

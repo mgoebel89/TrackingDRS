@@ -6,7 +6,9 @@
 #                                Containers und die Netze ueber das VPN. Erzeugt den Schluessel im Container (er verlaesst
 #                                ihn nie), schreibt /etc/wireguard/wg0.conf, nimmt die VPN-Adresse ins Zertifikat auf,
 #                                startet die Verbindung und zeigt den Block fuer die Server-Config.
-#   trackingdrs vpn status       Verbindung, letzter Handshake, Ping zum Server
+#   trackingdrs vpn status       Verbindung, letzter Handshake, Ping zum Server, Sperrtest
+#   trackingdrs vpn sperrtest    versucht Server, Heimnetz und andere Teilnehmer zu erreichen: alles muss scheitern
+#                                (laeuft auch taeglich, der Lehrerbereich warnt rot, wenn etwas durchkommt)
 #   trackingdrs vpn server       den Block fuer die Server-Config noch einmal zeigen
 #   trackingdrs vpn aus          Verbindung beenden und beim Start nicht mehr aufbauen (Schluessel und Config bleiben)
 #
@@ -16,7 +18,7 @@
 #
 # Sicherheit: Nur die angegebenen Netze laufen ueber den Tunnel (kein 0.0.0.0/0), der Container leitet nichts weiter,
 # und die Firewall (deploy/firewall.nft) laesst auf wg0 nur HTTPS (443) herein. Auf dem Server bekommt der Container
-# nur seine eine Adresse (AllowedIPs .../32); die Sperrregeln dort folgen in Stufe G.
+# nur seine eine Adresse (AllowedIPs .../32), und vps/sperre.sh verwirft dort jede Verbindung, die er selbst aufbaut.
 set -euo pipefail
 WG=/etc/wireguard
 CONF=$WG/wg0.conf
@@ -59,8 +61,17 @@ AllowedIPs = $adresse/32
 
 === Danach auf dem Server uebernehmen (ohne bestehende Verbindungen zu trennen): ===
   wg syncconf wg0 <(wg-quick strip wg0)
+
+=== Einmalig auf dem Server: Sperre, damit der Container dort nichts erreicht: ===
+  curl -fsSLO https://raw.githubusercontent.com/mgoebel89/TrackingDRS/main/vps/sperre.sh
+  bash sperre.sh einrichten $adresse
+
 Dann hier pruefen: trackingdrs vpn status
 EOF
+}
+
+sperrtest() {   # sperrtest [--leise]: Ergebnis auch fuer den Lehrerbereich ablegen
+  (cd "$REPO" && python3 -m app.vpn sperrtest "$@")
 }
 
 testen() {   # testen <Server-IP>: wartet kurz auf den ersten Handshake
@@ -77,7 +88,7 @@ testen() {   # testen <Server-IP>: wartet kurz auf den ersten Handshake
   fi
   echo "Verbindung steht (letzter Handshake vor $(( $(date +%s) - hs )) s)."
   if ping -c 1 -W 2 "$server_ip" >/dev/null 2>&1; then echo "Server $server_ip antwortet."; else
-    echo "Server $server_ip antwortet nicht auf Ping (das kann so gewollt sein)."; fi
+    echo "Server $server_ip antwortet nicht auf Ping (mit der Sperre auf dem Server so gewollt)."; fi
 }
 
 einrichten() {
@@ -156,7 +167,7 @@ EOF
   echo "==> Verbindung starten"
   systemctl enable -q wg-quick@wg0
   systemctl restart wg-quick@wg0
-  testen "$server_ip" || true
+  if testen "$server_ip"; then echo; sperrtest || true; fi
   server_block
   echo "Von zuhause (ueber das VPN) dann: https://$adresse"
 }
@@ -166,13 +177,17 @@ status() {
   echo "Dienst: $(systemctl is-active wg-quick@wg0 || true), beim Start: $(systemctl is-enabled wg-quick@wg0 2>/dev/null || true)"
   wg show wg0 2>/dev/null || { echo "wg0 ist nicht aktiv."; return 1; }
   echo
-  testen "$(aus_conf "# Server-IP")"
+  testen "$(aus_conf "# Server-IP")" || return 1
+  echo
+  sperrtest
 }
 
 case "${1:-}" in
   einrichten) shift; einrichten "$@" ;;
   status) status ;;
+  sperrtest) shift; sperrtest "$@" ;;
   server) server_block ;;
-  aus) systemctl disable --now wg-quick@wg0 2>/dev/null || true; echo "VPN aus. Wieder an: trackingdrs vpn einrichten" ;;
-  *) sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+  aus) systemctl disable --now wg-quick@wg0 2>/dev/null || true; sperrtest --leise >/dev/null 2>&1 || true
+       echo "VPN aus. Wieder an: trackingdrs vpn einrichten" ;;
+  *) sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
 esac

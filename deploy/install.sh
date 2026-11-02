@@ -5,7 +5,8 @@
 #
 # Legt den Systembenutzer trackingdrs an, Daten in /var/lib/trackingdrs (Datenbank, Zertifikate, spaeter Fotos),
 # Dienste: trackingdrs (Webseite 80/443), trackingdrs-tls.timer (Zertifikat), trackingdrs-firewall (nur 22/80/443),
-# trackingdrs-update-pruefen.timer/.path und trackingdrs-update-ausfuehren.path (Update aus dem Lehrerbereich).
+# trackingdrs-update-pruefen.timer/.path und trackingdrs-update-ausfuehren.path (Update aus dem Lehrerbereich),
+# trackingdrs-sperrtest.timer (taeglicher Sperrtest, nur mit VPN).
 # Befehle danach: trackingdrs (Konsole, z.B. trackingdrs einrichtungscode), trackingdrs-update.
 set -euo pipefail
 ZIEL=/opt/trackingdrs
@@ -31,7 +32,7 @@ python3 -c 'import sys; sys.exit(sys.version_info < (3, 11))' || { echo "Trackin
 echo "==> Benutzer und Ordner"
 id trackingdrs >/dev/null 2>&1 || useradd --system --home-dir "$DATEN" --shell /usr/sbin/nologin trackingdrs
 install -d -o trackingdrs -g trackingdrs -m 750 "$DATEN" "$DATEN/update" "$DATEN/sicherungen"
-install -d -o root -g root -m 755 /var/lib/trackingdrs-update   # Ergebnisse des Updates, fuer den Webdienst nur lesbar
+install -d -o root -g root -m 755 /var/lib/trackingdrs-update /var/lib/trackingdrs-vpn   # Update- und Sperrtest-Ergebnisse, fuer den Webdienst nur lesbar
 find "$DATEN" -maxdepth 1 -name 'trackingdrs.sqlite*' -exec chmod 640 {} +
 install -d -o root -g root -m 755 /etc/trackingdrs
 # der Code gehoert root: der Webdienst kann ihn nicht veraendern
@@ -45,9 +46,9 @@ install -o root -g root -m 755 deploy/selbstupdate.sh /usr/local/sbin/trackingdr
 install -o root -g root -m 755 deploy/vpn.sh /usr/local/sbin/trackingdrs-vpn
 install -o root -g root -m 755 deploy/trackingdrs-cli.sh /usr/local/bin/trackingdrs
 install -o root -g root -m 644 deploy/firewall.nft /etc/trackingdrs/firewall.nft
-UPDATE_EINHEITEN="trackingdrs-update-pruefen.path trackingdrs-update-pruefen.timer trackingdrs-update-ausfuehren.path"
+UPDATE_EINHEITEN="trackingdrs-update-pruefen.path trackingdrs-update-pruefen.timer trackingdrs-update-ausfuehren.path trackingdrs-sperrtest.timer"
 for einheit in trackingdrs.service trackingdrs-tls.service trackingdrs-tls.timer trackingdrs-firewall.service \
-    trackingdrs-update-pruefen.service trackingdrs-update-ausfuehren.service $UPDATE_EINHEITEN; do
+    trackingdrs-update-pruefen.service trackingdrs-update-ausfuehren.service trackingdrs-sperrtest.service $UPDATE_EINHEITEN; do
   install -o root -g root -m 644 "deploy/$einheit" "/etc/systemd/system/$einheit"
 done
 systemctl daemon-reload

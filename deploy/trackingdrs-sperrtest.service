@@ -1,0 +1,13 @@
+# Sperrtest ueber das VPN (trackingdrs vpn sperrtest): kommt der Container an Server, Heimnetz oder andere Teilnehmer?
+# Ergebnis in /var/lib/trackingdrs-vpn/sperrtest.json, der Lehrerbereich warnt rot, wenn etwas durchkommt.
+[Unit]
+Description=TrackingDRS: Sperrtest ueber das VPN
+ConditionPathExists=/etc/wireguard/wg0.conf
+After=network-online.target wg-quick@wg0.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/trackingdrs
+ExecStart=/usr/bin/python3 -m app.vpn sperrtest --leise
+SuccessExitStatus=1 2
+TimeoutStartSec=2min

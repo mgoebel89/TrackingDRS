@@ -161,6 +161,9 @@ const Cockpit = (() => {
           ' · KW ' + T.kw(heute) }), klassenWahl(c.klassen)),
       S.update ? el('a', { class: 'update-hinweis', href: '#einstellungen' }, '⬆ Neue Version ' + (S.update.version || '') +
         ' verfügbar – in den Einstellungen ansehen und installieren') : null,
+      S.vpn && (S.vpn.ergebnis === 'offen' || S.vpn.alt) ? el('a', { class: 'update-hinweis vpn-warnung', href: '#einstellungen' },
+        S.vpn.ergebnis === 'offen' ? '⚠ VPN: Der Container erreicht über das VPN andere Geräte. Die Sperre auf dem Server fehlt oder wirkt nicht.'
+          : '⚠ VPN: seit mehr als drei Tagen kein Sperrtest') : null,
       el('div', { class: 'cockpit' }, handlungsbedarf(c), el('div', { class: 'stapel' }, zweiWochen(c), projekte)));
   }
 

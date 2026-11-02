@@ -92,14 +92,14 @@ class Update(unittest.TestCase):
 @unittest.skipUnless(shutil.which("bash"), "ohne bash")
 class Skripte(unittest.TestCase):
     def test_bash_syntax(self):
-        for name in ("install.sh", "update.sh", "selbstupdate.sh", "tls.sh", "vpn.sh", "trackingdrs-cli.sh"):
+        for name in ("install.sh", "update.sh", "selbstupdate.sh", "tls.sh", "vpn.sh", "trackingdrs-cli.sh", "../vps/sperre.sh"):
             with self.subTest(name=name):
                 r = subprocess.run(["bash", "-n", str(DEPLOY / name)], capture_output=True, text=True)
                 self.assertEqual(r.returncode, 0, r.stderr)
 
     def test_einheiten_vollstaendig(self):
         install = (DEPLOY / "install.sh").read_text(encoding="utf-8")
-        for einheit in DEPLOY.glob("trackingdrs-update-*"):
+        for einheit in [*DEPLOY.glob("trackingdrs-update-*"), *DEPLOY.glob("trackingdrs-sperrtest.*")]:
             with self.subTest(einheit=einheit.name):
                 self.assertIn(einheit.name, install)
         self.assertIn("/var/lib/trackingdrs/update/ausfuehren", (DEPLOY / "trackingdrs-update-ausfuehren.path").read_text(encoding="utf-8"))
