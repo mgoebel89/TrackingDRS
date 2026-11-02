@@ -196,7 +196,8 @@ class Handler(BaseHTTPRequestHandler):
             raise Fehler(404, "Nicht gefunden.")
         except Fehler as f:
             self.antwort(f.status, {"fehler": f.meldung})
-        except (konten.KontoFehler, projekte.ProjektFehler, einstellungen.EinstellungFehler, updates.UpdateFehler) as f:
+        except (konten.KontoFehler, projekte.ProjektFehler, einstellungen.EinstellungFehler, updates.UpdateFehler,
+                vpn.VpnFehler) as f:
             self.antwort(400, {"fehler": str(f)})
         except (BrokenPipeError, ConnectionResetError, ssl.SSLError, socket.timeout):
             pass
@@ -900,6 +901,23 @@ def api_update_anfordern(h, con, daten):
     h.antwort(200, updates.stand(_daten_dir(h)))
 
 
+def api_vpn(h, con, daten):
+    _admin(h, con)
+    h.antwort(200, vpn.web_stand(_daten_dir(h)))
+
+
+def api_vpn_anfordern(h, con, daten):
+    # Einrichten und Ausschalten aendern, wer von aussen an den Container kommt: dafuer das eigene Passwort
+    a = _admin(h, con)
+    if daten.get("aktion") in ("einrichten", "aus"):
+        pw = con.execute("SELECT pw FROM lehrkraft WHERE id = ?", (a["id"],)).fetchone()[0]
+        if not konten.passwort_stimmt(pw, daten.get("passwort") or ""):
+            raise vpn.VpnFehler("Das Passwort stimmt nicht.")
+    angaben = vpn.anfordern(_daten_dir(h), daten)
+    print("VPN: %s angefordert von %s" % (angaben["aktion"], a["kuerzel"]), flush=True)
+    h.antwort(200, vpn.web_stand(_daten_dir(h)))
+
+
 def api_update_sicherung(h, con, daten, name):
     _admin(h, con)
     with open(updates.sicherung_pfad(_daten_dir(h), name), "rb") as f:
@@ -1069,6 +1087,8 @@ ROUTEN = [(m, re.compile(p), f) for m, p, f in [
     ("GET", r"/api/update", api_update),
     ("POST", r"/api/update", api_update_anfordern),
     ("GET", r"/api/update/sicherung/(vor-update-[0-9_-]+\.zip)", api_update_sicherung),
+    ("GET", r"/api/vpn", api_vpn),
+    ("POST", r"/api/vpn", api_vpn_anfordern),
     ("POST", r"/api/projekte/(\d+)/bestellung", api_bestellung_pruefen),
     ("GET", r"/api/anfragen", api_anfragen),
     ("GET", r"/api/vorgaenge", api_vorgaenge),

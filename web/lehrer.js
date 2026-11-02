@@ -823,32 +823,180 @@ function updateKarte() {
   return ort;
 }
 
-// --- VPN-Sperrtest (nur Admins, nur mit VPN) ---
-// Der Container prueft taeglich als root, ob er ueber das VPN etwas erreicht (trackingdrs vpn sperrtest). Die Karte
-// zeigt nur das Ergebnis; testen geht an der Konsole.
+// --- VPN (nur Admins) ---
+// Einrichten, pruefen und ausschalten laufen als root ueber systemd (deploy/vpn.sh "anfrage"); die Seite legt nur einen
+// Auftrag ab und liest das Ergebnis. Beim ersten Einrichten startet der Dienst neu (Zertifikat mit der VPN-Adresse):
+// die Karte fragt weiter, bis er wieder antwortet. Fuer den VPS zeigt sie Peer-Block und Befehle zum Kopieren.
+// Einen privaten Schluessel nimmt die Seite nie an: der des Containers entsteht im Container, der des Servers bleibt dort.
 
 const VPN_STATUS = {
   dicht: ['gruen', '✓ Sperre wirkt', 'Über das VPN erreicht der Container weder den Server noch dein Heimnetz.'],
-  offen: ['rot', 'Sperre fehlt', 'Der Container erreicht über das VPN andere Geräte. Auf dem Server: bash sperre.sh einrichten '],
-  keine_verbindung: ['', 'Keine Verbindung', 'Beim letzten Test stand keine Verbindung zum Server, die Sperre wurde nicht geprüft.'],
+  offen: ['rot', 'Sperre fehlt', 'Der Container erreicht über das VPN andere Geräte. Auf dem VPS die Sperre setzen (Schritt 2).'],
+  keine_verbindung: ['', 'Keine Verbindung', 'Beim letzten Test stand keine Verbindung zum Server. Ist der Container auf dem VPS eingetragen (Schritt 1)?'],
   aus: ['', 'VPN aus', 'Die VPN-Verbindung ist ausgeschaltet.'],
 };
 
+function vorlage(titel, text, hilfe) {
+  return el('div', { class: 'vorlage stapel-eng' },
+    el('div', { class: 'zeile' }, el('b', { text: titel }),
+      el('span', { class: 'rechts' }, el('button', { type: 'button', class: 'leicht', onclick: () => T.kopieren(text) }, 'Kopieren'))),
+    hilfe ? el('p', { class: 'leise klein-text', text: hilfe }) : null,
+    el('pre', { class: 'vorlage-text', text }));
+}
+
+function vpnBefehle(e) {
+  const wg = e.server_if || 'wg0', datei = '/etc/wireguard/' + wg + '.conf';
+  const peer = ['[Peer]', '# TrackingDRS ' + (e.name || '') + ': nur diese eine Adresse', 'PublicKey = ' + e.container_schluessel,
+    'AllowedIPs = ' + e.adresse + '/32'].join('\n');
+  const eintragen = 'sudo tee -a ' + datei + " >/dev/null <<'EOF'\n\n" + peer + '\nEOF\n' +
+    "sudo bash -c 'wg syncconf " + wg + ' <(wg-quick strip ' + wg + ")'";
+  const sperre = 'curl -fsSLO https://raw.githubusercontent.com/mgoebel89/TrackingDRS/main/vps/sperre.sh\n' +
+    'sudo bash sperre.sh einrichten ' + e.adresse;
+  const kontrolle = 'sudo wg show ' + wg + '\nsudo bash sperre.sh status';
+  return el('div', { class: 'stapel-eng' },
+    vorlage('Erweiterung für deine Server-Config', peer, 'Dieser Block gehört in ' + datei + ' auf dem VPS. Schritt 1 trägt ihn für dich ein.'),
+    el('h3', { text: 'Auf dem VPS (per SSH als Benutzer mit sudo)' }),
+    el('ol', { class: 'vpn-schritte' },
+      el('li', {}, vorlage('Container eintragen und übernehmen', eintragen,
+        'Hängt den Block an die Server-Config an und übernimmt ihn, ohne bestehende Verbindungen zu trennen. Steht der Container ' +
+        'schon in der Datei (z. B. nach „Neu einrichten“), den alten Block vorher löschen: sudo nano ' + datei + '. Steht dort ' +
+        '„SaveConfig = true“: erst sudo wg-quick down ' + wg + ', dann eintragen, dann sudo wg-quick up ' + wg + '.')),
+      el('li', {}, vorlage('Sperre setzen (einmalig)', sperre,
+        'Danach erreicht der Container über das VPN weder den Server noch dein Heimnetz. Frei ist nur HTTPS zum Container. ' +
+        'Ohne öffentliches Repo: vps/sperre.sh per scp auf den VPS kopieren und nur die zweite Zeile ausführen.')),
+      el('li', {}, vorlage('Kontrollieren', kontrolle,
+        'Beim Peer des Containers steht „latest handshake: … seconds ago“, bei der Sperre zählen die drop-Zähler. ' +
+        'Dann hier „Verbindung prüfen“.'))));
+}
+
+function vpnFormular(e) {
+  e = e || {};
+  const m = (e.server || '').match(/^\[?(.*?)\]?:(\d+)$/);
+  const f = {
+    host: el('input', { required: true, value: m ? m[1] : '', placeholder: 'z. B. 203.0.113.5 oder vpn.example.de', autocomplete: 'off' }),
+    port: el('input', { type: 'number', min: '1', max: '65535', required: true, value: m ? m[2] : '51820' }),
+    schluessel: el('input', { required: true, value: e.server_schluessel || '', maxlength: '60', class: 'mono', autocomplete: 'off',
+      spellcheck: 'false', placeholder: '44 Zeichen, endet auf =' }),
+    adresse: el('input', { required: true, value: e.adresse || '10.8.0.20', autocomplete: 'off' }),
+    server_ip: el('input', { value: e.server_ip || '', placeholder: 'leer = erste Adresse im VPN-Netz (z. B. 10.8.0.1)', autocomplete: 'off' }),
+    netze: el('input', { value: (e.netze || []).join(' '), placeholder: 'leer = nur das VPN-Netz', autocomplete: 'off' }),
+    server_if: el('input', { required: true, value: e.server_if || 'wg0', maxlength: '15', autocomplete: 'off' }),
+    passwort: el('input', { type: 'password', required: true, autocomplete: 'current-password' }),
+  };
+  return T.dialog({
+    titel: e.adresse ? 'VPN neu einrichten' : 'VPN einrichten', knopf: 'Einrichten',
+    inhalt: el('div', { class: 'felder' },
+      el('p', { class: 'leise', text: 'Die Angaben stehen in der WireGuard-Config deines VPS. Einen privaten Schlüssel brauchst du ' +
+        'hier nicht: Der Container erzeugt seinen eigenen, und der des Servers bleibt auf dem Server.' }),
+      el('div', { class: 'felder zwei' },
+        T.feld('Öffentliche IP oder Name des VPS', f.host),
+        T.feld('Port', f.port, 'ListenPort in der Server-Config')),
+      T.feld('Öffentlicher Schlüssel des Servers', f.schluessel, 'auf dem VPS: sudo wg show ' + (e.server_if || 'wg0') + ' public-key'),
+      el('div', { class: 'felder zwei' },
+        T.feld('VPN-Adresse des Containers', f.adresse, 'frei, bei keinem [Peer] unter AllowedIPs'),
+        T.feld('VPN-Adresse des Servers', f.server_ip, 'Address unter [Interface]')),
+      el('div', { class: 'felder zwei' },
+        T.feld('Netze über das VPN', f.netze, 'z. B. 10.8.0.0/24 192.168.178.0/24 für das Heimnetz'),
+        T.feld('Schnittstelle auf dem VPS', f.server_if, 'Dateiname in /etc/wireguard ohne .conf')),
+      el('p', { class: 'warnung-text', text: 'Liegt die VPN-Adresse außerhalb von 192.168.x.x, entsteht einmalig ein neues ' +
+        'Stammzertifikat. Die Seite ist dann kurz weg, und alle Geräte brauchen das neue Stammzertifikat.' }),
+      T.feld('Dein Passwort zur Bestätigung', f.passwort)),
+    speichern: () => T.api('POST', '/api/vpn', { aktion: 'einrichten', server: f.host.value, port: f.port.value,
+      schluessel: f.schluessel.value, adresse: f.adresse.value, server_ip: f.server_ip.value, netze: f.netze.value,
+      server_if: f.server_if.value, passwort: f.passwort.value }),
+  });
+}
+
 function vpnKarte() {
-  const v = S.vpn;
-  if (!v) return null;
-  const [farbe, chip, text] = VPN_STATUS[v.ergebnis] || ['', v.ergebnis, ''];
-  return el('section', { class: 'karte stapel-eng' },
-    el('h2', { class: 'dreieck', text: 'VPN' }),
-    el('div', { class: 'zeile' }, el('span', { class: 'chip ' + farbe, text: chip }),
-      el('span', { class: 'leise', text: v.ergebnis === 'offen' ? text + (v.adresse || '') : text })),
-    v.durch.length ? el('ul', { class: 'update-liste' }, v.durch.map(d => el('li', { class: 'mono', text: d }))) : null,
-    el('dl', { class: 'daten' },
-      el('dt', { text: 'Adresse' }), el('dd', { class: 'mono', text: v.adresse || '–' }),
-      el('dt', { text: 'Getestet' }), el('dd', { text: T.zeitText(v.zeit) + ' · täglich automatisch' }),
-      v.ziele.length ? [el('dt', { text: 'Versucht' }), el('dd', { class: 'mono klein-text', text: v.ziele.join(', ') })] : null),
-    v.alt ? el('p', { class: 'warnung-text', text: 'Seit mehr als drei Tagen kein Sperrtest. Läuft der Timer? Konsole: trackingdrs vpn status' }) : null,
-    el('p', { class: 'leise klein-text', text: 'Neu testen an der Konsole: trackingdrs vpn sperrtest' }));
+  const ort = el('section', { class: 'karte stapel-eng vpn-karte' });
+  let timer = null, beobachten = false, versuche = 0;
+  const kopf = () => el('h2', { class: 'dreieck', text: 'VPN (Zugriff von zuhause)' });
+  const weiter = () => { clearTimeout(timer); timer = setTimeout(() => { if (ort.isConnected) laden(); }, 2500); };
+  const gestartet = v => { beobachten = true; versuche = 0; zeichnen(v); weiter(); };
+  const auftrag = async (aktion, passwort) => {
+    try { gestartet(await T.api('POST', '/api/vpn', { aktion, passwort })); } catch (e) { T.meldung(e.message, true); }
+  };
+  const ausschalten = async () => {
+    const pw = el('input', { type: 'password', required: true, autocomplete: 'current-password' });
+    const v = await T.dialog({
+      titel: 'VPN ausschalten?', knopf: 'Ausschalten', gefaehrlich: true,
+      inhalt: el('div', { class: 'felder' },
+        el('p', { text: 'Von zuhause ist der Container dann nicht mehr erreichbar. Schlüssel und Config bleiben, „Wieder einschalten“ ' +
+          'genügt. Den Block auf dem VPS kannst du stehen lassen oder löschen.' }),
+        T.feld('Dein Passwort zur Bestätigung', pw)),
+      speichern: () => T.api('POST', '/api/vpn', { aktion: 'aus', passwort: pw.value }),
+    });
+    if (v) gestartet(v);
+  };
+
+  async function laden() {
+    let v;
+    try { v = await T.api('GET', '/api/vpn'); } catch (e) {
+      if (beobachten && ++versuche < 40) {
+        T.setzen(ort, kopf(), el('p', { class: 'update-laeuft', text: 'Der Dienst startet neu (Zertifikat mit der VPN-Adresse) … gleich geht es weiter.' }),
+          versuche > 8 ? el('p', { class: 'leise', text: 'Dauert es länger? Dann ist das Stammzertifikat neu und der Browser traut der ' +
+            'Seite noch nicht: Seite neu laden, das neue Stammzertifikat über http://<Container>/ca.crt installieren.' }) : null);
+        weiter();
+        return;
+      }
+      T.setzen(ort, kopf(), el('div', { class: 'leer', text: e.message }));
+      return;
+    }
+    if (v.laeuft || v.wartet) beobachten = true;
+    else if (beobachten && v.lauf && v.lauf.ende) {
+      beobachten = false;
+      T.meldung(v.lauf.ergebnis === 'ok' ? 'VPN: erledigt.' : 'VPN: Das hat nicht geklappt. Details im Protokoll.', v.lauf.ergebnis !== 'ok');
+    }
+    zeichnen(v);
+    if (v.laeuft || v.wartet) weiter();
+  }
+
+  function zeichnen(v) {
+    const e = v.einrichtung, t = v.sperrtest, laeuft = v.laeuft || v.wartet, gesperrt = laeuft || !v.eingerichtet;
+    S.vpn = t;
+    const knopf = (text, klick, klasse) => el('button', { type: 'button', class: klasse || '', disabled: gesperrt, onclick: klick }, text);
+    const einrichten = async () => { const r = await vpnFormular(e); if (r) gestartet(r); };
+    let status = null;
+    if (e && !e.aktiv) status = el('div', { class: 'zeile' }, el('span', { class: 'chip', text: 'VPN aus' }));
+    else if (e && t) {
+      const [farbe, chip, text] = VPN_STATUS[t.ergebnis] || ['', t.ergebnis, ''];
+      status = el('div', { class: 'stapel-eng' },
+        el('div', { class: 'zeile' }, el('span', { class: 'chip ' + farbe, text: chip }), el('span', { class: 'leise', text })),
+        t.durch.length ? el('ul', { class: 'update-liste' }, t.durch.map(d => el('li', { class: 'mono', text: d }))) : null,
+        t.alt ? el('p', { class: 'warnung-text', text: 'Seit mehr als drei Tagen kein Sperrtest. Läuft der Timer? „Verbindung prüfen“ testet sofort.' }) : null);
+    }
+    const lauf = v.lauf && v.lauf.ende ? v.lauf : null;
+    T.setzen(ort, kopf(),
+      !v.eingerichtet ? el('p', { class: 'leise', text: 'Das Einrichten über diese Seite geht, sobald diese Version einmal über die ' +
+        'Konsole installiert wurde (trackingdrs-update). Hier läuft es gerade ohne Container.' }) : null,
+      laeuft ? el('div', { class: 'stapel-eng' }, el('p', { class: 'update-laeuft', text: 'Auftrag läuft …' }),
+        v.protokoll ? el('pre', { class: 'update-protokoll', text: v.protokoll }) : null) : null,
+      !e ? el('p', { class: 'leise', text: 'Der Container wird Teilnehmer in deinem WireGuard-VPN. Von zuhause ist dann nur diese Seite ' +
+        'über HTTPS erreichbar, sonst nichts im Schulnetz. Du gibst die Daten deines VPS ein und bekommst die Erweiterung für die ' +
+        'Server-Config und die Befehle für den VPS zum Kopieren.' }) : null,
+      status,
+      e ? el('dl', { class: 'daten' },
+        el('dt', { text: 'Adresse' }), el('dd', {}, el('span', { class: 'mono', text: e.adresse }), e.aktiv ? [' · ',
+          el('a', { href: 'https://' + e.adresse + '/', target: '_blank', rel: 'noopener', text: 'https://' + e.adresse }), ' (von zuhause)'] : null),
+        el('dt', { text: 'Server' }), el('dd', { class: 'mono', text: e.server || '–' }),
+        t ? [el('dt', { text: 'Getestet' }), el('dd', { text: T.zeitText(t.zeit) + ' · täglich automatisch' })] : null,
+        t && t.ziele.length ? [el('dt', { text: 'Versucht' }), el('dd', { class: 'mono klein-text', text: t.ziele.join(', ') })] : null) : null,
+      el('div', { class: 'zeile' },
+        !e ? knopf('VPN einrichten', einrichten, 'haupt') : e.aktiv
+          ? [knopf('Verbindung prüfen', () => auftrag('sperrtest'), 'haupt'), knopf('Neu einrichten', einrichten), knopf('VPN aus', ausschalten, 'warnen')]
+          : [knopf('Wieder einschalten', einrichten, 'haupt')],
+        e ? el('a', { class: 'knopf leicht', href: '/ca.crt', download: '' }, 'Stammzertifikat') : null),
+      e && e.aktiv ? vpnBefehle(e) : null,
+      e ? el('details', {}, el('summary', { text: 'Config des Containers (/etc/wireguard/wg0.conf)' }),
+        vorlage('wg0.conf', e.konf, 'Ist im Container schon aktiv. Der private Schlüssel liegt getrennt in /etc/wireguard/trackingdrs.key ' +
+          'und wird nie angezeigt.')) : null,
+      lauf ? el('details', {}, el('summary', { text: 'Letzter Auftrag: ' + T.zeitText(lauf.ende) + ' · ' + lauf.aktion +
+        (lauf.ergebnis === 'ok' ? ' · erledigt' : ' · fehlgeschlagen') }),
+        el('pre', { class: 'update-protokoll', text: v.protokoll || '(kein Protokoll)' })) : null);
+  }
+
+  laden();
+  return ort;
 }
 
 // --- Eigenes Konto ---

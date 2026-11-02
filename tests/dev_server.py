@@ -7,7 +7,10 @@ import sys
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.environ.setdefault("TRACKINGDRS_DATEN", os.path.join(REPO, ".dev-daten"))
-os.environ.setdefault("TRACKINGDRS_VPN_DIR", os.path.join(REPO, ".dev-daten", "vpn"))   # Sperrtest-Ergebnis zum Ausprobieren
+# VPN-Karte zum Ausprobieren: Ergebnisse (sperrtest.json, einrichtung.json ...) in .dev-daten/vpn-stand; das Formular
+# ist frei, wenn .dev-daten/vpn-einheit existiert (im Container: die systemd-Einheit). Auftraege landen in .dev-daten/vpn.
+os.environ.setdefault("TRACKINGDRS_VPN_DIR", os.path.join(REPO, ".dev-daten", "vpn-stand"))
+os.environ.setdefault("TRACKINGDRS_VPN_EINHEIT", os.path.join(REPO, ".dev-daten", "vpn-einheit"))
 os.environ["TRACKINGDRS_OHNE_TLS"] = "1"
 os.environ["TRACKINGDRS_BIND"] = "127.0.0.1"
 os.environ["TRACKINGDRS_HTTP_PORT"] = sys.argv[1] if len(sys.argv) > 1 else "8461"

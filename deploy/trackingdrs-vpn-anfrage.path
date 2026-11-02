@@ -1,0 +1,10 @@
+# Einstellungen -> VPN im Lehrerbereich: der Webdienst legt /var/lib/trackingdrs/vpn/anfrage.json an.
+[Unit]
+Description=TrackingDRS: VPN-Auftrag aus dem Lehrerbereich
+
+[Path]
+PathExists=/var/lib/trackingdrs/vpn/anfrage.json
+Unit=trackingdrs-vpn-anfrage.service
+
+[Install]
+WantedBy=multi-user.target

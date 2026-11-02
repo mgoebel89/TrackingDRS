@@ -11,6 +11,8 @@
 #                                (laeuft auch taeglich, der Lehrerbereich warnt rot, wenn etwas durchkommt)
 #   trackingdrs vpn server       den Block fuer die Server-Config noch einmal zeigen
 #   trackingdrs vpn aus          Verbindung beenden und beim Start nicht mehr aufbauen (Schluessel und Config bleiben)
+#   trackingdrs-vpn anfrage      Auftrag aus dem Lehrerbereich (Einstellungen -> VPN) ausfuehren; startet systemd
+#                                (trackingdrs-vpn-anfrage.path), Ergebnis in /var/lib/trackingdrs-vpn
 #
 # Ohne Rueckfragen:
 #   trackingdrs vpn einrichten --server vpn.example.de:51820 --server-schluessel <44 Zeichen> --adresse 10.8.0.20 \
@@ -25,6 +27,8 @@ CONF=$WG/wg0.conf
 SCHLUESSEL=$WG/trackingdrs.key
 TLS_IPS=/etc/trackingdrs/tls-ips
 REPO=/opt/trackingdrs
+ANFRAGE=/var/lib/trackingdrs/vpn/anfrage.json
+STAND=/var/lib/trackingdrs-vpn
 
 [ "$(id -u)" = 0 ] || { echo "Bitte als root ausfuehren."; exit 1; }
 
@@ -70,6 +74,46 @@ Dann hier pruefen: trackingdrs vpn status
 EOF
 }
 
+info_ablegen() {   # info_ablegen <aktiv 0|1> [<Schnittstelle auf dem VPS>]: Oeffentliches fuer den Lehrerbereich
+  [ -s "$SCHLUESSEL" ] && [ -r "$CONF" ] || return 0
+  (cd "$REPO" && python3 -m app.vpn info-ablegen "$(wg pubkey < "$SCHLUESSEL")" "$1" "${2:-}") || true
+}
+
+anfrage() {   # Auftrag aus dem Lehrerbereich: lesen (dabei geloescht und geprueft), ausfuehren, Ergebnis ablegen
+  local zeile aktion server schl adresse netze server_ip server_if beginn ergebnis=ok
+  export TZ=Europe/Berlin
+  umask 022
+  install -d -o root -g root -m 755 "$STAND"
+  beginn=$(date '+%Y-%m-%dT%H:%M:%S')
+  if ! zeile=$(cd "$REPO" && python3 -m app.vpn anfrage-lesen "$ANFRAGE" 2>&1); then
+    printf '%s\n' "$zeile" > "$STAND/protokoll.txt"
+    lauf_schreiben "?" "$beginn" fehler
+    return 1
+  fi
+  IFS='|' read -r aktion server schl adresse netze server_ip server_if <<< "$zeile"
+  lauf_schreiben "$aktion" "$beginn" ""
+  {
+    echo "== $beginn $aktion (aus dem Lehrerbereich)"
+    case "$aktion" in
+      einrichten) "$0" einrichten --server "$server" --server-schluessel "$schl" --adresse "$adresse" --netze "$netze" \
+                    --server-ip "$server_ip" --server-if "$server_if" ;;
+      sperrtest) "$0" status ;;
+      aus) "$0" aus ;;
+    esac
+  } < /dev/null > "$STAND/protokoll.neu" 2>&1 || ergebnis=fehler
+  chmod 644 "$STAND/protokoll.neu"
+  mv -f "$STAND/protokoll.neu" "$STAND/protokoll.txt"
+  lauf_schreiben "$aktion" "$beginn" "$ergebnis"
+}
+
+lauf_schreiben() {   # lauf_schreiben <aktion> <beginn> <ergebnis, leer = laeuft noch>
+  local ende=null erg=null
+  [ -n "$3" ] && { ende="\"$(date '+%Y-%m-%dT%H:%M:%S')\""; erg="\"$3\""; }
+  printf '{"aktion": "%s", "beginn": "%s", "ende": %s, "ergebnis": %s}\n' "$1" "$2" "$ende" "$erg" > "$STAND/lauf.neu"
+  chmod 644 "$STAND/lauf.neu"
+  mv -f "$STAND/lauf.neu" "$STAND/lauf.json"
+}
+
 sperrtest() {   # sperrtest [--leise]: Ergebnis auch fuer den Lehrerbereich ablegen
   (cd "$REPO" && python3 -m app.vpn sperrtest "$@")
 }
@@ -92,7 +136,7 @@ testen() {   # testen <Server-IP>: wartet kurz auf den ersten Handshake
 }
 
 einrichten() {
-  local server="" schl="" adresse="" netze="" server_ip=""
+  local server="" schl="" adresse="" netze="" server_ip="" server_if=""
   while [ $# -gt 0 ]; do
     case "$1" in
       --server) server=$2; shift 2 ;;
@@ -100,6 +144,7 @@ einrichten() {
       --adresse) adresse=$2; shift 2 ;;
       --netze) netze=$2; shift 2 ;;
       --server-ip) server_ip=$2; shift 2 ;;
+      --server-if) server_if=$2; shift 2 ;;   # nur fuer die Befehle im Lehrerbereich (Name der Schnittstelle auf dem VPS)
       *) fehler "Unbekannte Option $1" ;;
     esac
   done
@@ -167,6 +212,7 @@ EOF
   echo "==> Verbindung starten"
   systemctl enable -q wg-quick@wg0
   systemctl restart wg-quick@wg0
+  info_ablegen 1 "$server_if"
   if testen "$server_ip"; then echo; sperrtest || true; fi
   server_block
   echo "Von zuhause (ueber das VPN) dann: https://$adresse"
@@ -188,6 +234,8 @@ case "${1:-}" in
   sperrtest) shift; sperrtest "$@" ;;
   server) server_block ;;
   aus) systemctl disable --now wg-quick@wg0 2>/dev/null || true; sperrtest --leise >/dev/null 2>&1 || true
-       echo "VPN aus. Wieder an: trackingdrs vpn einrichten" ;;
-  *) sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+       info_ablegen 0
+       echo "VPN aus. Wieder an: trackingdrs vpn einrichten (oder im Lehrerbereich unter Einstellungen -> VPN)" ;;
+  anfrage) anfrage ;;
+  *) sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
 esac

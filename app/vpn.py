@@ -7,6 +7,11 @@ Aufruf aus deploy/vpn.sh (als root, im Repo-Ordner):
     Versucht ueber das VPN den Server, das Heimnetz und andere Teilnehmer zu erreichen (Ping und einige TCP-Ports).
     Mit der Sperre auf dem Server (vps/sperre.sh) muss alles scheitern. Ergebnis nach <VPN_DIR>/sperrtest.json,
     das der Lehrerbereich anzeigt (rote Warnung, wenn etwas durchkommt). Exit 0 dicht/aus, 2 offen, 1 sonst.
+  python3 -m app.vpn anfrage-lesen <datei>
+    Auftrag aus dem Lehrerbereich lesen, loeschen, pruefen. Ausgabe: aktion|server|schluessel|adresse|netze|server-ip|
+    server-if (bei sperrtest/aus nur die Aktion).
+  python3 -m app.vpn info-ablegen <oeffentlicher schluessel des containers> <aktiv 0|1> [<schnittstelle auf dem server>]
+    Oeffentliche Angaben fuer den Lehrerbereich nach <VPN_DIR>/einrichtung.json.
 """
 import base64
 import concurrent.futures
@@ -17,6 +22,7 @@ import json
 import os
 import re
 import socket
+import stat
 import subprocess
 import sys
 
@@ -157,22 +163,30 @@ def sperrtest(text, handshake=_handshake_alter, pruefe=proben):
     return dict(erg, ergebnis="offen" if erg["durch"] else "dicht")
 
 
-def ablegen(erg, ordner=None):
+def _schreiben(name, daten, ordner=None):
     ordner = ordner or VPN_DIR
     os.makedirs(ordner, mode=0o755, exist_ok=True)
-    pfad = os.path.join(ordner, "sperrtest.json")
+    pfad = os.path.join(ordner, name)
     with open(pfad + ".neu", "w", encoding="utf-8") as f:
-        json.dump(erg, f, ensure_ascii=False, indent=1)
+        json.dump(daten, f, ensure_ascii=False, indent=1)
     os.chmod(pfad + ".neu", 0o644)
     os.replace(pfad + ".neu", pfad)
 
 
-def stand():
+def _lesen(name):
     try:
-        with open(os.path.join(VPN_DIR, "sperrtest.json"), encoding="utf-8") as f:
+        with open(os.path.join(VPN_DIR, name), encoding="utf-8") as f:
             return json.load(f)
     except (OSError, ValueError):
         return None
+
+
+def ablegen(erg, ordner=None):
+    _schreiben("sperrtest.json", erg, ordner)
+
+
+def stand():
+    return _lesen("sperrtest.json")
 
 
 def kurz():
@@ -186,6 +200,148 @@ def kurz():
         alt = True
     return {"ergebnis": s.get("ergebnis"), "zeit": s["zeit"], "durch": s.get("durch") or [], "ziele": s.get("ziele") or [],
             "adresse": s.get("adresse"), "alt": alt}
+
+
+# --- Einrichten aus dem Lehrerbereich ---
+# Der Webdienst darf nichts einrichten (eigener Benutzer). Er prueft die Angaben und legt <daten>/vpn/anfrage.json ab;
+# trackingdrs-vpn-anfrage.path startet daraufhin als root "trackingdrs-vpn anfrage". Das liest die Datei (ohne einem
+# Symlink zu folgen), loescht sie, prueft die Angaben noch einmal und fuehrt den Auftrag aus. Ergebnisse in VPN_DIR:
+# lauf.json, protokoll.txt und einrichtung.json (nur Oeffentliches: Adressen, oeffentliche Schluessel, wg0.conf ohne
+# Schluessel). Den privaten Schluessel des Containers sieht die Seite nie, einen privaten Schluessel nimmt sie nie an.
+
+EINHEIT = os.environ.get("TRACKINGDRS_VPN_EINHEIT", "/etc/systemd/system/trackingdrs-vpn-anfrage.path")
+AKTIONEN = ("einrichten", "sperrtest", "aus")
+SCHNITTSTELLE = re.compile(r"[A-Za-z0-9_.=-]{1,15}")
+LAUF_MAX = datetime.timedelta(minutes=10)   # haengt ein Auftrag laenger, darf ein neuer kommen
+
+
+def _anfrage_pfad(daten_dir):
+    return os.path.join(daten_dir, "vpn", "anfrage.json")
+
+
+def server_text(host, port):
+    """Adresse und Port aus dem Formular -> host:port ([v6]:port)."""
+    host = str(host or "").strip()
+    if ":" in host and not host.startswith("["):
+        host = "[%s]" % host
+    return "%s:%s" % (host, str(port or "").strip() or "51820")
+
+
+def angaben_pruefen(d, lokal=()):
+    """Auftrag aus dem Formular oder der Anfrage-Datei -> bereinigtes dict, sonst VpnFehler."""
+    aktion = d.get("aktion")
+    if aktion not in AKTIONEN:
+        raise VpnFehler("Unbekannte Aktion.")
+    if aktion != "einrichten":
+        return {"aktion": aktion}
+    server = str(d.get("server") or "").strip()
+    schluessel = str(d.get("schluessel") or "").strip()
+    adresse, netze, server_ip = pruefen(server, schluessel, str(d.get("adresse") or ""), str(d.get("netze") or ""),
+                                        str(d.get("server_ip") or ""), lokal)
+    schnitt = str(d.get("server_if") or "").strip() or "wg0"
+    if not SCHNITTSTELLE.fullmatch(schnitt):
+        raise VpnFehler("Name der WireGuard-Schnittstelle auf dem Server bitte wie in /etc/wireguard, z. B. wg0.")
+    return {"aktion": aktion, "server": server, "schluessel": schluessel, "adresse": adresse, "netze": " ".join(netze),
+            "server_ip": server_ip, "server_if": schnitt}
+
+
+def eingerichtet():
+    return os.path.exists(EINHEIT)
+
+
+def _protokoll():
+    try:
+        with open(os.path.join(VPN_DIR, "protokoll.txt"), encoding="utf-8", errors="replace") as f:
+            return "".join(f.readlines()[-200:])
+    except OSError:
+        return ""
+
+
+def _laeuft(lauf):
+    if not lauf or not lauf.get("beginn") or lauf.get("ende"):
+        return False
+    try:
+        return datetime.datetime.fromisoformat(db.jetzt()) - datetime.datetime.fromisoformat(lauf["beginn"]) < LAUF_MAX
+    except ValueError:
+        return False
+
+
+def web_stand(daten_dir):
+    lauf = _lesen("lauf.json")
+    return {"eingerichtet": eingerichtet(), "einrichtung": _lesen("einrichtung.json"), "sperrtest": kurz(), "lauf": lauf,
+            "laeuft": _laeuft(lauf), "wartet": os.path.exists(_anfrage_pfad(daten_dir)), "protokoll": _protokoll()}
+
+
+def anfordern(daten_dir, daten):
+    if not eingerichtet():
+        raise VpnFehler("Das VPN lässt sich über die Seite nur im Container einrichten (nach dem nächsten Update über "
+                        "die Konsole).")
+    s = web_stand(daten_dir)
+    if s["laeuft"] or s["wartet"]:
+        raise VpnFehler("Es läuft schon ein Auftrag. Bitte kurz warten.")
+    d = dict(daten)
+    if d.get("aktion") == "einrichten":
+        d["server"] = server_text(d.get("server"), d.get("port"))
+    try:
+        lokal = eigene_netze()
+    except (OSError, ValueError):
+        lokal = []   # root prueft ohnehin noch einmal
+    angaben = dict(angaben_pruefen(d, lokal), zeit=db.jetzt())
+    pfad = _anfrage_pfad(daten_dir)
+    os.makedirs(os.path.dirname(pfad), exist_ok=True)
+    with open(pfad + ".neu", "w", encoding="utf-8") as f:
+        json.dump(angaben, f)
+    os.replace(pfad + ".neu", pfad)
+    return angaben
+
+
+def anfrage_lesen(pfad):
+    """Als root: Anfrage-Datei lesen und loeschen. Kein Symlink, nur eine kleine regulaere Datei."""
+    try:
+        fd = os.open(pfad, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+    except OSError:
+        raise VpnFehler("Keine Anfrage gefunden.") from None
+    try:
+        roh = os.read(fd, 8192) if stat.S_ISREG(os.fstat(fd).st_mode) else b""
+    finally:
+        os.close(fd)
+        try:
+            os.unlink(pfad)
+        except OSError:
+            pass
+    try:
+        d = json.loads(roh.decode("utf-8"))
+    except ValueError:
+        raise VpnFehler("Die Anfrage ist unlesbar.") from None
+    if not isinstance(d, dict):
+        raise VpnFehler("Die Anfrage ist unlesbar.")
+    return angaben_pruefen(d, eigene_netze())
+
+
+def _oeffentlicher_schluessel(text):
+    try:
+        if len(base64.b64decode((text or "").strip(), validate=True)) == 32:
+            return text.strip()
+    except ValueError:
+        pass
+    raise VpnFehler("Öffentlicher Schlüssel des Containers ungültig.")
+
+
+def info_ablegen(container_schluessel, aktiv, server_if=None):
+    """Als root nach dem Einrichten/Ausschalten: was die Seite fuer Peer-Block und VPS-Befehle braucht."""
+    with open(KONF, encoding="utf-8") as f:
+        text = f.read()
+    adresse, netze, server_ip = konf_lesen(text)
+    werte = dict(re.findall(r"^\s*(Endpoint|PublicKey)\s*=\s*(\S+)", text, re.M))
+    alt = _lesen("einrichtung.json") or {}
+    konf = "\n".join(z for z in text.splitlines() if not z.strip().lower().startswith("privatekey")) + "\n"
+    info = {"zeit": db.jetzt(), "aktiv": bool(aktiv), "name": socket.gethostname().split(".")[0],
+            "adresse": str(adresse), "netze": [str(n) for n in netze], "server_ip": str(server_ip) if server_ip else None,
+            "server": werte.get("Endpoint"), "server_schluessel": werte.get("PublicKey"),
+            "container_schluessel": _oeffentlicher_schluessel(container_schluessel),
+            "server_if": server_if or alt.get("server_if") or "wg0", "konf": konf}
+    _schreiben("einrichtung.json", info)
+    return info
 
 
 TEXTE = {
@@ -224,6 +380,17 @@ def _sperrtest_main(leise):
 def main(argv):
     if argv[:1] == ["sperrtest"]:
         return _sperrtest_main("--leise" in argv)
+    try:
+        if argv[:1] == ["anfrage-lesen"] and len(argv) == 2:
+            a = anfrage_lesen(argv[1])
+            print("|".join(a.get(k, "") for k in ("aktion", "server", "schluessel", "adresse", "netze", "server_ip", "server_if")))
+            return 0
+        if argv[:1] == ["info-ablegen"] and len(argv) in (3, 4):
+            info_ablegen(argv[1], argv[2] == "1", argv[3] if len(argv) == 4 and argv[3] else None)
+            return 0
+    except (VpnFehler, OSError, KeyError, ValueError) as f:
+        print("Fehler: %s" % f, file=sys.stderr)
+        return 1
     if len(argv) < 5 or argv[0] != "pruefen":
         print(__doc__)
         return 1

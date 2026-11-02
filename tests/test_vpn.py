@@ -1,14 +1,18 @@
 """Tests fuer "trackingdrs vpn einrichten": Angaben aus der Server-Config pruefen (app/vpn.py) und Firewall auf wg0."""
 import io
 import ipaddress
+import json
+import os
 import pathlib
 import shutil
 import socket
 import tempfile
+import threading
 import unittest
+import http.client
 from unittest import mock
 
-from app import vpn
+from app import db, konten, server, vpn
 
 SCHLUESSEL = "xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg="   # Beispiel aus der WireGuard-Doku (oeffentlich)
 SCHULE = [("eth0", ipaddress.IPv4Network("192.168.0.0/16"))]
@@ -110,6 +114,129 @@ class Sperrtest(unittest.TestCase):
         with mock.patch.object(socket, "create_connection") as verbindung:
             self.assertTrue(vpn._tcp("10.8.0.1", 22))
             verbindung.return_value.close.assert_called_once()
+
+
+class AusDerOberflaeche(unittest.TestCase):
+    """Auftraege aus dem Lehrerbereich: Webdienst prueft und legt ab, root liest, prueft erneut und loescht."""
+
+    def setUp(self):
+        self.ordner = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.ordner, True)
+        self.daten = os.path.join(self.ordner, "daten")
+        self.einheit = os.path.join(self.ordner, "trackingdrs-vpn-anfrage.path")
+        self.konf = os.path.join(self.ordner, "wg0.conf")
+        for name, wert in (("VPN_DIR", os.path.join(self.ordner, "stand")), ("EINHEIT", self.einheit), ("KONF", self.konf)):
+            p = mock.patch.object(vpn, name, wert)
+            p.start()
+            self.addCleanup(p.stop)
+        p = mock.patch.object(vpn, "eigene_netze", return_value=SCHULE)
+        p.start()
+        self.addCleanup(p.stop)
+        self.formular = {"aktion": "einrichten", "server": "203.0.113.5", "port": "51820", "schluessel": SCHLUESSEL,
+                         "adresse": "10.8.0.20", "server_ip": "", "netze": "", "server_if": "wg0"}
+
+    def test_server_text(self):
+        self.assertEqual(vpn.server_text(" vpn.example.de ", ""), "vpn.example.de:51820")
+        self.assertEqual(vpn.server_text("2001:db8::1", "443"), "[2001:db8::1]:443")
+        self.assertEqual(vpn.server_text("[2001:db8::1]", "443"), "[2001:db8::1]:443")
+
+    def test_anfrage_hin_und_zurueck(self):
+        with self.assertRaises(vpn.VpnFehler):   # ohne Container (Units fehlen)
+            vpn.anfordern(self.daten, self.formular)
+        open(self.einheit, "w").close()
+        for falsch, hinweis in ((dict(self.formular, schluessel="geheim"), "44 Zeichen"),
+                                (dict(self.formular, server_if="wg0; rm -rf /"), "Schnittstelle"),
+                                (dict(self.formular, netze="10.8.0.0/24 192.168.7.0/24"), "eth0"),
+                                ({"aktion": "loeschen"}, "Unbekannte")):
+            with self.subTest(hinweis=hinweis), self.assertRaises(vpn.VpnFehler) as f:
+                vpn.anfordern(self.daten, falsch)
+            self.assertIn(hinweis, str(f.exception))
+        vpn.anfordern(self.daten, self.formular)
+        self.assertTrue(vpn.web_stand(self.daten)["wartet"])
+        with self.assertRaises(vpn.VpnFehler):   # nicht zwei Auftraege auf einmal
+            vpn.anfordern(self.daten, {"aktion": "sperrtest"})
+        pfad = os.path.join(self.daten, "vpn", "anfrage.json")
+        self.assertEqual(vpn.anfrage_lesen(pfad), {"aktion": "einrichten", "server": "203.0.113.5:51820", "schluessel": SCHLUESSEL,
+                                                    "adresse": "10.8.0.20", "netze": "10.8.0.0/24", "server_ip": "10.8.0.1",
+                                                    "server_if": "wg0"})
+        self.assertFalse(os.path.exists(pfad))   # gelesen = geloescht
+        with self.assertRaises(vpn.VpnFehler):
+            vpn.anfrage_lesen(pfad)
+
+    def test_root_prueft_die_datei_noch_einmal(self):
+        pfad = os.path.join(self.ordner, "anfrage.json")
+        with open(pfad, "w", encoding="utf-8") as f:   # so koennte sie aussehen, wenn jemand den Webdienst uebernimmt
+            json.dump(dict(self.formular, server="x:1\nPostUp = rm -rf /"), f)
+        with self.assertRaises(vpn.VpnFehler):
+            vpn.anfrage_lesen(pfad)
+        self.assertFalse(os.path.exists(pfad))
+        with open(pfad, "w") as f:
+            f.write("{kaputt")
+        with self.assertRaises(vpn.VpnFehler):
+            vpn.anfrage_lesen(pfad)
+
+    def test_info_fuer_die_seite(self):
+        with open(self.konf, "w", encoding="utf-8") as f:
+            f.write(KONF + "PrivateKey = darf-nie-auf-die-seite\n")
+        info = vpn.info_ablegen(SCHLUESSEL, True, "wg1")
+        self.assertEqual((info["adresse"], info["server"], info["server_schluessel"], info["container_schluessel"], info["server_if"]),
+                         ("10.8.0.20", "vpn.example.de:51820", SCHLUESSEL, SCHLUESSEL, "wg1"))
+        self.assertNotIn("darf-nie", info["konf"])
+        self.assertEqual(vpn.info_ablegen(SCHLUESSEL, False)["server_if"], "wg1")   # bleibt beim Ausschalten
+        self.assertFalse(vpn.web_stand(self.daten)["einrichtung"]["aktiv"])
+        with self.assertRaises(vpn.VpnFehler):
+            vpn.info_ablegen("kein schluessel", True)
+
+    def test_haengender_auftrag_blockiert_nicht_ewig(self):
+        vpn._schreiben("lauf.json", {"aktion": "einrichten", "beginn": "2020-01-01T10:00:00", "ende": None, "ergebnis": None})
+        self.assertFalse(vpn.web_stand(self.daten)["laeuft"])
+        vpn._schreiben("lauf.json", {"aktion": "einrichten", "beginn": db.jetzt(), "ende": None, "ergebnis": None})
+        self.assertTrue(vpn.web_stand(self.daten)["laeuft"])
+
+
+class Api(unittest.TestCase):
+    def setUp(self):
+        self.ordner = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.ordner, True)
+        einheit = os.path.join(self.ordner, "einheit.path")
+        open(einheit, "w").close()
+        for name, wert in (("VPN_DIR", os.path.join(self.ordner, "stand")), ("EINHEIT", einheit)):
+            p = mock.patch.object(vpn, name, wert)
+            p.start()
+            self.addCleanup(p.stop)
+        p = mock.patch.object(vpn, "eigene_netze", return_value=SCHULE)
+        p.start()
+        self.addCleanup(p.stop)
+        con = db.oeffnen(self.ordner)
+        konten.anlegen(con, "gob", "M. Göbel", "admin", "geheim123", vorlaeufig=False)
+        konten.anlegen(con, "abc", "A. Beispiel", "lehrkraft", "geheim456", vorlaeufig=False)
+        self.cookies = {k: "tdrs=" + konten.anmelden(con, k, pw)[0] for k, pw in (("gob", "geheim123"), ("abc", "geheim456"))}
+        con.commit()
+        con.close()
+        self.srv = server.HTTPServer(("127.0.0.1", 0), server.Handler, os.path.join(self.ordner, "trackingdrs.sqlite"))
+        threading.Thread(target=self.srv.serve_forever, daemon=True).start()
+        self.addCleanup(self.srv.server_close)
+        self.addCleanup(self.srv.shutdown)
+
+    def post(self, daten, wer="gob"):
+        v = http.client.HTTPConnection("127.0.0.1", self.srv.server_address[1], timeout=10)
+        v.request("POST", "/api/vpn", body=json.dumps(daten).encode(), headers={
+            "X-TrackingDRS": "1", "Content-Type": "application/json", "Cookie": self.cookies[wer]})
+        a = v.getresponse()
+        d = json.loads(a.read())
+        v.close()
+        return a.status, d
+
+    def test_einrichten_nur_admin_mit_passwort(self):
+        formular = {"aktion": "einrichten", "server": "203.0.113.5", "port": "51820", "schluessel": SCHLUESSEL, "adresse": "10.8.0.20"}
+        self.assertEqual(self.post(dict(formular, passwort="geheim456"), "abc")[0], 403)
+        status, d = self.post(dict(formular, passwort="falsch"))
+        self.assertEqual((status, d["fehler"]), (400, "Das Passwort stimmt nicht."))
+        status, d = self.post(dict(formular, passwort="geheim123"))
+        self.assertEqual(status, 200, d)
+        self.assertTrue(d["wartet"])
+        with open(os.path.join(self.ordner, "vpn", "anfrage.json"), encoding="utf-8") as f:
+            self.assertNotIn("passwort", f.read())   # das Passwort landet nie in der Anfrage
 
 
 class Firewall(unittest.TestCase):

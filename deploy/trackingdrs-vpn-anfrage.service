@@ -1,0 +1,10 @@
+# VPN einrichten, pruefen oder ausschalten im Auftrag des Lehrerbereichs (als root, siehe deploy/vpn.sh "anfrage").
+[Unit]
+Description=TrackingDRS: VPN-Auftrag ausfuehren
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/trackingdrs-vpn anfrage
+TimeoutStartSec=5min

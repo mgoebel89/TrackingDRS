@@ -72,6 +72,13 @@ auf dem Server (`AllowedIPs` nur die eine Adresse). Über das VPN ist nur HTTPS 
 Zertifikat; liegt sie außerhalb des Schulnetzes, entsteht dabei einmalig eine neue Zertifizierungsstelle (Stamm-
 zertifikat auf den Geräten neu installieren). Darum das VPN am besten vor dem Verteilen des Zertifikats einrichten.
 
+**VPN ohne Konsole:** Dasselbe geht unter *Einstellungen → VPN* (nur Admins, mit dem eigenen Passwort bestätigt):
+Adresse und Port des VPS, sein öffentlicher Schlüssel und die VPN-Adresse eingeben. Danach zeigt die Seite die
+Erweiterung für die Server-Config, die Befehle für den VPS zum Kopieren (eintragen, Sperre, Kontrolle) und die
+Config des Containers; *Verbindung prüfen* testet sofort. Wie beim Update legt der Webdienst nur einen Auftrag in
+`/var/lib/trackingdrs/vpn` ab, `trackingdrs-vpn-anfrage.path` startet `trackingdrs-vpn anfrage` als root, das die
+Angaben noch einmal prüft. Private Schlüssel nimmt die Seite nie an und zeigt sie nie.
+
 **Sperre auf dem VPN-Server:** Damit der Container über das VPN nichts erreicht (auch nicht, wenn ihn jemand als root
 übernimmt), kommt auf den Server einmalig `vps/sperre.sh`:
 

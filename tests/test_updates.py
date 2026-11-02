@@ -99,7 +99,7 @@ class Skripte(unittest.TestCase):
 
     def test_einheiten_vollstaendig(self):
         install = (DEPLOY / "install.sh").read_text(encoding="utf-8")
-        for einheit in [*DEPLOY.glob("trackingdrs-update-*"), *DEPLOY.glob("trackingdrs-sperrtest.*")]:
+        for einheit in [*DEPLOY.glob("trackingdrs-update-*"), *DEPLOY.glob("trackingdrs-sperrtest.*"), *DEPLOY.glob("trackingdrs-vpn-anfrage.*")]:
             with self.subTest(einheit=einheit.name):
                 self.assertIn(einheit.name, install)
         self.assertIn("/var/lib/trackingdrs/update/ausfuehren", (DEPLOY / "trackingdrs-update-ausfuehren.path").read_text(encoding="utf-8"))
