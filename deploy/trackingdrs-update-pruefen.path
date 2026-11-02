@@ -1,0 +1,10 @@
+# Knopf "Jetzt pruefen" im Lehrerbereich: der Webdienst legt /var/lib/trackingdrs/update/pruefen an.
+[Unit]
+Description=TrackingDRS: Pruefung auf Knopfdruck
+
+[Path]
+PathExists=/var/lib/trackingdrs/update/pruefen
+Unit=trackingdrs-update-pruefen.service
+
+[Install]
+WantedBy=multi-user.target

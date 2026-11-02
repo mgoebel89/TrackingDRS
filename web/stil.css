@@ -71,6 +71,7 @@ label.feld > span.hilfe { font-weight: 400; }
   background: var(--knopf); border: 1px solid var(--linie); white-space: nowrap; }
 .chip.blau { background: var(--blau-hell); border-color: var(--blau-mittel); color: var(--blau); }
 .chip.rot { background: var(--rot-hell); border-color: #f0b7cf; color: var(--rot); }
+.chip.gruen { background: #f2f7d9; border-color: #d4e08a; color: #5c6a00; }
 .etikett { font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; font-weight: 700; color: var(--leise); }
 table.liste { width: 100%; border-collapse: collapse; font-size: .92em; }
 table.liste th { text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .07em; color: var(--leise); font-weight: 700;
@@ -595,6 +596,13 @@ body.bericht-seite { background: #fff; }
 .nav-zahl { margin-left: auto; min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--knopf); font-size: .75em; text-align: center; }
 .nav-zahl.neu { background: var(--rot); color: #fff; }
 .glocke button.an { color: var(--blau); background: var(--blau-hell); }
+.update-hinweis { display: block; padding: 10px 14px; border-radius: var(--r); background: var(--blau-hell); color: var(--blau); font-weight: 600; text-decoration: none; }
+.update-hinweis:hover { background: var(--blau); color: #fff; }
+.update-neu { padding: 10px 12px; border: 1px solid var(--blau-mittel); border-radius: var(--r); background: var(--blau-hell); }
+.update-liste { margin: 0; padding-left: 18px; display: grid; gap: 2px; font-size: .92em; }
+.update-laeuft { color: var(--blau); font-weight: 600; }
+.update-protokoll { max-height: 260px; overflow: auto; margin: 0; padding: 8px 10px; background: var(--knopf); border-radius: var(--r);
+  font-family: var(--mono); font-size: .78rem; white-space: pre-wrap; }
 @media (max-width: 900px) {
   .eingang { grid-template-columns: minmax(0, 1fr); }
   .eingang.mit-detail .vg-links { display: none; }

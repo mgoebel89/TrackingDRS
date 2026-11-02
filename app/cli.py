@@ -4,12 +4,13 @@
   trackingdrs konten                      alle Lehrkraft-Konten auflisten
   trackingdrs admin <kuerzel> <name...>   Admin-Konto mit vorlaeufigem Passwort anlegen (Notfall)
   trackingdrs passwort <kuerzel>          vorlaeufiges Passwort setzen und Konto entsperren (Notfall)
+  trackingdrs sicherung                   Sicherung (ZIP) nach /var/lib/trackingdrs/sicherungen (vor jedem Update)
 """
 import os
 import secrets
 import sys
 
-from . import db, konten
+from . import db, konten, updates
 
 
 def _vorlaeufig():
@@ -17,7 +18,8 @@ def _vorlaeufig():
 
 
 def main(argv):
-    con = db.oeffnen(os.environ.get("TRACKINGDRS_DATEN", "/var/lib/trackingdrs"))
+    daten_dir = os.environ.get("TRACKINGDRS_DATEN", "/var/lib/trackingdrs")
+    con = db.oeffnen(daten_dir)
     befehl = argv[0] if argv else ""
     if befehl == "einrichtungscode":
         code = konten.einrichtungscode(con)
@@ -40,6 +42,8 @@ def main(argv):
             konten.passwort_setzen(con, zeile[0], pw, vorlaeufig=True)
             con.execute("UPDATE lehrkraft SET gesperrt = 0 WHERE id = ?", (zeile[0],))
         print("Vorläufiges Passwort für %s: %s (muss bei der nächsten Anmeldung geändert werden)" % (argv[1].lower(), pw))
+    elif befehl == "sicherung":
+        print("Sicherung angelegt: %s" % updates.sicherung_ablegen(con, daten_dir))
     else:
         print(__doc__)
         return 1

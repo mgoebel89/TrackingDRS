@@ -24,7 +24,7 @@ import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from . import (VERSION, anfragen, besprechung, bestellung, cockpit, db, einstellungen, export, extras, kalender, konten, projekte,
-               sheet, tafel, termine)
+               sheet, tafel, termine, updates)
 
 BASIS = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WEB_DIR = os.path.join(BASIS, "web")
@@ -196,7 +196,7 @@ class Handler(BaseHTTPRequestHandler):
             raise Fehler(404, "Nicht gefunden.")
         except Fehler as f:
             self.antwort(f.status, {"fehler": f.meldung})
-        except (konten.KontoFehler, projekte.ProjektFehler, einstellungen.EinstellungFehler) as f:
+        except (konten.KontoFehler, projekte.ProjektFehler, einstellungen.EinstellungFehler, updates.UpdateFehler) as f:
             self.antwort(400, {"fehler": str(f)})
         except (BrokenPipeError, ConnectionResetError, ssl.SSLError, socket.timeout):
             pass
@@ -293,7 +293,9 @@ def api_abmelden(h, con, daten):
 
 def api_ich(h, con, daten):
     # Team-Links gehen ueber HTTP (team_port), solange der Lehrerbereich ueber HTTPS laeuft
-    h.antwort(200, {"konto": h.konto(con, vorlaeufig_ok=True), "team_port": HTTP_PORT if h.server.ist_tls else None})
+    k = h.konto(con, vorlaeufig_ok=True)
+    h.antwort(200, {"konto": k, "team_port": HTTP_PORT if h.server.ist_tls else None,
+                    "update": updates.kurz() if k["rolle"] == "admin" else None})
 
 
 def api_passwort(h, con, daten):
@@ -885,6 +887,25 @@ def api_bericht(h, con, daten, pid):
     h.antwort(200, {"bericht": export.bericht(con, pid, _abfrage(h, "notizen") == "1")})
 
 
+def api_update(h, con, daten):
+    _admin(h, con)
+    h.antwort(200, updates.stand(_daten_dir(h)))
+
+
+def api_update_anfordern(h, con, daten):
+    a = _admin(h, con)
+    updates.anfordern(_daten_dir(h), daten.get("aktion"))
+    print("Update: %s angefordert von %s" % (daten.get("aktion"), a["kuerzel"]), flush=True)
+    h.antwort(200, updates.stand(_daten_dir(h)))
+
+
+def api_update_sicherung(h, con, daten, name):
+    _admin(h, con)
+    with open(updates.sicherung_pfad(_daten_dir(h), name), "rb") as f:
+        inhalt = f.read()
+    h.antwort(200, inhalt, "application/zip", extra=[("Content-Disposition", 'attachment; filename="trackingdrs-%s"' % name)])
+
+
 def api_sicherung(h, con, daten):
     a = _admin(h, con)
     pfad = extras.sicherung(con, _daten_dir(h))
@@ -1044,6 +1065,9 @@ ROUTEN = [(m, re.compile(p), f) for m, p, f in [
     ("POST", r"/api/projekte/archivieren-schuljahr", api_archivieren_schuljahr),
     ("POST", r"/api/vorlagen/(eigen-\d+)/entfernen", api_vorlage_entfernen),
     ("GET", r"/api/sicherung\.zip", api_sicherung),
+    ("GET", r"/api/update", api_update),
+    ("POST", r"/api/update", api_update_anfordern),
+    ("GET", r"/api/update/sicherung/(vor-update-[0-9_-]+\.zip)", api_update_sicherung),
     ("POST", r"/api/projekte/(\d+)/bestellung", api_bestellung_pruefen),
     ("GET", r"/api/anfragen", api_anfragen),
     ("GET", r"/api/vorgaenge", api_vorgaenge),

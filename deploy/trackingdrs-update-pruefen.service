@@ -1,0 +1,10 @@
+# Nach einer neuen TrackingDRS-Version suchen (taeglich per Timer und auf Knopfdruck im Lehrerbereich).
+[Unit]
+Description=TrackingDRS: nach neuer Version suchen
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/trackingdrs-selbstupdate pruefen
+TimeoutStartSec=5min

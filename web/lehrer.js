@@ -35,6 +35,7 @@ async function start() {
     const ich = await T.api('GET', '/api/ich');
     S.konto = ich.konto;
     S.teamPort = ich.team_port;
+    S.update = ich.update;
   } catch (e) {
     if (e.status === 401) { location.replace('/anmelden'); return; }
     fehlerZeigen(e);
@@ -42,6 +43,7 @@ async function start() {
   }
   document.getElementById('wer').textContent = S.konto.name + ' · ' + S.konto.kuerzel.toUpperCase();
   document.querySelectorAll('[data-admin]').forEach(e => { e.hidden = S.konto.rolle !== 'admin'; });
+  updateMarke();
   document.getElementById('abmelden').addEventListener('click', async () => {
     try { await T.api('POST', '/api/abmelden', {}); } finally { location.href = '/anmelden'; }
   });
@@ -713,11 +715,110 @@ async function einstellungenZeigen() {
           try { await T.api('POST', '/api/vorlagen/' + v.schluessel + '/entfernen', {}); S.vorlagen = null; T.meldung('Vorlage entfernt.'); zeigen(); }
           catch (e) { T.meldung(e.message, true); }
         } }, 'Entfernen') : el('span', { class: 'chip', text: 'mitgeliefert' })))),
+    updateKarte(),
     el('section', { class: 'karte stapel-eng' },
       el('h2', { class: 'dreieck', text: 'Sicherung' }),
       el('p', { class: 'leise', text: 'ZIP mit Datenbank, Fotos, Mindmaps und Logo (ohne Zertifikate). Zusätzlich sichert Proxmox den ganzen Container. ' +
         'Die ZIP enthält personenbezogene Daten: sicher aufbewahren.' }),
       el('div', {}, el('a', { class: 'knopf haupt', href: '/api/sicherung.zip', download: '' }, 'Sicherung herunterladen'))));
+}
+
+// --- Version und Update (nur Admins) ---
+// Pruefen und Installieren laufen als root ueber systemd (deploy/selbstupdate.sh); die Seite legt nur eine Anfrage ab
+// und liest das Ergebnis. Waehrend des Updates startet der Dienst neu: die Karte fragt weiter, bis er wieder antwortet.
+
+function updateMarke() {
+  const link = document.querySelector('nav.seite a[data-ansicht="einstellungen"]');
+  if (!link) return;
+  let b = link.querySelector('.nav-zahl');
+  if (!b) { b = el('span', { class: 'nav-zahl neu' }); link.appendChild(b); }
+  b.textContent = S.update ? '1' : '';
+  b.hidden = !S.update;
+  b.title = S.update ? 'Neue Version ' + (S.update.version || '') + ' verfügbar' : '';
+}
+
+function updateKarte() {
+  const ort = el('section', { class: 'karte stapel-eng update-karte' });
+  let timer = null, beobachten = false;
+  const kopf = () => el('h2', { class: 'dreieck', text: 'Version und Update' });
+  const weiter = () => { clearTimeout(timer); timer = setTimeout(() => { if (ort.isConnected) laden(); }, 3000); };
+  const anfordern = async aktion => {
+    try { zeichnen(await T.api('POST', '/api/update', { aktion })); weiter(); }
+    catch (e) { T.meldung(e.message, true); }
+  };
+
+  async function laden() {
+    let u;
+    try { u = await T.api('GET', '/api/update'); } catch (e) {
+      if (beobachten) { T.setzen(ort, kopf(), el('p', { class: 'update-laeuft', text: 'Der Dienst startet neu … gleich geht es weiter.' })); weiter(); return; }
+      T.setzen(ort, kopf(), el('div', { class: 'leer', text: e.message }));
+      return;
+    }
+    if (u.laeuft || u.wartet.ausfuehren) beobachten = true;
+    else if (beobachten && u.lauf && u.lauf.ende) {
+      beobachten = false;
+      if (u.lauf.ergebnis === 'ok') { T.meldung('Update fertig: Version ' + u.version + '. Die Seite lädt neu.'); setTimeout(() => location.reload(), 1500); }
+      else T.meldung('Das Update hat nicht geklappt. Details im Protokoll.', true);
+    }
+    zeichnen(u);
+    if (u.laeuft || u.wartet.ausfuehren || u.wartet.pruefen) weiter();
+  }
+
+  async function aktualisieren(pr) {
+    const ok = await T.dialog({
+      titel: 'Auf Version ' + (pr.verfuegbar.version || pr.verfuegbar.stand) + ' aktualisieren?', knopf: 'Jetzt aktualisieren',
+      inhalt: el('div', { class: 'felder' },
+        el('p', { text: 'Vorher wird automatisch eine Sicherung angelegt. Während der Installation ist die Seite etwa eine Minute nicht ' +
+          'erreichbar, auch für die Teams. Am besten außerhalb des Unterrichts.' })),
+      speichern: () => true,
+    });
+    if (ok) { beobachten = true; anfordern('ausfuehren'); }
+  }
+
+  function zeichnen(u) {
+    const pr = u.pruefung;
+    const pruefKnopf = el('button', { type: 'button', disabled: u.wartet.pruefen || u.laeuft || !u.eingerichtet,
+      onclick: () => anfordern('pruefen') }, u.wartet.pruefen ? 'Prüfe …' : 'Jetzt prüfen');
+    let status;
+    if (!u.eingerichtet) {
+      status = el('p', { class: 'leise', text: 'Das Update über diese Seite ist eingerichtet, sobald diese Version einmal über die Konsole ' +
+        'installiert wurde (trackingdrs-update). Hier läuft es gerade ohne Container.' });
+    } else if (u.laeuft || u.wartet.ausfuehren) {
+      status = el('div', { class: 'stapel-eng' }, el('p', { class: 'update-laeuft', text: 'Update läuft: Sicherung, Installation, Neustart …' }),
+        u.protokoll ? el('pre', { class: 'update-protokoll', text: u.protokoll }) : null);
+    } else if (pr && pr.fehler) {
+      status = el('div', { class: 'stapel-eng' }, el('span', { class: 'chip rot', text: 'Prüfung fehlgeschlagen' }),
+        el('pre', { class: 'update-protokoll', text: pr.fehler }));
+    } else if (pr && pr.neu) {
+      status = el('div', { class: 'stapel-eng update-neu' },
+        el('div', { class: 'zeile' }, el('b', { text: 'Neue Version ' + (pr.verfuegbar.version || '') + ' verfügbar' }),
+          el('span', { class: 'leise', text: pr.neu === 1 ? '1 Änderung' : pr.neu + ' Änderungen' }),
+          el('span', { class: 'rechts' }, el('button', { type: 'button', class: 'haupt', onclick: () => aktualisieren(pr) }, 'Jetzt aktualisieren'))),
+        el('ul', { class: 'update-liste' }, pr.aenderungen.map(a => el('li', {}, el('span', { class: 'mono leise', text: a.stand }), ' ', a.text))),
+        pr.neu > pr.aenderungen.length ? el('div', { class: 'leise klein-text', text: '… und ' + (pr.neu - pr.aenderungen.length) + ' ältere' }) : null);
+    } else if (pr) {
+      status = el('div', { class: 'zeile' }, el('span', { class: 'chip gruen', text: '✓ aktuell' }), el('span', { class: 'leise', text: 'Es gibt keine neuere Version.' }));
+    } else {
+      status = el('p', { class: 'leise', text: 'Noch nicht geprüft.' });
+    }
+    const lauf = u.lauf && u.lauf.ende ? u.lauf : null;
+    T.setzen(ort, kopf(),
+      el('dl', { class: 'daten' },
+        el('dt', { text: 'Installiert' }), el('dd', { text: u.version + (pr && pr.installiert.stand ? ' (' + pr.installiert.stand + ')' : '') }),
+        el('dt', { text: 'Geprüft' }), el('dd', { text: pr ? T.zeitText(pr.zeit) + ' · täglich automatisch' : '–' }),
+        pr && pr.quelle ? [el('dt', { text: 'Quelle' }), el('dd', { class: 'mono klein-text', text: pr.quelle })] : null),
+      status,
+      el('div', { class: 'zeile' }, pruefKnopf),
+      lauf ? el('details', {}, el('summary', { text: 'Letztes Update: ' + T.zeitText(lauf.ende) + (lauf.ergebnis === 'ok' ? ' · erfolgreich' : ' · fehlgeschlagen') }),
+        el('pre', { class: 'update-protokoll', text: u.protokoll || '(kein Protokoll)' })) : null,
+      u.sicherungen.length ? el('details', {}, el('summary', { text: 'Sicherungen vor Updates (' + u.sicherungen.length + ', die letzten 5 bleiben)' }),
+        el('div', { class: 'stapel-eng' }, u.sicherungen.map(sg => el('a', { href: '/api/update/sicherung/' + sg.name, download: '' },
+          sg.name + ' · ' + Math.round(sg.groesse / 1024) + ' KB')))) : null);
+    if (S.update && pr && !pr.neu) { S.update = null; updateMarke(); }
+  }
+
+  laden();
+  return ort;
 }
 
 // --- Eigenes Konto ---

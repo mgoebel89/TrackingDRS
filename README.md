@@ -53,12 +53,20 @@ abgelehnt. Der Lehrerbereich zeigt den Team-Link schon mit `http://` an.
 | Befehl (im Container) | Wirkung |
 |---|---|
 | `trackingdrs-update` | neuesten Stand holen und neu installieren, Daten bleiben |
+| `trackingdrs sicherung` | Sicherung (ZIP) nach `/var/lib/trackingdrs/sicherungen` |
 | `trackingdrs einrichtungscode` | Code für die erste Einrichtung zeigen |
 | `trackingdrs konten` | Lehrkraft-Konten auflisten |
 | `trackingdrs passwort <kürzel>` | vorläufiges Passwort setzen und Konto entsperren |
 | `journalctl -u trackingdrs -f` | Protokoll der Webseite |
 
 Daten: `/var/lib/trackingdrs` (SQLite-Datenbank, Zertifikate). Programm: `/opt/trackingdrs` (gehört root).
+
+**Update ohne Konsole:** Unter *Einstellungen → Version und Update* sehen Admins die installierte Version und ob es auf
+GitHub eine neuere gibt (geprüft wird täglich und auf Knopfdruck). *Jetzt aktualisieren* legt erst eine Sicherung an
+(die letzten fünf bleiben, herunterladbar auf derselben Seite) und führt dann `trackingdrs-update` aus. Der Webdienst
+selbst darf nichts installieren: Er legt nur eine Anfrage-Datei in `/var/lib/trackingdrs/update` ab, systemd startet
+daraufhin `trackingdrs-selbstupdate` als root (`trackingdrs-update-*.path`, `-pruefen.timer`). Ergebnisse und
+Protokoll stehen in `/var/lib/trackingdrs-update`.
 
 ## Entwicklung
 
