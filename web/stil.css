@@ -607,6 +607,7 @@ body.bericht-seite { background: #fff; }
 .vpn-schritte { margin: 0; padding-left: 22px; display: grid; gap: 10px; }
 .vpn-schritte > li::marker { font-weight: 700; color: var(--blau); }
 .vpn-karte h3 { margin: 6px 0 0; font-size: 1rem; }
+.vpn-conf { width: 100%; min-height: 12em; font-size: .8rem; white-space: pre; }
 .update-neu { padding: 10px 12px; border: 1px solid var(--blau-mittel); border-radius: var(--r); background: var(--blau-hell); }
 .update-liste { margin: 0; padding-left: 18px; display: grid; gap: 2px; font-size: .92em; }
 .update-laeuft { color: var(--blau); font-weight: 600; }

@@ -1,4 +1,5 @@
 """Tests fuer "trackingdrs vpn einrichten": Angaben aus der Server-Config pruefen (app/vpn.py) und Firewall auf wg0."""
+import base64
 import io
 import ipaddress
 import json
@@ -194,6 +195,104 @@ class AusDerOberflaeche(unittest.TestCase):
         self.assertTrue(vpn.web_stand(self.daten)["laeuft"])
 
 
+PRIVAT = base64.b64encode(bytes(range(32))).decode()        # Testwerte, keine echten Schluessel
+PSK = base64.b64encode(bytes(range(32, 64))).decode()
+CLIENT = """# Client-Datei fuer den Container, so wie man sie fuer ein Handy schreibt
+[Interface]
+PrivateKey = %s
+Address = 10.8.0.20/24, fd00:8::20/64
+DNS = 1.1.1.1
+
+[Peer]
+PublicKey = %s
+PresharedKey = %s
+Endpoint = vpn.example.de:51820
+AllowedIPs = 0.0.0.0/0, ::/0
+PersistentKeepalive = 25
+""" % (PRIVAT, SCHLUESSEL, PSK)
+
+
+class ClientDatei(unittest.TestCase):
+    def setUp(self):
+        self.ordner = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.ordner, True)
+        einheit = os.path.join(self.ordner, "einheit.path")
+        open(einheit, "w").close()
+        self.daten = os.path.join(self.ordner, "daten")
+        self.wg = os.path.join(self.ordner, "wireguard")
+        for name, wert in (("VPN_DIR", os.path.join(self.ordner, "stand")), ("EINHEIT", einheit),
+                           ("SCHLUESSEL", os.path.join(self.wg, "trackingdrs.key")), ("PSK", os.path.join(self.wg, "trackingdrs.psk"))):
+            p = mock.patch.object(vpn, name, wert)
+            p.start()
+            self.addCleanup(p.stop)
+        p = mock.patch.object(vpn, "eigene_netze", return_value=SCHULE)
+        p.start()
+        self.addCleanup(p.stop)
+
+    def test_typische_datei(self):
+        angaben, privat, psk, hinweise = vpn.conf_einlesen(CLIENT, SCHULE)
+        self.assertEqual(angaben, {"server": "vpn.example.de:51820", "schluessel": SCHLUESSEL, "adresse": "10.8.0.20",
+                                   "netze": "10.8.0.0/24", "server_ip": "10.8.0.1"})
+        self.assertEqual((privat, psk), (PRIVAT, PSK))
+        text = " ".join(hinweise)
+        for teil in ("IPv4-Adresse 10.8.0.20", "0.0.0.0/0", "DNS"):
+            self.assertIn(teil, text)
+
+    def test_heimnetz_ja_schulnetz_nein(self):
+        datei = CLIENT.replace("AllowedIPs = 0.0.0.0/0, ::/0", "AllowedIPs = 10.8.0.0/24, 192.168.178.0/24, 172.16.5.0/24") \
+            .replace("PresharedKey = %s\n" % PSK, "")
+        angaben, _, psk, hinweise = vpn.conf_einlesen(datei, [("eth0", ipaddress.IPv4Network("192.168.178.0/24"))])
+        self.assertEqual((angaben["netze"], psk), ("10.8.0.0/24 172.16.5.0/24", None))
+        self.assertTrue(any("eth0" in h for h in hinweise))
+        # Adresse ohne Netzangabe und VPN-Netz fehlt in AllowedIPs: VPN-Netz /24 kommt dazu, das Schulnetz bleibt draussen
+        angaben = vpn.conf_einlesen(datei.replace("Address = 10.8.0.20/24, fd00:8::20/64", "Address = 10.8.0.20/32")
+                                    .replace("AllowedIPs = 10.8.0.0/24, ", "AllowedIPs = "), SCHULE)[0]
+        self.assertEqual(angaben["netze"], "10.8.0.0/24 172.16.5.0/24")
+
+    def test_falsche_dateien(self):
+        faelle = [
+            ("hallo", "keine WireGuard-Config"),
+            (CLIENT.replace("PrivateKey = " + PRIVAT, "PrivateKey = abc"), "PrivateKey"),
+            (CLIENT.replace("Endpoint = vpn.example.de:51820\n", ""), "Endpoint"),
+            (CLIENT + "\n[Peer]\nPublicKey = %s\nAllowedIPs = 10.8.0.3/32\n" % SCHLUESSEL, "mehrere [Peer]"),
+            (CLIENT.replace("Address = 10.8.0.20/24, fd00:8::20/64", "Address = fd00:8::20/64"), "IPv4"),
+            (CLIENT.replace("PresharedKey = " + PSK, "PresharedKey = kurz"), "PresharedKey"),
+            (CLIENT + "#" * 4000, "zu groß"),
+        ]
+        for text, hinweis in faelle:
+            with self.subTest(hinweis=hinweis), self.assertRaises(vpn.VpnFehler) as f:
+                vpn.conf_einlesen(text, SCHULE)
+            self.assertIn(hinweis, str(f.exception))
+            self.assertNotIn(PRIVAT, str(f.exception))
+
+    def test_von_der_seite_bis_zu_root(self):
+        r = vpn.anfordern(self.daten, {"aktion": "einrichten", "conf": CLIENT, "server_if": "wg1"})
+        self.assertNotIn("privat", r)
+        self.assertNotIn("psk", r)
+        self.assertTrue(r["hinweise"])
+        pfad = os.path.join(self.daten, "vpn", "anfrage.json")
+        if os.name == "posix":
+            self.assertEqual(os.stat(pfad).st_mode & 0o777, 0o600)
+        with mock.patch("sys.stdout", new_callable=io.StringIO) as aus, mock.patch("sys.stderr", new_callable=io.StringIO) as err:
+            self.assertEqual(vpn.main(["anfrage-lesen", pfad]), 0)
+        self.assertEqual(aus.getvalue().strip(),
+                         "einrichten|vpn.example.de:51820|%s|10.8.0.20|10.8.0.0/24|10.8.0.1|wg1|1|1" % SCHLUESSEL)
+        self.assertNotIn(PRIVAT, aus.getvalue() + err.getvalue())
+        self.assertIn("Hinweis:", err.getvalue())
+        with open(vpn.SCHLUESSEL) as f:
+            self.assertEqual(f.read().strip(), PRIVAT)
+        with open(vpn.PSK) as f:
+            self.assertEqual(f.read().strip(), PSK)
+        # ohne PresharedKey in der neuen Datei verschwindet der alte
+        datei = os.path.join(self.ordner, "ohne-psk.conf")
+        with open(datei, "w", encoding="utf-8") as f:
+            f.write(CLIENT.replace("PresharedKey = %s\n" % PSK, ""))
+        with mock.patch("sys.stdout", new_callable=io.StringIO) as aus, mock.patch("sys.stderr", new_callable=io.StringIO):
+            self.assertEqual(vpn.main(["conf-lesen", datei]), 0)
+        self.assertTrue(aus.getvalue().strip().endswith("||1"))
+        self.assertFalse(os.path.exists(vpn.PSK))
+
+
 class Api(unittest.TestCase):
     def setUp(self):
         self.ordner = tempfile.mkdtemp()
@@ -237,6 +336,13 @@ class Api(unittest.TestCase):
         self.assertTrue(d["wartet"])
         with open(os.path.join(self.ordner, "vpn", "anfrage.json"), encoding="utf-8") as f:
             self.assertNotIn("passwort", f.read())   # das Passwort landet nie in der Anfrage
+
+    def test_client_datei_kommt_nicht_zurueck(self):
+        status, d = self.post({"aktion": "einrichten", "conf": CLIENT, "passwort": "geheim123"})
+        self.assertEqual(status, 200, d)
+        self.assertTrue(d["hinweise"])
+        self.assertNotIn(PRIVAT, json.dumps(d))
+        self.assertNotIn(PSK, json.dumps(d))
 
 
 class Firewall(unittest.TestCase):

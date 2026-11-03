@@ -847,7 +847,8 @@ function vorlage(titel, text, hilfe) {
 function vpnBefehle(e) {
   const wg = e.server_if || 'wg0', datei = '/etc/wireguard/' + wg + '.conf';
   const peer = ['[Peer]', '# TrackingDRS ' + (e.name || '') + ': nur diese eine Adresse', 'PublicKey = ' + e.container_schluessel,
-    'AllowedIPs = ' + e.adresse + '/32'].join('\n');
+    e.psk ? '# PresharedKey = derselbe wie in der Client-Datei (gehört auch hier hinein)' : null,
+    'AllowedIPs = ' + e.adresse + '/32'].filter(Boolean).join('\n');
   const eintragen = 'sudo tee -a ' + datei + " >/dev/null <<'EOF'\n\n" + peer + '\nEOF\n' +
     "sudo bash -c 'wg syncconf " + wg + ' <(wg-quick strip ' + wg + ")'";
   const sperre = 'curl -fsSLO https://raw.githubusercontent.com/mgoebel89/TrackingDRS/main/vps/sperre.sh\n' +
@@ -858,6 +859,7 @@ function vpnBefehle(e) {
     el('h3', { text: 'Auf dem VPS (per SSH als Benutzer mit sudo)' }),
     el('ol', { class: 'vpn-schritte' },
       el('li', {}, vorlage('Container eintragen und übernehmen', eintragen,
+        (e.aus_datei ? 'Hast du die Client-Datei auf dem VPS erzeugt, steht der Container dort schon: dann diesen Schritt auslassen. ' : '') +
         'Hängt den Block an die Server-Config an und übernimmt ihn, ohne bestehende Verbindungen zu trennen. Steht der Container ' +
         'schon in der Datei (z. B. nach „Neu einrichten“), den alten Block vorher löschen: sudo nano ' + datei + '. Steht dort ' +
         '„SaveConfig = true“: erst sudo wg-quick down ' + wg + ', dann eintragen, dann sudo wg-quick up ' + wg + '.')),
@@ -882,28 +884,56 @@ function vpnFormular(e) {
     netze: el('input', { value: (e.netze || []).join(' '), placeholder: 'leer = nur das VPN-Netz', autocomplete: 'off' }),
     server_if: el('input', { required: true, value: e.server_if || 'wg0', maxlength: '15', autocomplete: 'off' }),
     passwort: el('input', { type: 'password', required: true, autocomplete: 'current-password' }),
+    conf: el('textarea', { rows: '11', required: true, class: 'mono vpn-conf', spellcheck: 'false', autocomplete: 'off',
+      placeholder: '[Interface]\nPrivateKey = …\nAddress = 10.8.0.20/24\n\n[Peer]\nPublicKey = …\nEndpoint = 203.0.113.5:51820\nAllowedIPs = 10.8.0.0/24' }),
   };
+  const datei = el('input', { type: 'file', accept: '.conf,text/plain', onchange: async () => {
+    const d = datei.files[0];
+    if (!d) return;
+    if (d.size > 4000) { T.meldung('Die Datei ist zu groß für eine WireGuard-Config.', true); return; }
+    f.conf.value = await d.text();
+  } });
+  const ohneRahmen = 'border:0;padding:0;margin:0;min-width:0';
+  const werte = el('fieldset', { class: 'felder', style: ohneRahmen },
+    el('p', { class: 'leise', text: 'Die Angaben stehen in der WireGuard-Config deines VPS. Einen privaten Schlüssel brauchst du ' +
+      'hier nicht: Der Container erzeugt seinen eigenen, und der des Servers bleibt auf dem Server.' }),
+    el('div', { class: 'felder zwei' },
+      T.feld('Öffentliche IP oder Name des VPS', f.host),
+      T.feld('Port', f.port, 'ListenPort in der Server-Config')),
+    T.feld('Öffentlicher Schlüssel des Servers', f.schluessel, 'auf dem VPS: sudo wg show ' + (e.server_if || 'wg0') + ' public-key'),
+    el('div', { class: 'felder zwei' },
+      T.feld('VPN-Adresse des Containers', f.adresse, 'frei, bei keinem [Peer] unter AllowedIPs'),
+      T.feld('VPN-Adresse des Servers', f.server_ip, 'Address unter [Interface]')),
+    T.feld('Netze über das VPN', f.netze, 'z. B. 10.8.0.0/24 192.168.178.0/24 für das Heimnetz'));
+  const ausDatei = el('fieldset', { class: 'felder', style: ohneRahmen },
+    el('p', { class: 'leise', text: 'Eine WireGuard-Datei, die du für den Container geschrieben hast: [Interface] mit PrivateKey und ' +
+      'Address, [Peer] mit dem Server. Nimm nicht die Datei deines Handys, jedes Gerät braucht eigene Schlüssel. Der private ' +
+      'Schlüssel darin gehört dem Container: Er geht verschlüsselt an den Container, liegt danach nur in /etc/wireguard und wird ' +
+      'nie wieder angezeigt. „Alles über den Tunnel“ (0.0.0.0/0) und DNS übernimmt der Container nicht.' }),
+    T.feld('Datei wählen', datei),
+    T.feld('… oder den Inhalt hier einfügen', f.conf));
+  const umschalter = el('div', { class: 'umschalter' });
+  let modus;
+  const wechseln = m => {
+    modus = m;
+    werte.disabled = werte.hidden = m !== 'werte';
+    ausDatei.disabled = ausDatei.hidden = m !== 'datei';
+    T.setzen(umschalter, [['werte', 'Werte eingeben'], ['datei', 'Config-Datei']].map(([k, t]) =>
+      el('button', { type: 'button', class: k === m ? 'an' : '', onclick: () => wechseln(k) }, t)));
+  };
+  wechseln(e.aus_datei ? 'datei' : 'werte');
   return T.dialog({
     titel: e.adresse ? 'VPN neu einrichten' : 'VPN einrichten', knopf: 'Einrichten',
     inhalt: el('div', { class: 'felder' },
-      el('p', { class: 'leise', text: 'Die Angaben stehen in der WireGuard-Config deines VPS. Einen privaten Schlüssel brauchst du ' +
-        'hier nicht: Der Container erzeugt seinen eigenen, und der des Servers bleibt auf dem Server.' }),
-      el('div', { class: 'felder zwei' },
-        T.feld('Öffentliche IP oder Name des VPS', f.host),
-        T.feld('Port', f.port, 'ListenPort in der Server-Config')),
-      T.feld('Öffentlicher Schlüssel des Servers', f.schluessel, 'auf dem VPS: sudo wg show ' + (e.server_if || 'wg0') + ' public-key'),
-      el('div', { class: 'felder zwei' },
-        T.feld('VPN-Adresse des Containers', f.adresse, 'frei, bei keinem [Peer] unter AllowedIPs'),
-        T.feld('VPN-Adresse des Servers', f.server_ip, 'Address unter [Interface]')),
-      el('div', { class: 'felder zwei' },
-        T.feld('Netze über das VPN', f.netze, 'z. B. 10.8.0.0/24 192.168.178.0/24 für das Heimnetz'),
-        T.feld('Schnittstelle auf dem VPS', f.server_if, 'Dateiname in /etc/wireguard ohne .conf')),
+      umschalter, werte, ausDatei,
+      T.feld('Schnittstelle auf dem VPS', f.server_if, 'Dateiname in /etc/wireguard ohne .conf (nur für die Befehle zum Kopieren)'),
       el('p', { class: 'warnung-text', text: 'Liegt die VPN-Adresse außerhalb von 192.168.x.x, entsteht einmalig ein neues ' +
         'Stammzertifikat. Die Seite ist dann kurz weg, und alle Geräte brauchen das neue Stammzertifikat.' }),
       T.feld('Dein Passwort zur Bestätigung', f.passwort)),
-    speichern: () => T.api('POST', '/api/vpn', { aktion: 'einrichten', server: f.host.value, port: f.port.value,
-      schluessel: f.schluessel.value, adresse: f.adresse.value, server_ip: f.server_ip.value, netze: f.netze.value,
-      server_if: f.server_if.value, passwort: f.passwort.value }),
+    speichern: () => T.api('POST', '/api/vpn', modus === 'datei'
+      ? { aktion: 'einrichten', conf: f.conf.value, server_if: f.server_if.value, passwort: f.passwort.value }
+      : { aktion: 'einrichten', server: f.host.value, port: f.port.value, schluessel: f.schluessel.value, adresse: f.adresse.value,
+        server_ip: f.server_ip.value, netze: f.netze.value, server_if: f.server_if.value, passwort: f.passwort.value }),
   });
 }
 
@@ -955,7 +985,12 @@ function vpnKarte() {
     const e = v.einrichtung, t = v.sperrtest, laeuft = v.laeuft || v.wartet, gesperrt = laeuft || !v.eingerichtet;
     S.vpn = t;
     const knopf = (text, klick, klasse) => el('button', { type: 'button', class: klasse || '', disabled: gesperrt, onclick: klick }, text);
-    const einrichten = async () => { const r = await vpnFormular(e); if (r) gestartet(r); };
+    const einrichten = async () => {
+      const r = await vpnFormular(e);
+      if (!r) return;
+      gestartet(r);
+      if (r.hinweise && r.hinweise.length) T.meldung('Aus der Datei: ' + r.hinweise.join(' '));
+    };
     let status = null;
     if (e && !e.aktiv) status = el('div', { class: 'zeile' }, el('span', { class: 'chip', text: 'VPN aus' }));
     else if (e && t) {

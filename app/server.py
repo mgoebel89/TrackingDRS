@@ -914,8 +914,9 @@ def api_vpn_anfordern(h, con, daten):
         if not konten.passwort_stimmt(pw, daten.get("passwort") or ""):
             raise vpn.VpnFehler("Das Passwort stimmt nicht.")
     angaben = vpn.anfordern(_daten_dir(h), daten)
-    print("VPN: %s angefordert von %s" % (angaben["aktion"], a["kuerzel"]), flush=True)
-    h.antwort(200, vpn.web_stand(_daten_dir(h)))
+    print("VPN: %s angefordert von %s%s" % (angaben["aktion"], a["kuerzel"], " (Client-Datei)" if daten.get("conf") else ""),
+          flush=True)
+    h.antwort(200, dict(vpn.web_stand(_daten_dir(h)), hinweise=angaben.get("hinweise", [])))
 
 
 def api_update_sicherung(h, con, daten, name):

@@ -77,7 +77,11 @@ Adresse und Port des VPS, sein öffentlicher Schlüssel und die VPN-Adresse eing
 Erweiterung für die Server-Config, die Befehle für den VPS zum Kopieren (eintragen, Sperre, Kontrolle) und die
 Config des Containers; *Verbindung prüfen* testet sofort. Wie beim Update legt der Webdienst nur einen Auftrag in
 `/var/lib/trackingdrs/vpn` ab, `trackingdrs-vpn-anfrage.path` startet `trackingdrs-vpn anfrage` als root, das die
-Angaben noch einmal prüft. Private Schlüssel nimmt die Seite nie an und zeigt sie nie.
+Angaben noch einmal prüft. Hast du schon eine WireGuard-Datei für den Container (mit dessen PrivateKey, Address und
+dem Server als `[Peer]`, gern mit PresharedKey), wählst du im Formular *Config-Datei* und lädst sie hoch; an der
+Konsole geht dasselbe mit `trackingdrs vpn einrichten --conf datei.conf`. „Alles über den Tunnel“ (`0.0.0.0/0`) wird
+dabei auf das VPN-Netz beschränkt, DNS nicht übernommen. Der private Schlüssel landet nur in `/etc/wireguard`, die Seite
+zeigt ihn nie wieder an. Den privaten Schlüssel des Servers fragt die Seite nie ab.
 
 **Sperre auf dem VPN-Server:** Damit der Container über das VPN nichts erreicht (auch nicht, wenn ihn jemand als root
 übernimmt), kommt auf den Server einmalig `vps/sperre.sh`:

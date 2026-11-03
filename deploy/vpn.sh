@@ -17,6 +17,9 @@
 # Ohne Rueckfragen:
 #   trackingdrs vpn einrichten --server vpn.example.de:51820 --server-schluessel <44 Zeichen> --adresse 10.8.0.20 \
 #     [--netze "10.8.0.0/24 192.168.178.0/24"] [--server-ip 10.8.0.1]
+# Mit einer fertigen Client-Datei fuer den Container (PrivateKey, Address, Server als [Peer], ggf. PresharedKey):
+#   trackingdrs vpn einrichten --conf /root/container.conf
+#   (0.0.0.0/0 wird auf das VPN-Netz beschraenkt, DNS bleibt weg; die Datei danach loeschen)
 #
 # Sicherheit: Nur die angegebenen Netze laufen ueber den Tunnel (kein 0.0.0.0/0), der Container leitet nichts weiter,
 # und die Firewall (deploy/firewall.nft) laesst auf wg0 nur HTTPS (443) herein. Auf dem Server bekommt der Container
@@ -25,6 +28,7 @@ set -euo pipefail
 WG=/etc/wireguard
 CONF=$WG/wg0.conf
 SCHLUESSEL=$WG/trackingdrs.key
+PSK=$WG/trackingdrs.psk
 TLS_IPS=/etc/trackingdrs/tls-ips
 REPO=/opt/trackingdrs
 ANFRAGE=/var/lib/trackingdrs/vpn/anfrage.json
@@ -63,6 +67,9 @@ server_block() {
 PublicKey = $pub
 AllowedIPs = $adresse/32
 
+(Steht der Container mit diesem PublicKey schon in der Server-Config, z. B. weil die Client-Datei von dort kommt:
+ diesen Schritt auslassen.)
+
 === Danach auf dem Server uebernehmen (ohne bestehende Verbindungen zu trennen): ===
   wg syncconf wg0 <(wg-quick strip wg0)
 
@@ -74,35 +81,40 @@ Dann hier pruefen: trackingdrs vpn status
 EOF
 }
 
-info_ablegen() {   # info_ablegen <aktiv 0|1> [<Schnittstelle auf dem VPS>]: Oeffentliches fuer den Lehrerbereich
+info_ablegen() {   # info_ablegen <aktiv 0|1> [<Schnittstelle auf dem VPS>] [<aus Client-Datei 0|1>]
   [ -s "$SCHLUESSEL" ] && [ -r "$CONF" ] || return 0
-  (cd "$REPO" && python3 -m app.vpn info-ablegen "$(wg pubkey < "$SCHLUESSEL")" "$1" "${2:-}") || true
+  (cd "$REPO" && python3 -m app.vpn info-ablegen "$(wg pubkey < "$SCHLUESSEL")" "$1" "${2:-}" "${3:-}") || true
 }
 
 anfrage() {   # Auftrag aus dem Lehrerbereich: lesen (dabei geloescht und geprueft), ausfuehren, Ergebnis ablegen
-  local zeile aktion server schl adresse netze server_ip server_if beginn ergebnis=ok
+  local zeile aktion server schl adresse netze server_ip server_if psk datei beginn ergebnis=ok extra=()
   export TZ=Europe/Berlin
   umask 022
   install -d -o root -g root -m 755 "$STAND"
   beginn=$(date '+%Y-%m-%dT%H:%M:%S')
-  if ! zeile=$(cd "$REPO" && python3 -m app.vpn anfrage-lesen "$ANFRAGE" 2>&1); then
-    printf '%s\n' "$zeile" > "$STAND/protokoll.txt"
+  # Hinweise (stderr) kommen ins Protokoll; mit Client-Datei legt anfrage-lesen dabei die Schluessel nach /etc/wireguard
+  if ! zeile=$(cd "$REPO" && python3 -m app.vpn anfrage-lesen "$ANFRAGE" 2>"$STAND/hinweise.txt"); then
+    cp "$STAND/hinweise.txt" "$STAND/protokoll.txt"; chmod 644 "$STAND/protokoll.txt"
     lauf_schreiben "?" "$beginn" fehler
     return 1
   fi
-  IFS='|' read -r aktion server schl adresse netze server_ip server_if <<< "$zeile"
+  IFS='|' read -r aktion server schl adresse netze server_ip server_if psk datei <<< "$zeile"
+  [ -n "$psk" ] && extra+=(--psk)
+  [ -n "$datei" ] && extra+=(--aus-datei)
   lauf_schreiben "$aktion" "$beginn" ""
   {
-    echo "== $beginn $aktion (aus dem Lehrerbereich)"
+    echo "== $beginn $aktion (aus dem Lehrerbereich${datei:+, mit Client-Datei})"
+    cat "$STAND/hinweise.txt"
     case "$aktion" in
       einrichten) "$0" einrichten --server "$server" --server-schluessel "$schl" --adresse "$adresse" --netze "$netze" \
-                    --server-ip "$server_ip" --server-if "$server_if" ;;
+                    --server-ip "$server_ip" --server-if "$server_if" "${extra[@]}" ;;
       sperrtest) "$0" status ;;
       aus) "$0" aus ;;
     esac
   } < /dev/null > "$STAND/protokoll.neu" 2>&1 || ergebnis=fehler
   chmod 644 "$STAND/protokoll.neu"
   mv -f "$STAND/protokoll.neu" "$STAND/protokoll.txt"
+  rm -f "$STAND/hinweise.txt"
   lauf_schreiben "$aktion" "$beginn" "$ergebnis"
 }
 
@@ -136,7 +148,7 @@ testen() {   # testen <Server-IP>: wartet kurz auf den ersten Handshake
 }
 
 einrichten() {
-  local server="" schl="" adresse="" netze="" server_ip="" server_if=""
+  local server="" schl="" adresse="" netze="" server_ip="" server_if="" conf="" psk="" datei=""
   while [ $# -gt 0 ]; do
     case "$1" in
       --server) server=$2; shift 2 ;;
@@ -145,10 +157,19 @@ einrichten() {
       --netze) netze=$2; shift 2 ;;
       --server-ip) server_ip=$2; shift 2 ;;
       --server-if) server_if=$2; shift 2 ;;   # nur fuer die Befehle im Lehrerbereich (Name der Schnittstelle auf dem VPS)
+      --conf) conf=$2; shift 2 ;;
+      --psk) psk=1; shift ;;          # Schluessel und PSK hat anfrage-lesen schon abgelegt
+      --aus-datei) datei=1; shift ;;
       *) fehler "Unbekannte Option $1" ;;
     esac
   done
   local alt_adresse; alt_adresse=$(aus_conf Address)
+  if [ -n "$conf" ]; then   # Client-Datei: Werte und Schluessel daraus (Hinweise erscheinen direkt)
+    local werte
+    werte=$(cd "$REPO" && python3 -m app.vpn conf-lesen "$(readlink -f "$conf")") || exit 1
+    IFS='|' read -r _ server schl adresse netze server_ip _ psk datei <<< "$werte"
+    echo "==> Schluessel${psk:+ und PresharedKey} aus $conf uebernommen (die Datei kannst du jetzt loeschen)"
+  fi
   if [ -z "$server" ] || [ -z "$schl" ] || [ -z "$adresse" ]; then
     echo "WireGuard fuer TrackingDRS einrichten. Die Angaben findest du so:"
     echo "  Port: ListenPort in der Server-Config. Adresse: oeffentlicher Name oder IP des Servers."
@@ -178,6 +199,12 @@ einrichten() {
     ( umask 077; wg genkey > "$SCHLUESSEL" )
     echo "==> Neuer Schluessel fuer den Container erzeugt"
   fi
+  local psk_zeile=""
+  if [ -n "$psk" ] && [ -s "$PSK" ]; then
+    psk_zeile="PostUp = wg set %i peer $schl preshared-key $PSK"
+  else
+    rm -f "$PSK"
+  fi
 
   echo "==> $CONF"
   ( umask 077; cat > "$CONF.neu" <<EOF
@@ -187,6 +214,7 @@ einrichten() {
 [Interface]
 Address = $adresse/32
 PostUp = wg set %i private-key $SCHLUESSEL
+$psk_zeile
 
 [Peer]
 PublicKey = $schl
@@ -212,7 +240,7 @@ EOF
   echo "==> Verbindung starten"
   systemctl enable -q wg-quick@wg0
   systemctl restart wg-quick@wg0
-  info_ablegen 1 "$server_if"
+  info_ablegen 1 "$server_if" "${datei:-0}"
   if testen "$server_ip"; then echo; sperrtest || true; fi
   server_block
   echo "Von zuhause (ueber das VPN) dann: https://$adresse"
@@ -237,5 +265,5 @@ case "${1:-}" in
        info_ablegen 0
        echo "VPN aus. Wieder an: trackingdrs vpn einrichten (oder im Lehrerbereich unter Einstellungen -> VPN)" ;;
   anfrage) anfrage ;;
-  *) sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+  *) sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
 esac

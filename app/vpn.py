@@ -10,7 +10,11 @@ Aufruf aus deploy/vpn.sh (als root, im Repo-Ordner):
   python3 -m app.vpn anfrage-lesen <datei>
     Auftrag aus dem Lehrerbereich lesen, loeschen, pruefen. Ausgabe: aktion|server|schluessel|adresse|netze|server-ip|
     server-if (bei sperrtest/aus nur die Aktion).
+  python3 -m app.vpn conf-lesen <client-datei>
+    Wie anfrage-lesen, aber aus einer WireGuard-Datei fuer den Container (trackingdrs vpn einrichten --conf). Legt den
+    privaten Schluessel (und PresharedKey) aus der Datei nach /etc/wireguard. Ausgabe wie oben, dazu |psk|aus_datei.
   python3 -m app.vpn info-ablegen <oeffentlicher schluessel des containers> <aktiv 0|1> [<schnittstelle auf dem server>]
+                                  [<aus datei 0|1>]
     Oeffentliche Angaben fuer den Lehrerbereich nach <VPN_DIR>/einrichtung.json.
 """
 import base64
@@ -29,6 +33,8 @@ import sys
 from . import db
 
 KONF = "/etc/wireguard/wg0.conf"
+SCHLUESSEL = "/etc/wireguard/trackingdrs.key"   # privater Schluessel des Containers (nur root)
+PSK = "/etc/wireguard/trackingdrs.psk"          # PresharedKey, nur wenn die Client-Datei einen hat
 VPN_DIR = os.environ.get("TRACKINGDRS_VPN_DIR", "/var/lib/trackingdrs-vpn")
 PORTS = (22, 53, 80, 443, 8080)
 HANDSHAKE_MAX = 300   # Sekunden; mit Keepalive 25 erneuert WireGuard den Handshake alle 2 Minuten
@@ -227,22 +233,116 @@ def server_text(host, port):
     return "%s:%s" % (host, str(port or "").strip() or "51820")
 
 
+def _schluessel(text, wofuer):
+    text = (text or "").strip()
+    try:
+        if len(base64.b64decode(text, validate=True)) == 32:
+            return text
+    except ValueError:
+        pass
+    raise VpnFehler("%s ist kein WireGuard-Schlüssel (44 Zeichen, endet auf „=“)." % wofuer)
+
+
+def conf_einlesen(text, lokal=()):
+    """Client-Datei fuer den Container (wie man sie fuer ein Handy schreibt) -> Angaben, privater Schluessel, PSK.
+
+    Uebernommen werden [Interface] PrivateKey + Address und [Peer] PublicKey, PresharedKey, Endpoint, AllowedIPs.
+    Alles ueber den Tunnel (0.0.0.0/0, ::/0) wird auf das VPN-Netz beschraenkt, DNS/MTU/IPv6 bleiben weg.
+    Rueckgabe: ({server, schluessel, adresse, netze, server_ip}, privat, psk oder None, [hinweise])."""
+    if len(text or "") > 4000:
+        raise VpnFehler("Die Datei ist zu groß für eine WireGuard-Config.")
+    werte, abschnitt, peers, hinweise = {"interface": {}, "peer": {}}, None, 0, []
+    for zeile in (text or "").splitlines():
+        z = zeile.split("#", 1)[0].strip()
+        if not z:
+            continue
+        m = re.fullmatch(r"\[(\w+)\]", z)
+        if m:
+            abschnitt = m.group(1).lower()
+            peers += abschnitt == "peer"
+            continue
+        if "=" in z and abschnitt in werte:
+            k, v = z.split("=", 1)
+            werte[abschnitt].setdefault(k.strip().lower(), v.strip())
+    i, pe = werte["interface"], werte["peer"]
+    if not i or not pe:
+        raise VpnFehler("Das ist keine WireGuard-Config: Es fehlt [Interface] oder [Peer].")
+    if peers > 1:
+        raise VpnFehler("Die Datei hat mehrere [Peer]. Für den Container gehört nur der Server hinein.")
+    privat = _schluessel(i.get("privatekey"), "PrivateKey unter [Interface]")
+    psk = _schluessel(pe["presharedkey"], "PresharedKey") if pe.get("presharedkey") else None
+    if not pe.get("endpoint"):
+        raise VpnFehler("Unter [Peer] fehlt Endpoint (Adresse:Port des Servers).")
+    adressen = [a.strip() for a in i.get("address", "").split(",") if a.strip()]
+    v4 = [a for a in adressen if ":" not in a]
+    if not v4:
+        raise VpnFehler("Unter [Interface] fehlt eine IPv4-Adresse (Address = 10.8.0.20/24).")
+    if len(adressen) > 1:
+        hinweise.append("Nur die IPv4-Adresse %s wird verwendet." % v4[0].split("/")[0])
+    try:
+        eigen = ipaddress.IPv4Interface(v4[0] if "/" in v4[0] and not v4[0].endswith("/32") else v4[0].split("/")[0] + "/24")
+    except ValueError:
+        raise VpnFehler("Address unter [Interface] ist keine IPv4-Adresse.") from None
+    netze = []
+    for n in pe.get("allowedips", "").split(","):
+        n = n.strip()
+        if not n or ":" in n:
+            continue
+        try:
+            netz = ipaddress.IPv4Network(n, strict=False)
+        except ValueError:
+            raise VpnFehler("AllowedIPs: %s ist kein Netz." % n) from None
+        if netz.prefixlen < 8:
+            hinweise.append("AllowedIPs %s (alles über den Tunnel) gilt für den Container nicht, er nutzt nur das VPN-Netz." % n)
+            continue
+        ueberschneidung = [name for name, lnetz in lokal if netz.overlaps(lnetz)]
+        if ueberschneidung:
+            hinweise.append("%s bleibt draußen: Es überschneidet sich mit dem Netz von %s." % (n, ueberschneidung[0]))
+            continue
+        netze.append(netz)
+    if not any(eigen.ip in n for n in netze):
+        netze.insert(0, eigen.network)
+    if i.get("dns"):
+        hinweise.append("DNS wird nicht übernommen, der Container nutzt sein eigenes.")
+    adresse, netze, server_ip = pruefen(pe["endpoint"], pe.get("publickey"), str(eigen.ip), " ".join(map(str, netze)), "", lokal)
+    return ({"server": pe["endpoint"].strip(), "schluessel": pe["publickey"].strip(), "adresse": adresse,
+             "netze": " ".join(netze), "server_ip": server_ip}, privat, psk, hinweise)
+
+
 def angaben_pruefen(d, lokal=()):
-    """Auftrag aus dem Formular oder der Anfrage-Datei -> bereinigtes dict, sonst VpnFehler."""
+    """Auftrag aus dem Formular oder der Anfrage-Datei -> bereinigtes dict, sonst VpnFehler.
+    Mit einer Client-Datei (conf) kommen privat, psk und hinweise dazu; die gehen nie an die Seite zurueck."""
     aktion = d.get("aktion")
     if aktion not in AKTIONEN:
         raise VpnFehler("Unbekannte Aktion.")
     if aktion != "einrichten":
         return {"aktion": aktion}
+    schnitt = str(d.get("server_if") or "").strip() or "wg0"
+    if not SCHNITTSTELLE.fullmatch(schnitt):
+        raise VpnFehler("Name der WireGuard-Schnittstelle auf dem Server bitte wie in /etc/wireguard, z. B. wg0.")
+    if d.get("conf"):
+        angaben, privat, psk, hinweise = conf_einlesen(str(d["conf"]), lokal)
+        return dict(angaben, aktion=aktion, server_if=schnitt, privat=privat, psk=psk, hinweise=hinweise)
     server = str(d.get("server") or "").strip()
     schluessel = str(d.get("schluessel") or "").strip()
     adresse, netze, server_ip = pruefen(server, schluessel, str(d.get("adresse") or ""), str(d.get("netze") or ""),
                                         str(d.get("server_ip") or ""), lokal)
-    schnitt = str(d.get("server_if") or "").strip() or "wg0"
-    if not SCHNITTSTELLE.fullmatch(schnitt):
-        raise VpnFehler("Name der WireGuard-Schnittstelle auf dem Server bitte wie in /etc/wireguard, z. B. wg0.")
     return {"aktion": aktion, "server": server, "schluessel": schluessel, "adresse": adresse, "netze": " ".join(netze),
             "server_ip": server_ip, "server_if": schnitt}
+
+
+def schluessel_ablegen(privat, psk):
+    """Als root: Schluessel aus der Client-Datei nach /etc/wireguard (nur root lesbar), PSK oder keinen."""
+    os.makedirs(os.path.dirname(SCHLUESSEL), mode=0o700, exist_ok=True)
+    for pfad, inhalt in ((SCHLUESSEL, privat), (PSK, psk)):
+        if inhalt is None:
+            if os.path.exists(pfad):
+                os.remove(pfad)
+            continue
+        fd = os.open(pfad + ".neu", os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w") as f:
+            f.write(inhalt + "\n")
+        os.replace(pfad + ".neu", pfad)
 
 
 def eingerichtet():
@@ -280,19 +380,24 @@ def anfordern(daten_dir, daten):
     if s["laeuft"] or s["wartet"]:
         raise VpnFehler("Es läuft schon ein Auftrag. Bitte kurz warten.")
     d = dict(daten)
-    if d.get("aktion") == "einrichten":
+    if d.get("aktion") == "einrichten" and not d.get("conf"):
         d["server"] = server_text(d.get("server"), d.get("port"))
     try:
         lokal = eigene_netze()
     except (OSError, ValueError):
         lokal = []   # root prueft ohnehin noch einmal
-    angaben = dict(angaben_pruefen(d, lokal), zeit=db.jetzt())
+    angaben = angaben_pruefen(d, lokal)
+    # Mit Client-Datei geht die Datei selbst an root (sie enthaelt den privaten Schluessel des Containers): nur fuer den
+    # Webdienst lesbar und nur, bis root sie abholt.
+    auftrag = {"aktion": angaben["aktion"], "conf": d["conf"], "server_if": angaben["server_if"]} if "privat" in angaben \
+        else {k: v for k, v in angaben.items() if k != "hinweise"}
     pfad = _anfrage_pfad(daten_dir)
     os.makedirs(os.path.dirname(pfad), exist_ok=True)
-    with open(pfad + ".neu", "w", encoding="utf-8") as f:
-        json.dump(angaben, f)
+    fd = os.open(pfad + ".neu", os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        json.dump(dict(auftrag, zeit=db.jetzt()), f)
     os.replace(pfad + ".neu", pfad)
-    return angaben
+    return {k: v for k, v in angaben.items() if k not in ("privat", "psk")}
 
 
 def anfrage_lesen(pfad):
@@ -318,6 +423,11 @@ def anfrage_lesen(pfad):
     return angaben_pruefen(d, eigene_netze())
 
 
+def _conf_angaben(text):
+    angaben, privat, psk, hinweise = conf_einlesen(text, eigene_netze())
+    return dict(angaben, privat=privat, psk=psk, hinweise=hinweise)
+
+
 def _oeffentlicher_schluessel(text):
     try:
         if len(base64.b64decode((text or "").strip(), validate=True)) == 32:
@@ -327,19 +437,21 @@ def _oeffentlicher_schluessel(text):
     raise VpnFehler("Öffentlicher Schlüssel des Containers ungültig.")
 
 
-def info_ablegen(container_schluessel, aktiv, server_if=None):
-    """Als root nach dem Einrichten/Ausschalten: was die Seite fuer Peer-Block und VPS-Befehle braucht."""
+def info_ablegen(container_schluessel, aktiv, server_if=None, aus_datei=None):
+    """Als root nach dem Einrichten/Ausschalten: was die Seite fuer Peer-Block und VPS-Befehle braucht.
+    aus_datei: eingerichtet mit einer Client-Datei (der Server kennt den Container dann meist schon)."""
     with open(KONF, encoding="utf-8") as f:
         text = f.read()
     adresse, netze, server_ip = konf_lesen(text)
     werte = dict(re.findall(r"^\s*(Endpoint|PublicKey)\s*=\s*(\S+)", text, re.M))
     alt = _lesen("einrichtung.json") or {}
-    konf = "\n".join(z for z in text.splitlines() if not z.strip().lower().startswith("privatekey")) + "\n"
+    konf = "\n".join(z for z in text.splitlines() if not z.strip().lower().startswith(("privatekey", "presharedkey"))) + "\n"
     info = {"zeit": db.jetzt(), "aktiv": bool(aktiv), "name": socket.gethostname().split(".")[0],
             "adresse": str(adresse), "netze": [str(n) for n in netze], "server_ip": str(server_ip) if server_ip else None,
             "server": werte.get("Endpoint"), "server_schluessel": werte.get("PublicKey"),
             "container_schluessel": _oeffentlicher_schluessel(container_schluessel),
-            "server_if": server_if or alt.get("server_if") or "wg0", "konf": konf}
+            "server_if": server_if or alt.get("server_if") or "wg0", "konf": konf,
+            "aus_datei": alt.get("aus_datei", False) if aus_datei is None else aus_datei, "psk": os.path.exists(PSK)}
     _schreiben("einrichtung.json", info)
     return info
 
@@ -381,12 +493,22 @@ def main(argv):
     if argv[:1] == ["sperrtest"]:
         return _sperrtest_main("--leise" in argv)
     try:
-        if argv[:1] == ["anfrage-lesen"] and len(argv) == 2:
-            a = anfrage_lesen(argv[1])
-            print("|".join(a.get(k, "") for k in ("aktion", "server", "schluessel", "adresse", "netze", "server_ip", "server_if")))
+        if argv[:1] in (["anfrage-lesen"], ["conf-lesen"]) and len(argv) == 2:
+            if argv[0] == "anfrage-lesen":
+                a = anfrage_lesen(argv[1])
+            else:   # trackingdrs vpn einrichten --conf <datei>
+                with open(argv[1], encoding="utf-8") as f:
+                    a = dict(aktion="einrichten", server_if="", **_conf_angaben(f.read()))
+            if a.get("privat"):
+                schluessel_ablegen(a["privat"], a["psk"])
+            for h in a.get("hinweise", []):
+                print("Hinweis: %s" % h, file=sys.stderr)
+            print("|".join([*(a.get(k, "") for k in ("aktion", "server", "schluessel", "adresse", "netze", "server_ip",
+                                                     "server_if")), "1" if a.get("psk") else "", "1" if a.get("privat") else ""]))
             return 0
-        if argv[:1] == ["info-ablegen"] and len(argv) in (3, 4):
-            info_ablegen(argv[1], argv[2] == "1", argv[3] if len(argv) == 4 and argv[3] else None)
+        if argv[:1] == ["info-ablegen"] and len(argv) in (3, 4, 5):
+            info_ablegen(argv[1], argv[2] == "1", argv[3] if len(argv) >= 4 and argv[3] else None,
+                         (argv[4] == "1") if len(argv) == 5 and argv[4] else None)
             return 0
     except (VpnFehler, OSError, KeyError, ValueError) as f:
         print("Fehler: %s" % f, file=sys.stderr)
