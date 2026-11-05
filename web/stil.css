@@ -463,15 +463,36 @@ body.tafel-seite { background: #e9edf2; overflow: hidden; }
 .pi.erl { opacity: .6; } .pi.erl .pi-text { text-decoration: line-through; }
 .pi-menue { position: absolute; z-index: 6; display: flex; gap: 6px; background: var(--karte); padding: 6px; border-radius: 10px; box-shadow: var(--schatten-3); }
 .pi-menue button { font-size: 16px; min-height: 44px; padding: 6px 14px; }
-.tafel-werkzeuge { display: flex; gap: 8px; align-items: center; justify-content: center; padding: 8px; background: var(--karte); border-top: 1px solid var(--linie); flex-wrap: wrap; }
-.tafel-werkzeuge .wz { width: 56px; height: 52px; font-size: 24px; padding: 0; }
-.tafel-werkzeuge .wz.an { background: var(--blau); border-color: var(--blau); color: #fff; }
-.farben { display: inline-flex; gap: 6px; padding: 0 6px; border-left: 1px solid var(--linie); border-right: 1px solid var(--linie); }
-.farbe { width: 36px; height: 36px; min-height: 36px; padding: 0; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 0 1px var(--linie-stark); }
-.farbe.an { box-shadow: 0 0 0 3px var(--blau-mittel); }
-.dicke { width: 40px; height: 40px; min-height: 40px; padding: 0; }
+/* Werkzeugleiste der Tafel (I5): schwebend unten in der Mitte, nur Symbole ohne Knopfrahmen, aktives Werkzeug blau */
+.tafel-werkzeuge { justify-self: center; display: flex; gap: 2px; align-items: center; margin: 8px auto 10px; padding: 5px 6px;
+  background: var(--karte); border: 1px solid var(--linie); border-radius: 16px; box-shadow: 0 12px 28px -14px rgba(16,24,40,.5); position: relative; z-index: 7; }
+.tafel-werkzeuge .wz { width: 52px; height: 52px; min-height: 52px; display: grid; place-items: center; padding: 0; border: none; border-radius: 12px;
+  background: transparent; color: #5d6779; }
+.tafel-werkzeuge .wz:hover { background: var(--knopf); color: var(--text); }
+.tafel-werkzeuge .wz.an { background: var(--blau); color: #fff; }
+.tafel-werkzeuge .wz .symbol { width: 26px; height: 26px; stroke-width: 1.8; }
+.tafel-werkzeuge .trenner { width: 1px; height: 30px; background: var(--linie); margin: 0 6px; }
+.wz-gruppe { position: relative; display: inline-flex; }
+.wz-auf { position: absolute; bottom: calc(100% + 12px); left: 50%; transform: translateX(-50%); display: grid; gap: 10px; padding: 10px;
+  background: var(--karte); border: 1px solid var(--linie); border-radius: 14px; box-shadow: 0 14px 30px -14px rgba(16,24,40,.5); }
+.wz-auf .reihe { display: flex; gap: 8px; align-items: center; }
+.wz-auf .etikett { white-space: nowrap; font-size: .7rem; }
+.farbe { width: 34px; height: 34px; min-height: 34px; padding: 0; border-radius: 50%; border: none; box-shadow: 0 0 0 1px var(--linie-stark); }
+.farbe.an { box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--blau); }
+.dicke { width: 40px; height: 40px; min-height: 40px; padding: 0; display: grid; place-items: center; border: 1px solid var(--linie); border-radius: 10px; background: transparent; }
 .dicke span { display: block; border-radius: 50%; background: var(--text); }
-.dicke.an { background: var(--blau-hell); border-color: var(--blau-mittel); }
+.dicke.an { background: var(--blau-hell); border-color: var(--blau); }
+.st-raster { display: grid; grid-template-columns: repeat(6, 44px); gap: 4px; }
+.st-raster button { width: 44px; height: 44px; min-height: 44px; padding: 0; border: none; border-radius: 10px; background: transparent; display: grid; place-items: center; }
+.st-raster button:hover, .st-raster button.an { background: var(--knopf); }
+.st-raster .symbol { width: 26px; height: 26px; }
+/* Sticker auf der Tafel: frei (46 Einheiten) oder an der Ecke eines Post-its */
+.st { position: absolute; width: 46px; height: 46px; padding: 7px; border-radius: 50%; background: #fff; box-shadow: 0 2px 6px rgba(16,24,40,.28);
+  display: grid; place-items: center; z-index: 3; cursor: grab; touch-action: none; }
+.st .symbol { width: 100%; height: 100%; stroke-width: 2; }
+.pi .st.haftet { width: 38px; height: 38px; padding: 6px; left: -14px; top: -16px; }
+.tafel[data-werkzeug="marker"], .tafel[data-werkzeug="pfeil"] { cursor: crosshair; }
+.tafel[data-werkzeug="sticker"] { cursor: copy; }
 .tafel-ansicht { position: fixed; inset: 0; z-index: 60; background: #e9edf2; display: grid; grid-template-rows: auto minmax(0, 1fr); }
 .tafel-ansicht.bild { background: rgba(16,24,40,.85); place-items: center; grid-template-rows: minmax(0, 1fr) auto; }
 .tafel-ansicht.bild img { max-width: 94vw; max-height: 86vh; object-fit: contain; }

@@ -126,6 +126,33 @@ class Tafel(unittest.TestCase):
         with self.assertRaises(projekte.ProjektFehler):
             tafel.eingefroren(self.con, self.anderes, b["id"])
 
+    def test_textmarker_pfeile_sticker(self):
+        m = self.board(aktion="strich", marker=True, farbe="#f5c400", punkte=[[10, 10], [200, 10]])
+        s = [x for x in tafel.lesen(self.con, self.pid)["striche"] if x["id"] == m["strich_id"]][0]
+        self.assertTrue(s["marker"])
+        self.assertEqual((s["farbe"], s["breite"]), ("#f5c400", 22))
+        self.assertEqual(self.board(aktion="strich", farbe="#f5c400", punkte=[[1, 1], [2, 2]]) and
+                         tafel.lesen(self.con, self.pid)["striche"][-1]["farbe"], "#1d2433")   # Stift: nur Stiftfarben
+        k = self.board(aktion="postit", zone="ideen", text="2 Lüfter parallel?", x=600, y=300)["key"]
+        p = self.board(aktion="pfeil", a={"key": k, "rx": 0.5, "ry": 1.2}, b={"x": 900, "y": 2000})["pfeil_id"]
+        st = self.board(aktion="sticker", art="idee", key=k)["sticker_id"]
+        frei = self.board(aktion="sticker", art="problem", x=700, y=100)["sticker_id"]
+        with self.assertRaises(projekte.ProjektFehler):
+            self.board(aktion="sticker", art="kaffee", x=1, y=1)
+        o = tafel.lesen(self.con, self.pid)["objekte"]
+        self.assertEqual(o["pfeile"][0]["a"], {"key": k, "rx": 0.5, "ry": 1.0})   # auf die Tafel begrenzt
+        self.assertEqual(o["pfeile"][0]["b"], {"x": 900, "y": 900})
+        self.assertEqual([(x["art"], x.get("key")) for x in o["sticker"]], [("idee", k), ("problem", None)])
+        self.board(aktion="sticker_bewegen", id=frei, key=k)
+        self.assertEqual(tafel.lesen(self.con, self.pid)["objekte"]["sticker"][1], {"id": frei, "art": "problem", "key": k})
+        self.board(aktion="objekte_weg", pfeile=[p], sticker=[st])
+        o = tafel.lesen(self.con, self.pid)["objekte"]
+        self.assertEqual((o["pfeile"], [x["id"] for x in o["sticker"]]), ([], [frei]))
+        # eingefroren: Pfeile und Sticker gehoeren dazu
+        b = besprechung._zeile(self.con, self.pid, self.woche)
+        besprechung.aendern(self.con, self.pid, "lehrkraft", "gob", {"aktion": "abschliessen", "woche": self.woche})
+        self.assertEqual(len(tafel.eingefroren(self.con, self.pid, b["id"])["objekte"]["sticker"]), 1)
+
     def test_anwesenheit(self):
         tafel.melden(self.pid, "tafel")
         tafel.melden(self.pid, "g-1")

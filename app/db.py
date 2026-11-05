@@ -434,6 +434,10 @@ MIGRATIONEN = [
     ALTER TABLE position ADD COLUMN firma_zeit TEXT;
     UPDATE position SET firma_stand = 'gefragt' WHERE entscheidung = 'firma'
     """,
+    # 11: Tafel: Pfeile, Sticker und Rahmen (Stufe I5/I6) als JSON neben Strichen und Positionen
+    """
+    ALTER TABLE tafel ADD COLUMN objekte TEXT NOT NULL DEFAULT '{}'
+    """,
 ]
 
 

@@ -10,6 +10,14 @@ const Tafel = (() => {
   const ART = { auftrag: 'Auftrag', problem: 'Problem', frage: 'Frage', thema: 'Thema', idee: 'Idee', aenderung: 'Änderung im Raster',
     absprache: 'Absprache', meilenstein: 'Meilenstein' };
   const FARBEN = ['#1d2433', '#00639C', '#D4005E', '#3d8b00', '#e07b00'];
+  const MARKER_FARBEN = ['#f5c400', '#7fd13b', '#ff6fb0', '#4fb3ff'];
+  const STICKER = [['idee', 'Idee', '#c98a1e'], ['problem', 'Problem', '#c98a1e'], ['frage', 'Frage', '#6f62d6'], ['ok', 'erledigt', '#4f8a1a'],
+    ['nein', 'verworfen', '#c43b3b'], ['stern', 'wichtig', '#c98a1e'], ['ziel', 'Ziel', '#2f7fc0'], ['uhr', 'Zeit', '#2f7fc0'],
+    ['flagge', 'Meilenstein', '#2f7fc0'], ['gut', 'gut', '#4f8a1a'], ['schlecht', 'schlecht', '#c43b3b'], ['team', 'Team', '#5d6779'],
+    ['fertigung', 'Fertigung', '#5d6779'], ['elektrik', 'Elektrik', '#5d6779'], ['mechanik', 'Mechanik', '#5d6779'],
+    ['programm', 'Programm', '#5d6779'], ['material', 'Material', '#5d6779'], ['mass', 'Maß', '#5d6779']];
+  const STICKER_INFO = Object.fromEntries(STICKER.map(([k, name, farbe]) => [k, { name, farbe }]));
+  const SG = 46;   // Groesse eines freien Stickers (Tafel-Einheiten)
   const ERGEBNIS = ['absprachen', 'auftraege', 'meilensteine'];
   const PB = 205, PH = 86;   // Post-it-Groesse
 
@@ -79,9 +87,58 @@ const Tafel = (() => {
       kopf('Absprachen', GE + 12, 6, 300), kopf('Aufträge', GE + 12, H / 3 + 6, 300), kopf('Meilensteine', GE + 12, 2 * H / 3 + 6, 300)];
   }
 
-  function zeichneStriche(ctx, striche) {
+  // Alles, was auf die Zeichenflaeche gehoert: Striche (Textmarker halbdurchsichtig), Pfeile, ein Pfeil im Entstehen
+  function zeichneStriche(ctx, striche, pfeile, ende, neu) {
     ctx.clearRect(0, 0, B, H);
     for (const s of striche) zeichneStrich(ctx, s);
+    for (const p of (pfeile || []).concat(neu ? [neu] : [])) zeichnePfeil(ctx, p, ende || (e => [e.x, e.y]));
+  }
+
+  function zeichnePfeil(ctx, p, ende) {
+    const a = ende(p.a), b = ende(p.b);
+    if (!a || !b) return;
+    const w = Math.atan2(b[1] - a[1], b[0] - a[0]), l = 22;
+    ctx.save();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = p.farbe; ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]);
+    ctx.moveTo(b[0] - l * Math.cos(w - .45), b[1] - l * Math.sin(w - .45)); ctx.lineTo(b[0], b[1]);
+    ctx.lineTo(b[0] - l * Math.cos(w + .45), b[1] - l * Math.sin(w + .45));
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Ende eines Pfeils in Tafel-Koordinaten: haftet es an einem Post-it, zaehlt dessen aktuelle Lage auf der Tafel
+  function pfeilEnde(zettelOrt) {
+    return e => {
+      if (e.key) {
+        const pi = zettelOrt.querySelector('.pi[data-key="' + CSS.escape(e.key) + '"]');
+        if (!pi) return null;
+        return [pi.offsetLeft + e.rx * pi.offsetWidth, pi.offsetTop + e.ry * pi.offsetHeight];
+      }
+      if (e.rahmen) {
+        const r = zettelOrt.querySelector('.t-rahmen[data-id="' + e.rahmen + '"]');
+        if (!r) return null;
+        return [r.offsetLeft + e.rx * r.offsetWidth, r.offsetTop + e.ry * r.offsetHeight];
+      }
+      return [e.x, e.y];
+    };
+  }
+
+  function stickerElement(s) {
+    const info = STICKER_INFO[s.art] || STICKER_INFO.idee;
+    const e = el('div', { class: 'st' + (s.key ? ' haftet' : ''), 'data-sid': String(s.id), title: info.name, style: 'color:' + info.farbe +
+      (s.key ? '' : ';left:' + s.x + 'px;top:' + s.y + 'px') }, T.symbol('st_' + s.art));
+    return e;
+  }
+
+  // Sticker setzen: auf einem Post-it an dessen Ecke, sonst frei auf der Tafel
+  function stickerSetzen(zettelOrt, sticker) {
+    zettelOrt.querySelectorAll('.st').forEach(x => x.remove());
+    for (const s of sticker || []) {
+      const ziel = s.key ? zettelOrt.querySelector('.pi[data-key="' + CSS.escape(s.key) + '"]') : zettelOrt;
+      if (ziel) ziel.appendChild(stickerElement(s));
+    }
   }
 
   function zeichneStrich(ctx, s) {
@@ -89,6 +146,14 @@ const Tafel = (() => {
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     const p = s.punkte;
+    if (s.marker) {   // Textmarker: gleichmaessig breit, halbdurchsichtig
+      ctx.save();
+      ctx.globalAlpha = .38; ctx.lineWidth = s.breite;
+      ctx.beginPath(); p.forEach((q, i) => i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]));
+      if (p.length === 1) ctx.lineTo(p[0][0] + .1, p[0][1]);
+      ctx.stroke(); ctx.restore();
+      return;
+    }
     if (p.length === 1) { ctx.fillStyle = s.farbe; ctx.beginPath(); ctx.arc(p[0][0], p[0][1], s.breite / 2, 0, 7); ctx.fill(); return; }
     for (let i = 1; i < p.length; i++) {
       ctx.lineWidth = s.breite * (0.5 + (p[i][2] === undefined ? .5 : p[i][2]));
@@ -136,9 +201,15 @@ const Tafel = (() => {
     document.body.appendChild(huelle);
     window.addEventListener('keydown', taste);
     const t = aufbauen(rahmen);
+    eingefrorenZeichnen(t, d, bildBasis);
+  }
+
+  function eingefrorenZeichnen(t, d, bildBasis) {
     const pos = anordnen(d.postits, d.positionen || {});
+    const o = d.objekte || {};
     T.setzen(t.zettel, d.postits.map(z => zettelElement(z, pos[z.key], bildBasis)));
-    zeichneStriche(t.ctx, d.striche);
+    stickerSetzen(t.zettel, o.sticker);
+    zeichneStriche(t.ctx, d.striche, o.pfeile, pfeilEnde(t.zettel));
   }
 
   // --- Interaktiv am Board ---
@@ -154,27 +225,58 @@ const Tafel = (() => {
       return;
     }
     document.title = 'Tafel · ' + D.projekt.titel + ' · ' + T.NAME;
-    const S = { werkzeug: 'zeiger', farbe: FARBEN[0], dicke: 4, strich: null, radiert: new Set(), zug: null, gewaehlt: null, rueck: [],
+    const S = { werkzeug: 'zeiger', farbe: FARBEN[0], dicke: 4, markerFarbe: MARKER_FARBEN[0], sticker: 'idee', strich: null, pfeil: null,
+      radiert: new Set(), radiertP: new Set(), radiertS: new Set(), zug: null, gewaehlt: null, rueck: [], vor: [],
       fest: {} };   // fest: einmal vergebene Plaetze, damit nichts nachrutscht
     const anwesendText = el('span', { class: 'leise' });
     const rahmen = el('div', { class: 'tafel-rahmen' });
     const auswahl = el('div', { class: 'pi-menue', hidden: true });
 
-    const werkzeugKnopf = (w, zeichen, titel) => el('button', { type: 'button', class: 'wz', 'data-w': w, title: titel, 'aria-label': titel,
-      onclick: () => { S.werkzeug = w; leisteZeigen(); } }, zeichen);
-    const farben = el('span', { class: 'farben' }, FARBEN.map(f => el('button', { type: 'button', class: 'farbe', style: 'background:' + f,
-      'data-f': f, 'aria-label': 'Farbe', onclick: () => { S.farbe = f; S.werkzeug = 'stift'; leisteZeigen(); } })));
-    const dicken = el('span', { class: 'farben' }, [3, 6, 12].map(n => el('button', { type: 'button', class: 'dicke', 'data-d': String(n),
-      'aria-label': 'Strichstärke ' + n, onclick: () => { S.dicke = n; S.werkzeug = 'stift'; leisteZeigen(); } }, el('span', { style: 'width:' + (n + 2) + 'px;height:' + (n + 2) + 'px' }))));
+    // Werkzeugleiste unten: nur Symbole, das aktive blau gefuellt. Stift, Textmarker und Sticker klappen beim Waehlen
+    // ihre Auswahl auf (ein zweiter Tipp schliesst sie), beim Zeichnen geht sie zu. Tastenkuerzel im Hinweis.
+    const ZEICHNEN = ['stift', 'marker', 'pfeil', 'radierer'];
+    const knopf = (w, titel, taste) => el('button', { type: 'button', class: 'wz', 'data-w': w, title: titel + ' · ' + taste, 'aria-label': titel,
+      onclick: () => werkzeugWaehlen(w, true) }, T.symbol(w));
+    const auf = {
+      stift: el('div', { class: 'wz-auf', hidden: true },
+        el('div', { class: 'reihe' }, FARBEN.map(f => el('button', { type: 'button', class: 'farbe', style: 'background:' + f, 'data-f': f,
+          'aria-label': 'Stiftfarbe', onclick: () => { S.farbe = f; leisteZeigen(); } }))),
+        el('div', { class: 'reihe' }, [3, 6, 12].map(n => el('button', { type: 'button', class: 'dicke', 'data-d': String(n),
+          'aria-label': 'Strichstärke ' + n, onclick: () => { S.dicke = n; leisteZeigen(); } }, el('span', { style: 'width:' + (n + 3) + 'px;height:' + (n + 3) + 'px' }))))),
+      marker: el('div', { class: 'wz-auf', hidden: true },
+        el('div', { class: 'reihe' }, MARKER_FARBEN.map(f => el('button', { type: 'button', class: 'farbe', style: 'background:' + f, 'data-m': f,
+          'aria-label': 'Textmarkerfarbe', onclick: () => { S.markerFarbe = f; leisteZeigen(); } })))),
+      sticker: el('div', { class: 'wz-auf', hidden: true },
+        el('div', { class: 'etikett', text: 'Sticker wählen, dann auf die Tafel oder ein Post-it tippen' }),
+        el('div', { class: 'st-raster' }, STICKER.map(([k, name, farbe]) => el('button', { type: 'button', 'data-s': k, title: name, 'aria-label': name,
+          style: 'color:' + farbe, onclick: () => { S.sticker = k; aufZu(); leisteZeigen(); } }, T.symbol('st_' + k))))),
+    };
+    const gruppe = (w, titel, taste) => el('span', { class: 'wz-gruppe' }, knopf(w, titel, taste), auf[w]);
     const leiste = el('div', { class: 'tafel-werkzeuge' },
-      werkzeugKnopf('zeiger', '✥', 'Post-its verschieben'), werkzeugKnopf('stift', '✎', 'Stift'), farben, dicken,
-      werkzeugKnopf('radierer', '⌫', 'Radierer'), werkzeugKnopf('postit', '▢', 'Neues Post-it'),
-      el('button', { type: 'button', class: 'wz', title: 'Rückgängig', 'aria-label': 'Rückgängig', onclick: rueckgaengig }, '↶'));
+      knopf('zeiger', 'Auswählen und verschieben', 'V'), gruppe('stift', 'Stift', 'P'), gruppe('marker', 'Textmarker', 'M'),
+      knopf('pfeil', 'Pfeil: von Post-it zu Post-it ziehen, er haftet an beiden', 'A'), knopf('radierer', 'Radierer', 'E'),
+      el('span', { class: 'trenner' }),
+      knopf('postit', 'Post-it: auf die Tafel tippen', 'N'), gruppe('sticker', 'Sticker', 'S'),
+      el('span', { class: 'trenner' }),
+      el('button', { type: 'button', class: 'wz', title: 'Rückgängig · Strg+Z', 'aria-label': 'Rückgängig', onclick: rueckgaengig }, T.symbol('zurueck')),
+      el('button', { type: 'button', class: 'wz', title: 'Wiederholen · Strg+Y', 'aria-label': 'Wiederholen', onclick: wiederholen }, T.symbol('vor')));
+    function aufZu() { Object.values(auf).forEach(a => { a.hidden = true; }); }
+    function werkzeugWaehlen(w, klick) {
+      const vorher = S.werkzeug;
+      S.werkzeug = w;
+      const a = auf[w];
+      const offen = a && !a.hidden;
+      aufZu();
+      if (a && klick) a.hidden = vorher === w && offen;
+      leisteZeigen();
+    }
     function leisteZeigen() {
       leiste.querySelectorAll('.wz[data-w]').forEach(b => b.classList.toggle('an', b.dataset.w === S.werkzeug));
-      leiste.querySelectorAll('.farbe').forEach(b => b.classList.toggle('an', b.dataset.f === S.farbe));
+      leiste.querySelectorAll('[data-f]').forEach(b => b.classList.toggle('an', b.dataset.f === S.farbe));
+      leiste.querySelectorAll('[data-m]').forEach(b => b.classList.toggle('an', b.dataset.m === S.markerFarbe));
       leiste.querySelectorAll('.dicke').forEach(b => b.classList.toggle('an', Number(b.dataset.d) === S.dicke));
-      t.canvas.style.pointerEvents = S.werkzeug === 'stift' || S.werkzeug === 'radierer' ? 'auto' : 'none';
+      leiste.querySelectorAll('[data-s]').forEach(b => b.classList.toggle('an', b.dataset.s === S.sticker));
+      t.canvas.style.pointerEvents = ZEICHNEN.includes(S.werkzeug) ? 'auto' : 'none';
       t.flaeche.dataset.werkzeug = S.werkzeug;
       menueZu();
     }
@@ -215,23 +317,43 @@ const Tafel = (() => {
       anwesendText.textContent = a.geraete ? (a.geraete === 1 ? '1 Gerät des Teams verbunden' : a.geraete + ' Geräte des Teams verbunden') : 'kein Gerät des Teams verbunden';
     }
 
+    const ende = pfeilEnde(t.zettel);
+    const malen = () => zeichneStriche(t.ctx, D.striche, D.objekte.pfeile, ende, S.pfeil);
+
     function zeichnen() {
       if (D.abgeschlossen) return;
       const pos = anordnen(D.postits, Object.assign({}, S.fest, D.positionen));
       S.fest = pos;
       S.pos = pos;
       T.setzen(t.zettel, D.postits.map(z => zettelElement(z, pos[z.key], basis)));
-      zeichneStriche(t.ctx, D.striche);
+      stickerSetzen(t.zettel, D.objekte.sticker);
+      malen();
       anwesendZeigen(D.anwesend);
     }
 
-    // --- Stift und Radierer ---
+    // Wo ein Pfeil anfaengt oder endet: auf einem Post-it haftet er (Lage relativ zum Post-it), sonst frei
+    function anker(ev, x, y) {
+      const pi = document.elementsFromPoint(ev.clientX, ev.clientY).map(n => n.closest && n.closest('.pi')).find(Boolean);
+      if (!pi || !t.zettel.contains(pi)) return { x, y };
+      return { key: pi.dataset.key, rx: Math.round((x - pi.offsetLeft) / pi.offsetWidth * 1000) / 1000,
+        ry: Math.round((y - pi.offsetTop) / pi.offsetHeight * 1000) / 1000 };
+    }
+
+    // Rueckgaengig/Wiederholen: rueck haelt, wie man etwas zuruecknimmt, vor, wie man es wieder herstellt
+    function merken(eintrag) { S.rueck.push(eintrag); S.vor = []; }
+
+    // --- Stift, Textmarker, Pfeil, Radierer (auf der Zeichenflaeche) ---
     t.canvas.addEventListener('pointerdown', ev => {
       ev.preventDefault();
       t.canvas.setPointerCapture(ev.pointerId);
+      aufZu();
       const [x, y] = t.punkt(ev);
       if (S.werkzeug === 'stift') {
         S.strich = { farbe: S.farbe, breite: S.dicke, punkte: [[x, y, ev.pointerType === 'pen' ? ev.pressure : .5]] };
+      } else if (S.werkzeug === 'marker') {
+        S.strich = { farbe: S.markerFarbe, breite: 22, marker: true, punkte: [[x, y, .5]] };
+      } else if (S.werkzeug === 'pfeil') {
+        S.pfeil = { farbe: FARBEN[1], a: anker(ev, x, y), b: { x, y } };
       } else if (S.werkzeug === 'radierer') {
         S.radierer = true;
         radieren(x, y);
@@ -243,46 +365,99 @@ const Tafel = (() => {
         const p = S.strich.punkte, letzter = p[p.length - 1];
         if (Math.abs(letzter[0] - x) + Math.abs(letzter[1] - y) < 2) return;
         p.push([x, y, ev.pointerType === 'pen' ? ev.pressure : .5]);
-        zeichneStrich(t.ctx, { farbe: S.strich.farbe, breite: S.strich.breite, punkte: p.slice(-2) });
-      } else if (S.radierer) radieren(x, y);
+        if (S.strich.marker) { D.striche.push(S.strich); malen(); D.striche.pop(); }   // halbdurchsichtig: ganz neu zeichnen
+        else zeichneStrich(t.ctx, { farbe: S.strich.farbe, breite: S.strich.breite, punkte: p.slice(-2) });
+      } else if (S.pfeil) { S.pfeil.b = { x, y }; malen(); }
+      else if (S.radierer) radieren(x, y);
     });
-    const strichEnde = async () => {
+    const strichEnde = async ev => {
       if (S.strich) {
         const strich = S.strich;
         S.strich = null;
         D.striche.push(Object.assign({ id: -1 }, strich));
-        const r = await senden({ aktion: 'strich', farbe: strich.farbe, breite: strich.breite, punkte: strich.punkte });
-        if (r && r.strich_id) S.rueck.push({ typ: 'strich', id: r.strich_id });
+        const daten = { aktion: 'strich', farbe: strich.farbe, breite: strich.breite, marker: !!strich.marker, punkte: strich.punkte };
+        const r = await senden(daten);
+        if (r && r.strich_id) merken({ typ: 'strich', id: r.strich_id, daten });
+      } else if (S.pfeil) {
+        const p = S.pfeil;
+        S.pfeil = null;
+        const [x, y] = t.punkt(ev);
+        p.b = anker(ev, x, y);
+        const a = ende(p.a), b = ende(p.b);
+        if (!a || !b || Math.hypot(a[0] - b[0], a[1] - b[1]) < 25 || (p.a.key && p.a.key === p.b.key)) { malen(); return; }
+        const daten = { aktion: 'pfeil', farbe: p.farbe, a: p.a, b: p.b };
+        D.objekte.pfeile.push(Object.assign({ id: -1 }, p));
+        const r = await senden(daten);
+        if (r && r.pfeil_id) merken({ typ: 'pfeil', id: r.pfeil_id, daten });
       } else if (S.radierer) {
         S.radierer = false;
-        if (S.radiert.size) { const ids = [...S.radiert]; S.radiert.clear(); senden({ aktion: 'strich_weg', ids }); }
+        if (S.radiert.size) {
+          const ids = [...S.radiert], weg = D._wegStriche || [];
+          S.radiert.clear(); D._wegStriche = [];
+          await senden({ aktion: 'strich_weg', ids });
+          merken({ typ: 'radiert', striche: weg });
+        }
+        if (S.radiertP.size || S.radiertS.size) {
+          const pf = [...S.radiertP], st = [...S.radiertS];
+          S.radiertP.clear(); S.radiertS.clear();
+          senden({ aktion: 'objekte_weg', pfeile: pf, sticker: st });
+        }
       }
     };
     t.canvas.addEventListener('pointerup', strichEnde);
     t.canvas.addEventListener('pointercancel', strichEnde);
 
+    // Radierer: Striche und Pfeile in der Naehe, dazu freie Sticker unter dem Finger
     function radieren(x, y) {
-      const vorher = D.striche.length;
+      let anders = false;
       D.striche = D.striche.filter(s => {
-        const trifft = s.punkte.some(p => Math.abs(p[0] - x) < 14 && Math.abs(p[1] - y) < 14);
-        if (trifft) S.radiert.add(s.id);
+        const trifft = s.punkte.some(p => Math.abs(p[0] - x) < 14 + (s.marker ? s.breite / 2 : 0) && Math.abs(p[1] - y) < 14 + (s.marker ? s.breite / 2 : 0));
+        if (trifft) { S.radiert.add(s.id); (D._wegStriche = D._wegStriche || []).push(s); anders = true; }
         return !trifft;
       });
-      if (D.striche.length !== vorher) zeichneStriche(t.ctx, D.striche);
+      D.objekte.pfeile = D.objekte.pfeile.filter(p => {
+        const a = ende(p.a), b = ende(p.b);
+        if (!a || !b) return true;
+        const trifft = [0, .1, .2, .3, .4, .5, .6, .7, .8, .9, 1].some(k => Math.hypot(a[0] + (b[0] - a[0]) * k - x, a[1] + (b[1] - a[1]) * k - y) < 16);
+        if (trifft) { S.radiertP.add(p.id); anders = true; }
+        return !trifft;
+      });
+      D.objekte.sticker = D.objekte.sticker.filter(s => {
+        const trifft = !s.key && x >= s.x - 6 && x <= s.x + SG + 6 && y >= s.y - 6 && y <= s.y + SG + 6;
+        if (trifft) { S.radiertS.add(s.id); anders = true; }
+        return !trifft;
+      });
+      if (anders) { stickerSetzen(t.zettel, D.objekte.sticker); malen(); }
     }
 
     // --- Post-its: ziehen, waehlen, neu ---
     t.zettel.addEventListener('pointerdown', ev => {
+      if (S.werkzeug !== 'zeiger') return;
+      const st = ev.target.closest('.st');
+      if (st && !st.classList.contains('haftet')) {   // freien Sticker ziehen (auf ein Post-it gezogen haftet er dort)
+        ev.preventDefault();
+        st.setPointerCapture(ev.pointerId);
+        const [x, y] = t.punkt(ev);
+        S.stZug = { st, id: Number(st.dataset.sid), dx: x - st.offsetLeft, dy: y - st.offsetTop, x0: x, y0: y, bewegt: false };
+        return;
+      }
       const pi = ev.target.closest('.pi');
-      if (!pi || S.werkzeug !== 'zeiger') return;
+      if (!pi) return;
       ev.preventDefault();
       pi.setPointerCapture(ev.pointerId);
       const [x, y] = t.punkt(ev);
       const pos = S.pos[pi.dataset.key];
-      S.zug = { pi, key: pi.dataset.key, dx: x - pos[0], dy: y - pos[1], start: pos, bewegt: false };
+      S.zug = { pi, key: pi.dataset.key, dx: x - pos[0], dy: y - pos[1], start: pos, bewegt: false, sticker: st };
       pi.classList.add('zieht');
     });
     t.zettel.addEventListener('pointermove', ev => {
+      if (S.stZug) {
+        const [x, y] = t.punkt(ev), z = S.stZug;
+        if (Math.abs(x - z.x0) + Math.abs(y - z.y0) > 4) z.bewegt = true;
+        z.st.style.left = Math.max(0, Math.min(B - SG, x - z.dx)) + 'px';
+        z.st.style.top = Math.max(0, Math.min(H - SG, y - z.dy)) + 'px';
+        return;
+      }
       if (!S.zug) return;
       const [x, y] = t.punkt(ev);
       const nx = Math.max(0, Math.min(B - S.zug.pi.offsetWidth, x - S.zug.dx)), ny = Math.max(0, Math.min(H - PH, y - S.zug.dy));
@@ -290,12 +465,26 @@ const Tafel = (() => {
       S.zug.pi.style.left = nx + 'px';
       S.zug.pi.style.top = ny + 'px';
       S.zug.ziel = [Math.round(nx), Math.round(ny)];
+      malen();   // haftende Pfeile gehen mit
     });
-    t.zettel.addEventListener('pointerup', async () => {
+    t.zettel.addEventListener('pointerup', async ev => {
+      if (S.stZug) {
+        const z = S.stZug;
+        S.stZug = null;
+        if (!z.bewegt) { stickerMenue(z.id, z.st); return; }
+        const pi = document.elementsFromPoint(ev.clientX, ev.clientY).map(n => n.closest && n.closest('.pi')).find(Boolean);
+        const s = D.objekte.sticker.find(x => x.id === z.id);
+        const daten = pi && !D.objekte.sticker.some(x => x.key === pi.dataset.key) ? { key: pi.dataset.key }
+          : { x: Math.round(z.st.offsetLeft), y: Math.round(z.st.offsetTop) };
+        if (s) { delete s.key; delete s.x; delete s.y; Object.assign(s, daten); }
+        senden(Object.assign({ aktion: 'sticker_bewegen', id: z.id }, daten));
+        return;
+      }
       if (!S.zug) return;
       const z = S.zug;
       S.zug = null;
       z.pi.classList.remove('zieht');
+      if (!z.bewegt && z.sticker) { stickerMenue(Number(z.sticker.dataset.sid), z.sticker); return; }
       const zettel = D.postits.find(p => p.key === z.key);
       if (!z.bewegt || !z.ziel) { menueAuf(zettel, z.pi); return; }
       const ziel = zoneBei(z.ziel[0] + z.pi.offsetWidth / 2, z.ziel[1] + PH / 2);
@@ -304,7 +493,7 @@ const Tafel = (() => {
       if (vorher === nachher) {
         S.pos[z.key] = z.ziel;
         D.positionen[z.key] = z.ziel;
-        S.rueck.push({ typ: 'position', key: z.key, pos: z.start });
+        merken({ typ: 'position', key: z.key, pos: z.start, neu: z.ziel });
         senden({ aktion: 'position', key: z.key, x: z.ziel[0], y: z.ziel[1] });
         return;
       }
@@ -314,6 +503,16 @@ const Tafel = (() => {
     });
 
     t.flaeche.addEventListener('click', async ev => {
+      if (S.werkzeug === 'sticker' && !ev.target.closest('.pi-menue, .st')) {   // Sticker setzen
+        aufZu();
+        const [x, y] = t.punkt(ev);
+        const pi = ev.target.closest('.pi');
+        const daten = Object.assign({ aktion: 'sticker', art: S.sticker }, pi && !D.objekte.sticker.some(s => s.key === pi.dataset.key)
+          ? { key: pi.dataset.key } : { x: Math.max(0, Math.min(B - SG, x - SG / 2)), y: Math.max(0, Math.min(H - SG, y - SG / 2)) });
+        const r = await senden(daten);
+        if (r && r.sticker_id) merken({ typ: 'sticker', id: r.sticker_id, daten });
+        return;
+      }
       if (S.werkzeug !== 'postit' || ev.target.closest('.pi, .pi-menue')) return;
       const [x, y] = t.punkt(ev);
       const zone = zoneBei(x, y);
@@ -324,9 +523,22 @@ const Tafel = (() => {
         inhalt: el('div', { class: 'felder' }, T.feld('Text', text)),
         speichern: async () => { mehr = await ergebnisAngaben(zone, { text: text.value }); return mehr !== null; } });
       if (!ok) return;
-      const r = await senden(Object.assign({ aktion: 'postit', zone, text: text.value, x: Math.min(x, B - PB), y: Math.min(y, H - PH) }, mehr));
-      if (r && r.key) S.rueck.push({ typ: 'postit', key: r.key });
+      const daten = Object.assign({ aktion: 'postit', zone, text: text.value, x: Math.min(x, B - PB), y: Math.min(y, H - PH) }, mehr);
+      const r = await senden(daten);
+      if (r && r.key) merken({ typ: 'postit', key: r.key, daten });
     });
+
+    function stickerMenue(id, st) {
+      const s = D.objekte.sticker.find(x => x.id === id);
+      if (!s) return;
+      T.setzen(auswahl, el('span', { class: 'leise', text: (STICKER_INFO[s.art] || {}).name || 'Sticker' }),
+        s.key ? el('button', { type: 'button', onclick: () => { menueZu(); senden({ aktion: 'sticker_bewegen', id, x: Math.min(B - SG, (S.pos[s.key] || [0])[0] + 20), y: Math.max(0, (S.pos[s.key] || [0, 60])[1] - 50) }); } }, 'vom Post-it lösen') : null,
+        el('button', { type: 'button', class: 'warnen', onclick: () => { menueZu(); senden({ aktion: 'objekte_weg', sticker: [id] }); merken({ typ: 'sticker_weg', s }); } }, 'Entfernen'));
+      const ziel = st.closest('.pi') || st;
+      auswahl.style.left = Math.min(ziel.offsetLeft, B - 260) + 'px';
+      auswahl.style.top = Math.min(ziel.offsetTop + ziel.offsetHeight + 6, H - 50) + 'px';
+      auswahl.hidden = false;
+    }
 
     // Angaben, die ein Ergebnis braucht: Auftrag -> Frist (+ wer), Meilenstein -> Woche. null = abgebrochen
     async function ergebnisAngaben(zone, zettel) {
@@ -376,10 +588,54 @@ const Tafel = (() => {
     async function rueckgaengig() {
       const r = S.rueck.pop();
       if (!r) { T.meldung('Nichts mehr rückgängig zu machen.'); return; }
-      if (r.typ === 'strich') await senden({ aktion: 'strich_weg', ids: [r.id] });
-      else if (r.typ === 'postit') await senden({ aktion: 'verwerfen', key: r.key });
-      else if (r.typ === 'position') await senden({ aktion: 'position', key: r.key, x: r.pos[0], y: r.pos[1] });
+      if (r.typ === 'sticker_weg') {   // entfernten Sticker wieder aufkleben
+        const s = r.s;
+        await senden(Object.assign({ aktion: 'sticker', art: s.art }, s.key ? { key: s.key } : { x: s.x, y: s.y }));
+      } else if (r.typ === 'strich') { await senden({ aktion: 'strich_weg', ids: [r.id] }); S.vor.push(r); }
+      else if (r.typ === 'pfeil') { await senden({ aktion: 'objekte_weg', pfeile: [r.id] }); S.vor.push(r); }
+      else if (r.typ === 'sticker') { await senden({ aktion: 'objekte_weg', sticker: [r.id] }); S.vor.push(r); }
+      else if (r.typ === 'postit') { await senden({ aktion: 'verwerfen', key: r.key }); S.vor.push(r); }
+      else if (r.typ === 'position') {
+        await senden({ aktion: 'position', key: r.key, x: r.pos[0], y: r.pos[1] });
+        S.vor.push({ typ: 'position', key: r.key, pos: r.neu, neu: r.pos });
+      } else if (r.typ === 'radiert') {   // weggeradierte Striche kommen wieder
+        const ids = [];
+        for (const s of r.striche) {
+          const e = await senden({ aktion: 'strich', farbe: s.farbe, breite: s.breite, marker: !!s.marker, punkte: s.punkte });
+          if (e && e.strich_id) ids.push(e.strich_id);
+        }
+        S.vor.push({ typ: 'radiert_wieder', ids, striche: r.striche });
+      }
     }
+
+    async function wiederholen() {
+      const v = S.vor.pop();
+      if (!v) { T.meldung('Nichts zu wiederholen.'); return; }
+      const nochmal = async (feld, typ) => { const e = await senden(v.daten); if (e && e[feld]) S.rueck.push({ typ, id: e[feld], daten: v.daten }); };
+      if (v.typ === 'strich') await nochmal('strich_id', 'strich');
+      else if (v.typ === 'pfeil') await nochmal('pfeil_id', 'pfeil');
+      else if (v.typ === 'sticker') await nochmal('sticker_id', 'sticker');
+      else if (v.typ === 'postit') { const e = await senden(v.daten); if (e && e.key) S.rueck.push({ typ: 'postit', key: e.key, daten: v.daten }); }
+      else if (v.typ === 'position') {
+        await senden({ aktion: 'position', key: v.key, x: v.pos[0], y: v.pos[1] });
+        S.rueck.push({ typ: 'position', key: v.key, pos: v.neu, neu: v.pos });
+      } else if (v.typ === 'radiert_wieder') {
+        await senden({ aktion: 'strich_weg', ids: v.ids });
+        S.rueck.push({ typ: 'radiert', striche: v.striche });
+      }
+    }
+
+    // Tastenkuerzel (nicht beim Schreiben in Feldern)
+    document.addEventListener('keydown', ev => {
+      if (ev.target.closest && ev.target.closest('input, textarea, select, [contenteditable="true"], dialog')) return;
+      const k = ev.key.toLowerCase();
+      if ((ev.ctrlKey || ev.metaKey) && k === 'z') { ev.preventDefault(); if (ev.shiftKey) wiederholen(); else rueckgaengig(); return; }
+      if ((ev.ctrlKey || ev.metaKey) && k === 'y') { ev.preventDefault(); wiederholen(); return; }
+      if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+      const w = { v: 'zeiger', p: 'stift', m: 'marker', a: 'pfeil', e: 'radierer', n: 'postit', s: 'sticker' }[k];
+      if (w) { ev.preventDefault(); werkzeugWaehlen(w); }
+      if (k === 'escape') { aufZu(); menueZu(); }
+    });
 
     async function rasterZeigen() {
       const ort2 = el('div', { class: 'tafel-raster' });
@@ -428,10 +684,7 @@ const Tafel = (() => {
 
   // Eingefrorene Tafel fest in eine Seite setzen (Projektbericht); der Rahmen braucht eine feste Groesse
   function einbetten(rahmen, d, bildBasis) {
-    const t = aufbauen(rahmen);
-    const pos = anordnen(d.postits, d.positionen || {});
-    T.setzen(t.zettel, d.postits.map(z => zettelElement(z, pos[z.key], bildBasis)));
-    zeichneStriche(t.ctx, d.striche);
+    eingefrorenZeichnen(aufbauen(rahmen), d, bildBasis);
   }
 
   return { starten, ansehen, aufsBoard, einbetten };

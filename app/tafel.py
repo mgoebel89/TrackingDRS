@@ -28,6 +28,10 @@ MAX_STRICHE = 1500
 MAX_PUNKTE = 3000
 MAX_BILD = 1400 * 1024   # Base64 + JSON muss unter MAX_BODY des Servers (2 MB) bleiben
 FARBEN = ("#1d2433", "#00639C", "#D4005E", "#3d8b00", "#e07b00")
+MARKER_FARBEN = ("#f5c400", "#7fd13b", "#ff6fb0", "#4fb3ff")   # Textmarker: breit und halbdurchsichtig
+STICKER = ("idee", "problem", "frage", "ok", "nein", "stern", "ziel", "uhr", "flagge", "gut", "schlecht", "team",
+           "fertigung", "elektrik", "mechanik", "programm", "material", "mass")
+MAX_OBJEKTE = 400   # Pfeile und Sticker je Tafel
 
 # Wer gerade da ist (nur im Speicher): Tafel offen (Lehrkraft) und Geraete des Teams, je Projekt mit Zeitpunkt
 _ANWESEND = {}
@@ -62,11 +66,19 @@ def anwesend(pid, sekunden=12):
 
 # --- Lesen ---
 
+def _objekte(text):
+    o = json.loads(text or "{}")
+    for k in ("pfeile", "sticker", "rahmen"):
+        o.setdefault(k, [])
+    return o
+
+
 def _tafel(con, bid):
     t = con.execute("SELECT * FROM tafel WHERE besprechung_id = ?", (bid,)).fetchone() if bid else None
     if t is None:
-        return {"striche": [], "positionen": {}, "stand": 0}
-    return {"striche": json.loads(t["striche"]), "positionen": json.loads(t["positionen"]), "stand": t["stand"]}
+        return {"striche": [], "positionen": {}, "objekte": _objekte("{}"), "stand": 0}
+    return {"striche": json.loads(t["striche"]), "positionen": json.loads(t["positionen"]), "objekte": _objekte(t["objekte"]),
+            "stand": t["stand"]}
 
 
 def _zettel(schluessel, art, zone, text, **mehr):
@@ -125,7 +137,7 @@ def lesen(con, pid):
     p = con.execute("SELECT titel, klasse FROM projekt WHERE id = ?", (pid,)).fetchone()
     return {"projekt": {"id": pid, "titel": p["titel"], "klasse": p["klasse"]}, "woche": woche,
             "termin": besprechung._termin(con, pid, woche), "postits": postits(con, pid, woche), "striche": t["striche"],
-            "positionen": t["positionen"], "stand": stand(con, pid, bid), "anwesend": anwesend(pid),
+            "positionen": t["positionen"], "objekte": t["objekte"], "stand": stand(con, pid, bid), "anwesend": anwesend(pid),
             "mitglieder": [{"id": m["id"], "name": m["vorname"] + " " + m["nachname"]}
                            for m in con.execute("SELECT * FROM mitglied WHERE projekt_id = ? AND aktiv = 1 ORDER BY nachname", (pid,))]}
 
@@ -134,7 +146,7 @@ def momentaufnahme(con, pid, woche):
     """Was beim Abschliessen eingefroren wird (vor dem Setzen von 'abgeschlossen' aufrufen)."""
     z = besprechung._zeile(con, pid, woche)
     t = _tafel(con, z["id"] if z else None)
-    return {"postits": postits(con, pid, woche), "striche": t["striche"], "positionen": t["positionen"]}
+    return {"postits": postits(con, pid, woche), "striche": t["striche"], "positionen": t["positionen"], "objekte": t["objekte"]}
 
 
 def eingefroren(con, pid, bid):
@@ -143,6 +155,7 @@ def eingefroren(con, pid, bid):
         raise ProjektFehler("Diese Tafel gibt es nicht.")
     proto = json.loads(z["protokoll"] or "{}")
     tafel = proto.get("tafel") or {"postits": [], "striche": [], "positionen": {}}
+    tafel["objekte"] = _objekte(json.dumps(tafel.get("objekte") or {}))
     tafel.update({"woche": z["woche"], "termin": proto.get("termin"), "abgeschlossen": z["abgeschlossen"]})
     return tafel
 
@@ -170,6 +183,35 @@ def _zahl(wert, kleinst, groesst):
         raise ProjektFehler("Ungültige Position.")
 
 
+def _neue_id(liste):
+    return max([x["id"] for x in liste] or [0]) + 1
+
+
+def _anteil(wert):
+    try:
+        return round(min(max(float(wert), 0.0), 1.0), 3)
+    except (TypeError, ValueError):
+        raise ProjektFehler("Ungültige Position.")
+
+
+def _ende(e):
+    """Ende eines Pfeils: {key, rx, ry} haftet an einem Post-it, {rahmen, rx, ry} an einem Rahmen, sonst {x, y}."""
+    if not isinstance(e, dict):
+        raise ProjektFehler("Ungültiger Pfeil.")
+    if e.get("key"):
+        return {"key": str(e["key"])[:20], "rx": _anteil(e.get("rx", .5)), "ry": _anteil(e.get("ry", .5))}
+    if e.get("rahmen"):
+        return {"rahmen": _zahl(e["rahmen"], 1, 10 ** 6), "rx": _anteil(e.get("rx", .5)), "ry": _anteil(e.get("ry", .5))}
+    return {"x": _zahl(e.get("x"), 0, BREITE), "y": _zahl(e.get("y"), 0, HOEHE)}
+
+
+def _stickerort(d):
+    """Sticker auf einem Post-it (haftet an dessen Ecke) oder frei auf der Tafel."""
+    if d.get("key"):
+        return {"key": str(d["key"])[:20]}
+    return {"x": _zahl(d.get("x"), 0, BREITE), "y": _zahl(d.get("y"), 0, HOEHE)}
+
+
 def _eintrag_id(schluessel):
     if isinstance(schluessel, str) and schluessel.startswith("e") and schluessel[1:].isdigit():
         return int(schluessel[1:])
@@ -194,11 +236,15 @@ def aendern(con, pid, wer, d):
                 punkte = d.get("punkte")
                 if not isinstance(punkte, list) or not punkte or len(punkte) > MAX_PUNKTE:
                     raise ProjektFehler("Ungültiger Strich.")
+                marker = bool(d.get("marker"))
+                farben = MARKER_FARBEN if marker else FARBEN
                 strich = {"id": max([s["id"] for s in striche] or [0]) + 1,
-                          "farbe": d.get("farbe") if d.get("farbe") in FARBEN else FARBEN[0],
-                          "breite": _zahl(d.get("breite", 4), 1, 40),
+                          "farbe": d.get("farbe") if d.get("farbe") in farben else farben[0],
+                          "breite": _zahl(d.get("breite", 22 if marker else 4), 1, 60),
                           "punkte": [[_zahl(p[0], 0, BREITE), _zahl(p[1], 0, HOEHE), round(min(max(float(p[2]) if len(p) > 2 else .5, 0), 1), 2)]
                                      for p in punkte if isinstance(p, list) and len(p) >= 2]}
+                if marker:
+                    strich["marker"] = True
                 striche.append(strich)
                 _speichern(con, b["id"], striche=json.dumps(striche, separators=(",", ":")))
                 return {"strich_id": strich["id"]}
@@ -214,6 +260,39 @@ def aendern(con, pid, wer, d):
             positionen[schluessel] = [_zahl(d.get("x"), 0, BREITE), _zahl(d.get("y"), 0, HOEHE)]
             _speichern(con, b["id"], positionen=json.dumps(positionen))
             return {}
+
+    if aktion in ("pfeil", "sticker", "sticker_bewegen", "objekte_weg"):
+        with db.transaktion(con):
+            b, t = _tafel_zeile(con, pid, woche)
+            o = _objekte(t["objekte"])
+            if aktion in ("pfeil", "sticker") and len(o["pfeile"]) + len(o["sticker"]) >= MAX_OBJEKTE:
+                raise ProjektFehler("Die Tafel ist voll. Bitte einige Pfeile oder Sticker entfernen.")
+            ergebnis = {}
+            if aktion == "pfeil":   # Enden: an einem Post-it/Rahmen haftend (rx, ry relativ) oder frei (x, y)
+                p = {"id": _neue_id(o["pfeile"]), "farbe": d.get("farbe") if d.get("farbe") in FARBEN else FARBEN[1],
+                     "a": _ende(d.get("a")), "b": _ende(d.get("b"))}
+                o["pfeile"].append(p)
+                ergebnis = {"pfeil_id": p["id"]}
+            elif aktion == "sticker":
+                if d.get("art") not in STICKER:
+                    raise ProjektFehler("Diesen Sticker gibt es nicht.")
+                s = dict({"id": _neue_id(o["sticker"]), "art": d["art"]}, **_stickerort(d))
+                o["sticker"].append(s)
+                ergebnis = {"sticker_id": s["id"]}
+            elif aktion == "sticker_bewegen":
+                s = next((x for x in o["sticker"] if x["id"] == d.get("id")), None)
+                if s is None:
+                    raise ProjektFehler("Diesen Sticker gibt es nicht mehr.")
+                for k in ("key", "x", "y"):
+                    s.pop(k, None)
+                s.update(_stickerort(d))
+            else:   # objekte_weg: Pfeile und Sticker entfernen (Radierer, Rueckgaengig)
+                pf = {int(i) for i in d.get("pfeile") or [] if str(i).isdigit()}
+                st = {int(i) for i in d.get("sticker") or [] if str(i).isdigit()}
+                o["pfeile"] = [x for x in o["pfeile"] if x["id"] not in pf]
+                o["sticker"] = [x for x in o["sticker"] if x["id"] not in st]
+            _speichern(con, b["id"], objekte=json.dumps(o, separators=(",", ":")))
+            return ergebnis
 
     if aktion in ("erledigt", "verwerfen"):
         eid = _eintrag_id(d.get("key"))
