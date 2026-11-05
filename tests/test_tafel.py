@@ -153,6 +153,53 @@ class Tafel(unittest.TestCase):
         besprechung.aendern(self.con, self.pid, "lehrkraft", "gob", {"aktion": "abschliessen", "woche": self.woche})
         self.assertEqual(len(tafel.eingefroren(self.con, self.pid, b["id"])["objekte"]["sticker"]), 1)
 
+    def test_rahmen(self):
+        s1 = self.board(aktion="strich", punkte=[[520, 120], [600, 200]])["strich_id"]
+        s2 = self.board(aktion="strich", punkte=[[900, 600], [950, 650]])["strich_id"]   # draussen
+        k = self.board(aktion="postit", zone="ideen", text="Lüfter oben", x=540, y=220)["key"]
+        st = self.board(aktion="sticker", art="idee", x=700, y=150)["sticker_id"]
+        r = self.board(aktion="rahmen", titel="Gehäuse Variante B", x=500, y=100, w=400, h=300, striche=[s1, 999], sticker=[st],
+                       postits=[k])["rahmen_id"]
+        self.board(aktion="strich", rahmen=r, punkte=[[560, 150], [580, 170]])   # im Rahmen begonnen
+        p = self.board(aktion="pfeil", a={"rahmen": r, "rx": 1, "ry": .5}, b={"x": 1000, "y": 250})["pfeil_id"]
+        rr = tafel.lesen(self.con, self.pid)["objekte"]["rahmen"][0]
+        self.assertEqual((rr["titel"], rr["striche"], rr["sticker"], rr["postits"]), ("Gehäuse Variante B", [s1, 3], [st], [k]))
+        # verschieben: Striche, Sticker und Post-it gehen mit, der Strich draussen nicht
+        self.board(aktion="rahmen_bewegen", id=r, dx=50, dy=20, postits={k: [590, 240]})
+        t = tafel.lesen(self.con, self.pid)
+        striche = {s["id"]: s for s in t["striche"]}
+        self.assertEqual(striche[s1]["punkte"][0][:2], [570, 140])
+        self.assertEqual(striche[s2]["punkte"][0][:2], [900, 600])
+        self.assertEqual((t["objekte"]["sticker"][0]["x"], t["positionen"][k]), (750, [590, 240]))
+        self.assertEqual((t["objekte"]["rahmen"][0]["x"], t["objekte"]["rahmen"][0]["y"]), (550, 120))
+        # offene Rahmen wandern mit auf die naechste Tafel (samt Strichen, Sticker, Post-it-Lage und Pfeil zum Rahmen)
+        besprechung.aendern(self.con, self.pid, "lehrkraft", "gob", {"aktion": "abschliessen", "woche": self.woche})
+        self.woche = "2026-11-09"
+        termine_regel = self.con.execute("SELECT id FROM projektzeit").fetchone()[0]
+        self.zeit = "2026-11-06T10:00:00"
+        termine.buchen(self.con, self.pid, "team", "Team", termine_regel, "2026-11-10", "08:45")
+        neu = tafel.lesen(self.con, self.pid)
+        self.assertEqual(neu["woche"], "2026-11-09")
+        self.assertEqual([x["titel"] for x in neu["objekte"]["rahmen"]], ["Gehäuse Variante B"])
+        self.assertEqual(sorted(s["id"] for s in neu["striche"]), [s1, 3])
+        self.assertEqual(len(neu["objekte"]["pfeile"]), 0)   # freies Ende ausserhalb: bleibt auf der alten Tafel
+        # Rahmen wird Auftrag mit Bild; sein Post-it erscheint nicht doppelt
+        e = self.board(aktion="rahmen_ergebnis", id=r, zone="auftraege", frist="2026-11-17", bild_name="ab" * 12)
+        eintrag = self.con.execute("SELECT * FROM eintrag WHERE id = ?", (int(e["key"][1:]),)).fetchone()
+        self.assertEqual((eintrag["art"], eintrag["text"], eintrag["bild"]), ("auftrag", "Gehäuse Variante B", "ab" * 12))
+        neu = tafel.lesen(self.con, self.pid)
+        self.assertEqual(neu["objekte"]["rahmen"][0]["ergebnis"]["art"], "auftrag")
+        self.assertNotIn(e["key"], [z["key"] for z in neu["postits"]])
+        with self.assertRaises(projekte.ProjektFehler):
+            self.board(aktion="rahmen_ergebnis", id=r, zone="absprachen")
+        # loesen: Inhalt bleibt, Pfeilenden am Rahmen werden zu festen Punkten
+        p2 = self.board(aktion="pfeil", a={"rahmen": r, "rx": 0, "ry": 0}, b={"x": 10, "y": 10})["pfeil_id"]
+        self.board(aktion="rahmen_weg", id=r)
+        o = tafel.lesen(self.con, self.pid)["objekte"]
+        self.assertEqual(o["rahmen"], [])
+        self.assertEqual([x["a"] for x in o["pfeile"] if x["id"] == p2], [{"x": 550, "y": 120}])
+        del p
+
     def test_anwesenheit(self):
         tafel.melden(self.pid, "tafel")
         tafel.melden(self.pid, "g-1")

@@ -630,6 +630,8 @@ def api_tafel(h, con, daten, pid):
 
 def api_tafel_aendern(h, con, daten, pid):
     k, pid = _projekt(h, con, pid)
+    if daten.get("aktion") == "rahmen_ergebnis" and daten.get("bild"):   # Skizze des Rahmens als Bild am Eintrag
+        daten = dict(daten, bild_name=tafel.bild_speichern(_daten_dir(h), daten["bild"]))
     ergebnis = tafel.aendern(con, pid, k["kuerzel"], daten)
     h.antwort(200, {"ergebnis": ergebnis, "tafel": tafel.lesen(con, pid)})
 

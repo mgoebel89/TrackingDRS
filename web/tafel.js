@@ -28,8 +28,9 @@ const Tafel = (() => {
     return ERGEBNIS.includes(z.zone) ? zb === z.zone : !ERGEBNIS.includes(zb);
   };
 
-  // Positionen: gespeicherte (oder schon einmal vergebene), sonst der erste freie Platz der Zone
-  function anordnen(postits, positionen) {
+  // Positionen: gespeicherte (oder schon einmal vergebene), sonst der erste freie Platz der Zone. Post-its in einem
+  // Rahmen (imRahmen) behalten ihren Platz in jeder Zone, sie gehen mit dem Rahmen.
+  function anordnen(postits, positionen, imRahmen) {
     const plaetze = {
       seit: i => [12 + (i % 2) * (PB + 8), 56 + Math.floor(i / 2) * (PH + 10)],
       ideen: i => [GI + 12 + (i % 2) * (PB + 8), 56 + Math.floor(i / 2) * (PH + 10)],
@@ -42,7 +43,7 @@ const Tafel = (() => {
     const offen = [];
     for (const z of postits) {
       const p = positionen[z.key];
-      if (p && passt(z, p)) { pos[z.key] = p; belegt.push([p[0], p[1], breite(z)]); } else offen.push(z);
+      if (p && (passt(z, p) || (imRahmen && imRahmen.has(z.key)))) { pos[z.key] = p; belegt.push([p[0], p[1], breite(z)]); } else offen.push(z);
     }
     for (const z of offen) {
       let x, y;
@@ -125,6 +126,101 @@ const Tafel = (() => {
     };
   }
 
+  // Rahmen um eine Skizze: Titel oben links, Marke rechts, sobald er ein Ergebnis ist, Griff unten rechts zum Vergroessern
+  const ERG_TEXT = { absprache: 'Absprache', auftrag: 'Auftrag', meilenstein: 'Meilenstein' };
+  function rahmenElement(r, aktiv) {
+    const e = r.ergebnis;
+    return el('div', { class: 't-rahmen' + (e ? ' ergebnis' : ''), 'data-id': String(r.id),
+      style: 'left:' + r.x + 'px;top:' + r.y + 'px;width:' + r.w + 'px;height:' + r.h + 'px' },
+      el('span', { class: 'r-titel', text: r.titel }),
+      e ? el('span', { class: 'r-marke', text: ERG_TEXT[e.art] + (e.frist ? ' · bis ' + e.frist.slice(8, 10) + '.' + e.frist.slice(5, 7) + '.' : '') }) : null,
+      aktiv ? el('span', { class: 'r-griff', title: 'Größe ändern' }) : null);
+  }
+
+  // Die Tafel (oder ein Ausschnitt, z. B. ein Rahmen) als Bild malen: fuer "Als Bild" und fuer das PDF
+  const PI_FARBE = { auftrag: '#fff3b0', problem: '#ffe0ec', frage: '#dbeefa', thema: '#e6e9fb', idee: '#e7f4c8', aenderung: '#eef0f3',
+    absprache: '#d6f0cf', meilenstein: '#ffffff' };
+  function zeilen(ctx, text, breite, max) {
+    const woerter = String(text || '').split(/\s+/), aus = [];
+    let z = '';
+    for (const w of woerter) {
+      const probe = z ? z + ' ' + w : w;
+      if (ctx.measureText(probe).width > breite && z) { aus.push(z); z = w; } else z = probe;
+      if (aus.length === max) break;
+    }
+    if (aus.length < max && z) aus.push(z);
+    return aus;
+  }
+  function tafelMalen(ctx, d, pos, groesse, opt = {}) {
+    const o = d.objekte || {}, rahmen = o.rahmen || [];
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, B, H);
+    if (opt.zonen) {
+      ctx.fillStyle = '#f6f8fb'; ctx.fillRect(0, 0, GI, H);
+      ctx.fillStyle = '#f3f9ef'; ctx.fillRect(GE, 0, B - GE, H);
+      ctx.strokeStyle = '#c9d2dc'; ctx.lineWidth = 2; ctx.setLineDash([8, 6]);
+      ctx.beginPath(); ctx.moveTo(GI, 0); ctx.lineTo(GI, H); ctx.moveTo(GE, 0); ctx.lineTo(GE, H);
+      ctx.moveTo(GE, H / 3); ctx.lineTo(B, H / 3); ctx.moveTo(GE, 2 * H / 3); ctx.lineTo(B, 2 * H / 3); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#6b7686'; ctx.font = '700 15px Barlow, "Segoe UI", sans-serif';
+      [['SEIT LETZTEM MAL', 12, 28], ['SKIZZEN & IDEEN', GI + 12, 28], ['ABSPRACHEN', GE + 12, 24], ['AUFTRÄGE', GE + 12, H / 3 + 24],
+        ['MEILENSTEINE', GE + 12, 2 * H / 3 + 24]].forEach(([t, x, y]) => ctx.fillText(t, x, y));
+    }
+    for (const r of rahmen) {
+      ctx.fillStyle = 'rgba(232,242,249,.45)'; ctx.fillRect(r.x, r.y, r.w, r.h);
+      ctx.strokeStyle = r.ergebnis ? '#00639C' : '#7fb1cf'; ctx.lineWidth = 2; ctx.strokeRect(r.x, r.y, r.w, r.h);
+      ctx.font = '700 14px Barlow, "Segoe UI", sans-serif';
+      const tb = ctx.measureText(r.titel).width + 14;
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(r.x + 8, r.y - 10, tb, 20);
+      ctx.fillStyle = '#00639C'; ctx.fillText(r.titel, r.x + 15, r.y + 5);
+    }
+    for (const z of d.postits) {
+      const p = pos[z.key];
+      if (!p) continue;
+      const [w, h] = groesse(z);
+      ctx.save();
+      ctx.shadowColor = 'rgba(16,24,40,.18)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2;
+      ctx.fillStyle = PI_FARBE[z.art] || '#fff7c2'; ctx.fillRect(p[0], p[1], w, h);
+      ctx.restore();
+      if (z.art === 'meilenstein') { ctx.strokeStyle = '#00639C'; ctx.lineWidth = 2; ctx.strokeRect(p[0] + 1, p[1] + 1, w - 2, h - 2); }
+      ctx.fillStyle = 'rgba(29,36,51,.6)'; ctx.font = '700 11px Barlow, "Segoe UI", sans-serif';
+      ctx.fillText((ART[z.art] || z.art).toUpperCase(), p[0] + 9, p[1] + 17);
+      ctx.fillStyle = '#1d2433'; ctx.font = '600 15px Barlow, "Segoe UI", sans-serif';
+      zeilen(ctx, z.text, w - 18, 3).forEach((zeile, i) => ctx.fillText(zeile, p[0] + 9, p[1] + 36 + i * 18));
+      if (z.erledigt) { ctx.strokeStyle = 'rgba(29,36,51,.5)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(p[0] + 9, p[1] + 31); ctx.lineTo(p[0] + w - 9, p[1] + 31); ctx.stroke(); }
+    }
+    for (const s of d.striche) zeichneStrich(ctx, s);
+    const ende = e => {
+      if (e.key) { const z = d.postits.find(x => x.key === e.key), p = pos[e.key]; if (!z || !p) return null; const [w, h] = groesse(z); return [p[0] + e.rx * w, p[1] + e.ry * h]; }
+      if (e.rahmen) { const r = rahmen.find(x => x.id === e.rahmen); return r ? [r.x + e.rx * r.w, r.y + e.ry * r.h] : null; }
+      return [e.x, e.y];
+    };
+    for (const p of o.pfeile || []) zeichnePfeil(ctx, p, ende);
+    for (const s of o.sticker || []) {
+      let x, y, g;
+      if (s.key) { const p = pos[s.key]; if (!p) continue; x = p[0] - 14; y = p[1] - 16; g = 38; } else { x = s.x; y = s.y; g = SG; }
+      ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(x + g / 2, y + g / 2, g / 2, 0, 7); ctx.fill();
+      ctx.save(); ctx.translate(x + g * .16, y + g * .16); ctx.scale(g * .68 / 24, g * .68 / 24);
+      ctx.strokeStyle = (STICKER_INFO[s.art] || STICKER_INFO.idee).farbe; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      ctx.stroke(new Path2D(T.SYMBOLE['st_' + s.art] || T.SYMBOLE.st_idee)); ctx.restore();
+    }
+  }
+
+  // Bild (PNG/JPEG als data:-URL) der ganzen Tafel oder eines Ausschnitts [x, y, w, h]
+  function bildErzeugen(d, pos, groesse, { ausschnitt, faktor = 2, typ = 'image/png', zonen = true } = {}) {
+    const [ax, ay, aw, ah] = ausschnitt || [0, 0, B, H];
+    const c = document.createElement('canvas');
+    c.width = Math.round(aw * faktor); c.height = Math.round(ah * faktor);
+    const ctx = c.getContext('2d');
+    ctx.scale(faktor, faktor); ctx.translate(-ax, -ay);
+    tafelMalen(ctx, d, pos, groesse, { zonen });
+    return c.toDataURL(typ, .9);
+  }
+
+  function herunterladen(dataUrl, name) {
+    const a = el('a', { href: dataUrl, download: name });
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+
   function stickerElement(s) {
     const info = STICKER_INFO[s.art] || STICKER_INFO.idee;
     const e = el('div', { class: 'st' + (s.key ? ' haftet' : ''), 'data-sid': String(s.id), title: info.name, style: 'color:' + info.farbe +
@@ -204,10 +300,12 @@ const Tafel = (() => {
     eingefrorenZeichnen(t, d, bildBasis);
   }
 
+  const rahmenKeys = o => new Set((o && o.rahmen || []).flatMap(r => r.postits || []));
+
   function eingefrorenZeichnen(t, d, bildBasis) {
-    const pos = anordnen(d.postits, d.positionen || {});
     const o = d.objekte || {};
-    T.setzen(t.zettel, d.postits.map(z => zettelElement(z, pos[z.key], bildBasis)));
+    const pos = anordnen(d.postits, d.positionen || {}, rahmenKeys(o));
+    T.setzen(t.zettel, (o.rahmen || []).map(r => rahmenElement(r, false)), d.postits.map(z => zettelElement(z, pos[z.key], bildBasis)));
     stickerSetzen(t.zettel, o.sticker);
     zeichneStriche(t.ctx, d.striche, o.pfeile, pfeilEnde(t.zettel));
   }
@@ -234,7 +332,7 @@ const Tafel = (() => {
 
     // Werkzeugleiste unten: nur Symbole, das aktive blau gefuellt. Stift, Textmarker und Sticker klappen beim Waehlen
     // ihre Auswahl auf (ein zweiter Tipp schliesst sie), beim Zeichnen geht sie zu. Tastenkuerzel im Hinweis.
-    const ZEICHNEN = ['stift', 'marker', 'pfeil', 'radierer'];
+    const ZEICHNEN = ['stift', 'marker', 'pfeil', 'radierer', 'rahmen'];
     const knopf = (w, titel, taste) => el('button', { type: 'button', class: 'wz', 'data-w': w, title: titel + ' · ' + taste, 'aria-label': titel,
       onclick: () => werkzeugWaehlen(w, true) }, T.symbol(w));
     const auf = {
@@ -256,7 +354,8 @@ const Tafel = (() => {
       knopf('zeiger', 'Auswählen und verschieben', 'V'), gruppe('stift', 'Stift', 'P'), gruppe('marker', 'Textmarker', 'M'),
       knopf('pfeil', 'Pfeil: von Post-it zu Post-it ziehen, er haftet an beiden', 'A'), knopf('radierer', 'Radierer', 'E'),
       el('span', { class: 'trenner' }),
-      knopf('postit', 'Post-it: auf die Tafel tippen', 'N'), gruppe('sticker', 'Sticker', 'S'),
+      knopf('postit', 'Post-it: auf die Tafel tippen', 'N'), knopf('rahmen', 'Rahmen: Rechteck um eine Skizze ziehen', 'F'),
+      gruppe('sticker', 'Sticker', 'S'),
       el('span', { class: 'trenner' }),
       el('button', { type: 'button', class: 'wz', title: 'Rückgängig · Strg+Z', 'aria-label': 'Rückgängig', onclick: rueckgaengig }, T.symbol('zurueck')),
       el('button', { type: 'button', class: 'wz', title: 'Wiederholen · Strg+Y', 'aria-label': 'Wiederholen', onclick: wiederholen }, T.symbol('vor')));
@@ -304,7 +403,7 @@ const Tafel = (() => {
     }
 
     async function laden() {
-      if (S.zug || S.strich) return;
+      if (S.zug || S.strich || S.rZug || S.stZug || S.kasten || S.pfeil) return;
       try {
         const r = await T.api('GET', basis + '/tafel?stand=' + encodeURIComponent(D.stand));
         if (r.unveraendert) { anwesendZeigen(r.anwesend); return; }
@@ -322,21 +421,84 @@ const Tafel = (() => {
 
     function zeichnen() {
       if (D.abgeschlossen) return;
-      const pos = anordnen(D.postits, Object.assign({}, S.fest, D.positionen));
+      const pos = anordnen(D.postits, Object.assign({}, S.fest, D.positionen), rahmenKeys(D.objekte));
       S.fest = pos;
       S.pos = pos;
-      T.setzen(t.zettel, D.postits.map(z => zettelElement(z, pos[z.key], basis)));
+      T.setzen(t.zettel, D.objekte.rahmen.map(r => rahmenElement(r, true)), D.postits.map(z => zettelElement(z, pos[z.key], basis)));
       stickerSetzen(t.zettel, D.objekte.sticker);
       malen();
       anwesendZeigen(D.anwesend);
     }
 
+    // --- Rahmen ---
+    const drinIn = (r, x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
+    const rahmenBei = (x, y) => D.objekte.rahmen.filter(r => drinIn(r, x, y)).sort((a, b) => a.w * a.h - b.w * b.h)[0];
+    const piMitte = pi => [pi.offsetLeft + pi.offsetWidth / 2, pi.offsetTop + pi.offsetHeight / 2];
+    const groesse = z => { const pi = t.zettel.querySelector('.pi[data-key="' + CSS.escape(z.key) + '"]');
+      return pi ? [pi.offsetWidth, pi.offsetHeight] : [breite(z), PH]; };
+
+    // Was ganz in einem Rechteck liegt: Striche, freie Sticker und Post-its (mit ihrer Mitte)
+    function inhaltVon(r) {
+      return {
+        striche: D.striche.filter(s => s.id > 0 && s.punkte.every(p => drinIn(r, p[0], p[1]))).map(s => s.id),
+        sticker: D.objekte.sticker.filter(s => !s.key && drinIn(r, s.x + SG / 2, s.y + SG / 2)).map(s => s.id),
+        postits: [...t.zettel.querySelectorAll('.pi')].filter(pi => drinIn(r, ...piMitte(pi))).map(pi => pi.dataset.key),
+      };
+    }
+
+    async function titelFragen(alt) {
+      const f = el('input', { required: true, maxlength: '80', value: alt || '', placeholder: 'z. B. Gehäuse Variante B' });
+      return T.dialog({ titel: alt ? 'Titel des Rahmens' : 'Neuer Rahmen', knopf: 'Übernehmen',
+        inhalt: el('div', { class: 'felder' }, T.feld('Titel', f)), speichern: () => f.value });
+    }
+
+    async function rahmenNeu(x, y, w, h) {
+      const titel = await titelFragen('');
+      if (titel === null) { malen(); return; }
+      const r = { x, y, w, h };
+      const r2 = await senden(Object.assign({ aktion: 'rahmen', titel }, r, inhaltVon(r)));
+      if (r2 && r2.rahmen_id) merken({ typ: 'rahmen', id: r2.rahmen_id });
+      werkzeugWaehlen('zeiger');
+    }
+
+    // Rahmen als Bild (fuer den Eintrag oder zum Herunterladen): nur dieser Ausschnitt, ohne Zonen
+    const rahmenBild = (r, typ) => bildErzeugen(D, S.pos, groesse, { ausschnitt: [r.x - 12, r.y - 14, r.w + 24, r.h + 26], faktor: 2, zonen: false, typ });
+
+    async function alsErgebnis(r, zone) {
+      if (!zone) {
+        const wahl = el('select', {}, [['absprachen', 'Absprache'], ['auftraege', 'Auftrag'], ['meilensteine', 'Meilenstein']]
+          .map(([k, t2]) => el('option', { value: k, text: t2 })));
+        zone = await T.dialog({ titel: r.titel + ' · als Ergebnis', knopf: 'Weiter', inhalt: el('div', { class: 'felder' }, T.feld('Wird zu', wahl)),
+          speichern: () => wahl.value });
+        if (!zone) return;
+      }
+      const mehr = await ergebnisAngaben(zone, { text: r.titel });
+      if (mehr === null) { zeichnen(); return; }
+      const bild = rahmenBild(r, 'image/png').split(',')[1];
+      const e = await senden(Object.assign({ aktion: 'rahmen_ergebnis', id: r.id, zone, bild }, mehr));
+      if (e && e.key) T.meldung('„' + r.titel + '“ ist jetzt ' + { absprachen: 'eine Absprache', auftraege: 'ein Auftrag', meilensteine: 'ein Meilenstein' }[zone] + ', die Skizze hängt als Bild daran.');
+    }
+
+    function rahmenMenue(r, re) {
+      T.setzen(auswahl,
+        el('button', { type: 'button', onclick: async () => { menueZu(); const t2 = await titelFragen(r.titel); if (t2 !== null) senden({ aktion: 'rahmen_aendern', id: r.id, titel: t2 }); } }, 'Titel ändern'),
+        r.ergebnis ? null : el('button', { type: 'button', onclick: () => { menueZu(); alsErgebnis(r); } }, 'Als Auftrag …'),
+        el('button', { type: 'button', onclick: () => { menueZu(); herunterladen(rahmenBild(r, 'image/png'), 'Rahmen – ' + r.titel.replace(/[\\/:*?"<>|]/g, '') + '.png'); } }, 'Als Bild'),
+        el('button', { type: 'button', class: 'warnen', onclick: () => { menueZu(); senden({ aktion: 'rahmen_weg', id: r.id }); } }, 'Rahmen lösen'));
+      auswahl.style.left = Math.min(re.offsetLeft, B - 420) + 'px';
+      auswahl.style.top = Math.min(re.offsetTop + re.offsetHeight + 6, H - 50) + 'px';
+      auswahl.hidden = false;
+    }
+
     // Wo ein Pfeil anfaengt oder endet: auf einem Post-it haftet er (Lage relativ zum Post-it), sonst frei
     function anker(ev, x, y) {
-      const pi = document.elementsFromPoint(ev.clientX, ev.clientY).map(n => n.closest && n.closest('.pi')).find(Boolean);
-      if (!pi || !t.zettel.contains(pi)) return { x, y };
-      return { key: pi.dataset.key, rx: Math.round((x - pi.offsetLeft) / pi.offsetWidth * 1000) / 1000,
-        ry: Math.round((y - pi.offsetTop) / pi.offsetHeight * 1000) / 1000 };
+      const unter = document.elementsFromPoint(ev.clientX, ev.clientY);
+      const pi = unter.map(n => n.closest && n.closest('.pi')).find(Boolean);
+      const rel = e => ({ rx: Math.round((x - e.offsetLeft) / e.offsetWidth * 1000) / 1000, ry: Math.round((y - e.offsetTop) / e.offsetHeight * 1000) / 1000 });
+      if (pi && t.zettel.contains(pi)) return Object.assign({ key: pi.dataset.key }, rel(pi));
+      const re = unter.map(n => n.closest && n.closest('.t-rahmen')).find(Boolean);
+      if (re && t.zettel.contains(re)) return Object.assign({ rahmen: Number(re.dataset.id) }, rel(re));
+      return { x, y };
     }
 
     // Rueckgaengig/Wiederholen: rueck haelt, wie man etwas zuruecknimmt, vor, wie man es wieder herstellt
@@ -352,6 +514,10 @@ const Tafel = (() => {
         S.strich = { farbe: S.farbe, breite: S.dicke, punkte: [[x, y, ev.pointerType === 'pen' ? ev.pressure : .5]] };
       } else if (S.werkzeug === 'marker') {
         S.strich = { farbe: S.markerFarbe, breite: 22, marker: true, punkte: [[x, y, .5]] };
+      } else if (S.werkzeug === 'rahmen') {
+        const kasten = el('div', { class: 'auswahl-kasten', style: 'left:' + x + 'px;top:' + y + 'px;width:0;height:0' });
+        t.zettel.appendChild(kasten);
+        S.kasten = { x0: x, y0: y, x, y, kasten };
       } else if (S.werkzeug === 'pfeil') {
         S.pfeil = { farbe: FARBEN[1], a: anker(ev, x, y), b: { x, y } };
       } else if (S.werkzeug === 'radierer') {
@@ -368,14 +534,21 @@ const Tafel = (() => {
         if (S.strich.marker) { D.striche.push(S.strich); malen(); D.striche.pop(); }   // halbdurchsichtig: ganz neu zeichnen
         else zeichneStrich(t.ctx, { farbe: S.strich.farbe, breite: S.strich.breite, punkte: p.slice(-2) });
       } else if (S.pfeil) { S.pfeil.b = { x, y }; malen(); }
-      else if (S.radierer) radieren(x, y);
+      else if (S.kasten) {
+        const k = S.kasten;
+        Object.assign(k, { x, y });
+        Object.assign(k.kasten.style, { left: Math.min(x, k.x0) + 'px', top: Math.min(y, k.y0) + 'px',
+          width: Math.abs(x - k.x0) + 'px', height: Math.abs(y - k.y0) + 'px' });
+      } else if (S.radierer) radieren(x, y);
     });
     const strichEnde = async ev => {
       if (S.strich) {
         const strich = S.strich;
         S.strich = null;
         D.striche.push(Object.assign({ id: -1 }, strich));
-        const daten = { aktion: 'strich', farbe: strich.farbe, breite: strich.breite, marker: !!strich.marker, punkte: strich.punkte };
+        const imRahmen = rahmenBei(strich.punkte[0][0], strich.punkte[0][1]);   // im Rahmen begonnen: gehoert dazu
+        const daten = { aktion: 'strich', farbe: strich.farbe, breite: strich.breite, marker: !!strich.marker, punkte: strich.punkte,
+          rahmen: imRahmen ? imRahmen.id : null };
         const r = await senden(daten);
         if (r && r.strich_id) merken({ typ: 'strich', id: r.strich_id, daten });
       } else if (S.pfeil) {
@@ -389,6 +562,14 @@ const Tafel = (() => {
         D.objekte.pfeile.push(Object.assign({ id: -1 }, p));
         const r = await senden(daten);
         if (r && r.pfeil_id) merken({ typ: 'pfeil', id: r.pfeil_id, daten });
+      } else if (S.kasten) {
+        const k = S.kasten;
+        S.kasten = null;
+        k.kasten.remove();
+        [k.x, k.y] = t.punkt(ev);
+        const w = Math.abs(k.x - k.x0), h = Math.abs(k.y - k.y0);
+        if (w < 60 || h < 60) { T.meldung('Für einen Rahmen ein größeres Rechteck ziehen.'); return; }
+        rahmenNeu(Math.min(k.x, k.x0), Math.min(k.y, k.y0), w, h);
       } else if (S.radierer) {
         S.radierer = false;
         if (S.radiert.size) {
@@ -433,6 +614,21 @@ const Tafel = (() => {
     // --- Post-its: ziehen, waehlen, neu ---
     t.zettel.addEventListener('pointerdown', ev => {
       if (S.werkzeug !== 'zeiger') return;
+      const re = ev.target.closest('.t-rahmen');
+      if (re && !ev.target.closest('.pi, .st')) {   // Rahmen ziehen (Inhalt geht mit) oder am Griff vergroessern
+        ev.preventDefault();
+        re.setPointerCapture(ev.pointerId);
+        const r = D.objekte.rahmen.find(x => x.id === Number(re.dataset.id));
+        if (!r) return;
+        const [x, y] = t.punkt(ev);
+        const pis = (r.postits || []).map(k => t.zettel.querySelector('.pi[data-key="' + CSS.escape(k) + '"]')).filter(Boolean)
+          .map(pi => ({ pi, x: pi.offsetLeft, y: pi.offsetTop }));
+        const sts = (r.sticker || []).map(id => t.zettel.querySelector('.st[data-sid="' + id + '"]')).filter(s => s && !s.classList.contains('haftet'))
+          .map(st => ({ st, x: st.offsetLeft, y: st.offsetTop }));
+        const striche = D.striche.filter(s => (r.striche || []).includes(s.id)).map(s => ({ s, punkte: s.punkte.map(p => p.slice()) }));
+        S.rZug = { re, r, x0: x, y0: y, start: { x: r.x, y: r.y, w: r.w, h: r.h }, groesse: !!ev.target.closest('.r-griff'), pis, sts, striche, bewegt: false };
+        return;
+      }
       const st = ev.target.closest('.st');
       if (st && !st.classList.contains('haftet')) {   // freien Sticker ziehen (auf ein Post-it gezogen haftet er dort)
         ev.preventDefault();
@@ -451,6 +647,24 @@ const Tafel = (() => {
       pi.classList.add('zieht');
     });
     t.zettel.addEventListener('pointermove', ev => {
+      if (S.rZug) {
+        const z = S.rZug, [x, y] = t.punkt(ev), a = z.start;
+        if (Math.abs(x - z.x0) + Math.abs(y - z.y0) > 4) z.bewegt = true;
+        if (!z.bewegt) return;
+        if (z.groesse) {
+          z.r.w = Math.max(60, Math.min(B - a.x, a.w + x - z.x0));
+          z.r.h = Math.max(60, Math.min(H - a.y, a.h + y - z.y0));
+        } else {
+          const dx = Math.max(-a.x, Math.min(B - a.w - a.x, x - z.x0)), dy = Math.max(-a.y, Math.min(H - a.h - a.y, y - z.y0));
+          z.r.x = a.x + dx; z.r.y = a.y + dy; z.dx = dx; z.dy = dy;
+          z.pis.forEach(p => { p.pi.style.left = (p.x + dx) + 'px'; p.pi.style.top = (p.y + dy) + 'px'; });
+          z.sts.forEach(p => { p.st.style.left = (p.x + dx) + 'px'; p.st.style.top = (p.y + dy) + 'px'; });
+          z.striche.forEach(({ s, punkte }) => { s.punkte = punkte.map(p => [p[0] + dx, p[1] + dy].concat(p.slice(2))); });
+        }
+        Object.assign(z.re.style, { left: z.r.x + 'px', top: z.r.y + 'px', width: z.r.w + 'px', height: z.r.h + 'px' });
+        malen();
+        return;
+      }
       if (S.stZug) {
         const [x, y] = t.punkt(ev), z = S.stZug;
         if (Math.abs(x - z.x0) + Math.abs(y - z.y0) > 4) z.bewegt = true;
@@ -468,6 +682,26 @@ const Tafel = (() => {
       malen();   // haftende Pfeile gehen mit
     });
     t.zettel.addEventListener('pointerup', async ev => {
+      if (S.rZug) {
+        const z = S.rZug;
+        S.rZug = null;
+        if (!z.bewegt) { rahmenMenue(z.r, z.re); return; }
+        if (z.groesse) {   // neue Groesse: Inhalt neu bestimmen
+          await senden(Object.assign({ aktion: 'rahmen_aendern', id: z.r.id, w: Math.round(z.r.w), h: Math.round(z.r.h) }, inhaltVon(z.r)));
+          return;
+        }
+        const postits = {};
+        z.pis.forEach(p => { postits[p.pi.dataset.key] = [Math.round(p.x + z.dx), Math.round(p.y + z.dy)]; });
+        await senden({ aktion: 'rahmen_bewegen', id: z.r.id, dx: Math.round(z.dx || 0), dy: Math.round(z.dy || 0), postits });
+        merken({ typ: 'rahmen_bewegen', id: z.r.id, dx: Math.round(z.dx || 0), dy: Math.round(z.dy || 0), postits: Object.fromEntries(
+          z.pis.map(p => [p.pi.dataset.key, [p.x, p.y]])), neu: postits });
+        const cx = z.r.x + z.r.w / 2, cy = z.r.y + z.r.h / 2;   // in "Ergebnis" gezogen: wird Absprache, Auftrag oder Meilenstein
+        if (cx >= GE && !z.r.ergebnis) {
+          const r = D.objekte.rahmen.find(x => x.id === z.r.id);
+          if (r) alsErgebnis(r, zoneBei(cx, cy));
+        }
+        return;
+      }
       if (S.stZug) {
         const z = S.stZug;
         S.stZug = null;
@@ -494,7 +728,8 @@ const Tafel = (() => {
         S.pos[z.key] = z.ziel;
         D.positionen[z.key] = z.ziel;
         merken({ typ: 'position', key: z.key, pos: z.start, neu: z.ziel });
-        senden({ aktion: 'position', key: z.key, x: z.ziel[0], y: z.ziel[1] });
+        await senden({ aktion: 'position', key: z.key, x: z.ziel[0], y: z.ziel[1] });
+        zuRahmen(z.key, z.ziel[0] + z.pi.offsetWidth / 2, z.ziel[1] + z.pi.offsetHeight / 2);
         return;
       }
       const mehr = await ergebnisAngaben(ziel, zettel);
@@ -527,6 +762,14 @@ const Tafel = (() => {
       const r = await senden(daten);
       if (r && r.key) merken({ typ: 'postit', key: r.key, daten });
     });
+
+    // Post-it in einen Rahmen gezogen (oder heraus): Mitgliedschaft nachziehen
+    function zuRahmen(key, cx, cy) {
+      const neu = rahmenBei(cx, cy), alt = D.objekte.rahmen.find(r => (r.postits || []).includes(key));
+      if (neu === alt) return;
+      if (neu) senden({ aktion: 'rahmen_aendern', id: neu.id, postits: (neu.postits || []).concat(key) });
+      else if (alt) senden({ aktion: 'rahmen_aendern', id: alt.id, postits: alt.postits.filter(k => k !== key) });
+    }
 
     function stickerMenue(id, st) {
       const s = D.objekte.sticker.find(x => x.id === id);
@@ -588,7 +831,11 @@ const Tafel = (() => {
     async function rueckgaengig() {
       const r = S.rueck.pop();
       if (!r) { T.meldung('Nichts mehr rückgängig zu machen.'); return; }
-      if (r.typ === 'sticker_weg') {   // entfernten Sticker wieder aufkleben
+      if (r.typ === 'rahmen') { await senden({ aktion: 'rahmen_weg', id: r.id }); }
+      else if (r.typ === 'rahmen_bewegen') {   // zurueck an den alten Platz
+        await senden({ aktion: 'rahmen_bewegen', id: r.id, dx: -r.dx, dy: -r.dy, postits: r.postits });
+        S.vor.push({ typ: 'rahmen_bewegen', id: r.id, dx: -r.dx, dy: -r.dy, postits: r.neu, neu: r.postits });
+      } else if (r.typ === 'sticker_weg') {   // entfernten Sticker wieder aufkleben
         const s = r.s;
         await senden(Object.assign({ aktion: 'sticker', art: s.art }, s.key ? { key: s.key } : { x: s.x, y: s.y }));
       } else if (r.typ === 'strich') { await senden({ aktion: 'strich_weg', ids: [r.id] }); S.vor.push(r); }
@@ -615,7 +862,10 @@ const Tafel = (() => {
       if (v.typ === 'strich') await nochmal('strich_id', 'strich');
       else if (v.typ === 'pfeil') await nochmal('pfeil_id', 'pfeil');
       else if (v.typ === 'sticker') await nochmal('sticker_id', 'sticker');
-      else if (v.typ === 'postit') { const e = await senden(v.daten); if (e && e.key) S.rueck.push({ typ: 'postit', key: e.key, daten: v.daten }); }
+      else if (v.typ === 'rahmen_bewegen') {
+        await senden({ aktion: 'rahmen_bewegen', id: v.id, dx: -v.dx, dy: -v.dy, postits: v.postits });
+        S.rueck.push({ typ: 'rahmen_bewegen', id: v.id, dx: -v.dx, dy: -v.dy, postits: v.neu, neu: v.postits });
+      } else if (v.typ === 'postit') { const e = await senden(v.daten); if (e && e.key) S.rueck.push({ typ: 'postit', key: e.key, daten: v.daten }); }
       else if (v.typ === 'position') {
         await senden({ aktion: 'position', key: v.key, x: v.pos[0], y: v.pos[1] });
         S.rueck.push({ typ: 'position', key: v.key, pos: v.neu, neu: v.pos });
@@ -632,7 +882,7 @@ const Tafel = (() => {
       if ((ev.ctrlKey || ev.metaKey) && k === 'z') { ev.preventDefault(); if (ev.shiftKey) wiederholen(); else rueckgaengig(); return; }
       if ((ev.ctrlKey || ev.metaKey) && k === 'y') { ev.preventDefault(); wiederholen(); return; }
       if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
-      const w = { v: 'zeiger', p: 'stift', m: 'marker', a: 'pfeil', e: 'radierer', n: 'postit', s: 'sticker' }[k];
+      const w = { v: 'zeiger', p: 'stift', m: 'marker', a: 'pfeil', e: 'radierer', n: 'postit', f: 'rahmen', s: 'sticker' }[k];
       if (w) { ev.preventDefault(); werkzeugWaehlen(w); }
       if (k === 'escape') { aufZu(); menueZu(); }
     });

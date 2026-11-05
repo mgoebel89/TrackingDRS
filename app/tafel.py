@@ -134,9 +134,12 @@ def lesen(con, pid):
     z = besprechung._zeile(con, pid, woche)
     bid = z["id"] if z else None
     t = _tafel(con, bid)
+    if bid is None or con.execute("SELECT 1 FROM tafel WHERE besprechung_id = ?", (bid,)).fetchone() is None:
+        t["striche"], t["positionen"], t["objekte"] = _vortrag(con, pid, woche)   # so sieht die neue Tafel aus
     p = con.execute("SELECT titel, klasse FROM projekt WHERE id = ?", (pid,)).fetchone()
     return {"projekt": {"id": pid, "titel": p["titel"], "klasse": p["klasse"]}, "woche": woche,
-            "termin": besprechung._termin(con, pid, woche), "postits": postits(con, pid, woche), "striche": t["striche"],
+            "termin": besprechung._termin(con, pid, woche), "postits": _ohne_rahmen_ergebnis(postits(con, pid, woche), t["objekte"]),
+            "striche": t["striche"],
             "positionen": t["positionen"], "objekte": t["objekte"], "stand": stand(con, pid, bid), "anwesend": anwesend(pid),
             "mitglieder": [{"id": m["id"], "name": m["vorname"] + " " + m["nachname"]}
                            for m in con.execute("SELECT * FROM mitglied WHERE projekt_id = ? AND aktiv = 1 ORDER BY nachname", (pid,))]}
@@ -146,7 +149,14 @@ def momentaufnahme(con, pid, woche):
     """Was beim Abschliessen eingefroren wird (vor dem Setzen von 'abgeschlossen' aufrufen)."""
     z = besprechung._zeile(con, pid, woche)
     t = _tafel(con, z["id"] if z else None)
-    return {"postits": postits(con, pid, woche), "striche": t["striche"], "positionen": t["positionen"], "objekte": t["objekte"]}
+    return {"postits": _ohne_rahmen_ergebnis(postits(con, pid, woche), t["objekte"]), "striche": t["striche"],
+            "positionen": t["positionen"], "objekte": t["objekte"]}
+
+
+def _ohne_rahmen_ergebnis(liste, objekte):
+    """Ein Rahmen, der zum Eintrag wurde, steht selbst auf der Tafel: dessen Post-it nicht noch einmal zeigen."""
+    weg = {r["ergebnis"]["key"] for r in objekte["rahmen"] if r.get("ergebnis")}
+    return [z for z in liste if z["key"] not in weg]
 
 
 def eingefroren(con, pid, bid):
@@ -166,8 +176,38 @@ def _tafel_zeile(con, pid, woche):
     b = besprechung._anlegen(con, pid, woche)
     if b["abgeschlossen"]:
         raise ProjektFehler("Diese Besprechung ist schon abgeschlossen.")
-    con.execute("INSERT OR IGNORE INTO tafel (besprechung_id) VALUES (?)", (b["id"],))
+    if con.execute("SELECT 1 FROM tafel WHERE besprechung_id = ?", (b["id"],)).fetchone() is None:
+        striche, positionen, objekte = _vortrag(con, pid, woche)   # offene Rahmen der letzten Tafel wandern mit
+        con.execute("INSERT INTO tafel (besprechung_id, striche, positionen, objekte) VALUES (?, ?, ?, ?)",
+                    (b["id"], json.dumps(striche, separators=(",", ":")), json.dumps(positionen), json.dumps(objekte, separators=(",", ":"))))
     return b, con.execute("SELECT * FROM tafel WHERE besprechung_id = ?", (b["id"],)).fetchone()
+
+
+def _vortrag(con, pid, woche):
+    """Was von der letzten abgeschlossenen Tafel auf die neue wandert: Rahmen, die nicht im Ergebnis gelandet sind, mit
+    ihren Strichen, Stickern und Post-it-Positionen, dazu Pfeile, deren beide Enden zu diesen Rahmen gehoeren."""
+    z = con.execute("SELECT t.* FROM tafel t JOIN besprechung b ON b.id = t.besprechung_id WHERE b.projekt_id = ? AND b.woche < ? "
+                    "AND b.abgeschlossen IS NOT NULL ORDER BY b.woche DESC LIMIT 1", (pid, woche)).fetchone()
+    leer = ([], {}, _objekte("{}"))
+    if z is None:
+        return leer
+    alt = _objekte(z["objekte"])
+    rahmen = [r for r in alt["rahmen"] if not r.get("ergebnis")]
+    if not rahmen:
+        return leer
+    striche_ids = {i for r in rahmen for i in r.get("striche", [])}
+    sticker_ids = {i for r in rahmen for i in r.get("sticker", [])}
+    keys = {k for r in rahmen for k in r.get("postits", [])}
+    rids = {r["id"] for r in rahmen}
+    alte_pos = json.loads(z["positionen"])
+    striche = [s for s in json.loads(z["striche"]) if s["id"] in striche_ids]
+    sticker = [s for s in alt["sticker"] if s["id"] in sticker_ids or s.get("key") in keys]
+
+    def drin(e):
+        return e.get("rahmen") in rids or e.get("key") in keys or (
+            "x" in e and any(r["x"] <= e["x"] <= r["x"] + r["w"] and r["y"] <= e["y"] <= r["y"] + r["h"] for r in rahmen))
+    pfeile = [p for p in alt["pfeile"] if drin(p["a"]) and drin(p["b"])]
+    return striche, {k: alte_pos[k] for k in keys if k in alte_pos}, {"pfeile": pfeile, "sticker": sticker, "rahmen": rahmen}
 
 
 def _speichern(con, bid, **werte):
@@ -246,7 +286,14 @@ def aendern(con, pid, wer, d):
                 if marker:
                     strich["marker"] = True
                 striche.append(strich)
-                _speichern(con, b["id"], striche=json.dumps(striche, separators=(",", ":")))
+                werte = {"striche": json.dumps(striche, separators=(",", ":"))}
+                if d.get("rahmen"):   # im Rahmen begonnen: gehoert dazu
+                    o = _objekte(t["objekte"])
+                    r = next((x for x in o["rahmen"] if x["id"] == d.get("rahmen")), None)
+                    if r is not None:
+                        r.setdefault("striche", []).append(strich["id"])
+                        werte["objekte"] = json.dumps(o, separators=(",", ":"))
+                _speichern(con, b["id"], **werte)
                 return {"strich_id": strich["id"]}
             if aktion == "strich_weg":
                 ids = {int(i) for i in d.get("ids") or [] if str(i).isdigit()}
@@ -294,6 +341,37 @@ def aendern(con, pid, wer, d):
             _speichern(con, b["id"], objekte=json.dumps(o, separators=(",", ":")))
             return ergebnis
 
+    if aktion in ("rahmen", "rahmen_aendern", "rahmen_bewegen", "rahmen_weg"):
+        return _rahmen_aendern(con, pid, woche, aktion, d)
+
+    if aktion == "rahmen_ergebnis":   # Rahmen wird Absprache, Auftrag oder Meilenstein; die Skizze haengt als Bild daran
+        with db.transaktion(con):
+            b, t = _tafel_zeile(con, pid, woche)
+            o = _objekte(t["objekte"])
+            r = _rahmen_holen(o, d.get("id"))
+            if r.get("ergebnis"):
+                raise ProjektFehler("Dieser Rahmen ist schon ein Ergebnis.")
+        zone = d.get("zone")
+        if zone not in ERGEBNIS_ZONEN:
+            raise ProjektFehler("Bitte Absprache, Auftrag oder Meilenstein wählen.")
+        titel = r["titel"] or "Skizze"
+        if zone == "meilensteine":
+            bespr(aktion="meilenstein", titel=titel, meilenstein_woche=d.get("meilenstein_woche"))
+            eid = con.execute("SELECT MAX(id) FROM eintrag WHERE projekt_id = ? AND art = 'meilenstein'", (pid,)).fetchone()[0]
+        else:
+            eid = bespr(aktion="eintrag_neu", art=ERGEBNIS_ZONEN[zone], text=titel, frist=d.get("frist"),
+                        verantwortlich_id=d.get("verantwortlich_id"))["eintrag_id"]
+        with db.transaktion(con):
+            if d.get("bild_name"):
+                con.execute("UPDATE eintrag SET bild = ? WHERE id = ?", (d["bild_name"], eid))
+            e = con.execute("SELECT * FROM eintrag WHERE id = ?", (eid,)).fetchone()
+            b, t = _tafel_zeile(con, pid, woche)
+            o = _objekte(t["objekte"])
+            r = _rahmen_holen(o, d.get("id"))
+            r["ergebnis"] = {"key": "e%d" % eid, "art": ERGEBNIS_ZONEN[zone], "frist": e["frist"]}
+            _speichern(con, b["id"], objekte=json.dumps(o, separators=(",", ":")))
+        return {"key": "e%d" % eid}
+
     if aktion in ("erledigt", "verwerfen"):
         eid = _eintrag_id(d.get("key"))
         if eid is None:
@@ -330,6 +408,102 @@ def aendern(con, pid, wer, d):
             aendern(con, pid, wer, {"aktion": "position", "woche": woche, "key": d["key"], "x": d["x"], "y": d["y"]})
         return {"key": "e%d" % neu if neu else d.get("key")}
     raise ProjektFehler("Unbekannte Aktion.")
+
+
+def _rahmen_holen(o, rid):
+    r = next((x for x in o["rahmen"] if x["id"] == rid), None)
+    if r is None:
+        raise ProjektFehler("Diesen Rahmen gibt es nicht mehr.")
+    return r
+
+
+def _ids(liste, erlaubt=None):
+    werte = [int(i) for i in liste or [] if str(i).isdigit()]
+    return [i for i in werte if erlaubt is None or i in erlaubt]
+
+
+def _rahmen_aendern(con, pid, woche, aktion, d):
+    """Rahmen um Striche, Sticker und Post-its: anlegen (der Browser sagt, was ganz darin liegt), aendern (Titel,
+    Groesse, Inhalt), verschieben (der Inhalt geht mit) und loesen (der Inhalt bleibt auf der Tafel)."""
+    with db.transaktion(con):
+        b, t = _tafel_zeile(con, pid, woche)
+        o = _objekte(t["objekte"])
+        striche = json.loads(t["striche"])
+        positionen = json.loads(t["positionen"])
+        strich_ids = {s["id"] for s in striche}
+        sticker_ids = {s["id"] for s in o["sticker"]}
+        werte = {}
+        ergebnis = {}
+        if aktion == "rahmen":
+            if len(o["rahmen"]) >= 60:
+                raise ProjektFehler("Die Tafel hat schon sehr viele Rahmen.")
+            r = {"id": _neue_id(o["rahmen"]), "titel": _titel(d.get("titel")), "x": _zahl(d.get("x"), 0, BREITE),
+                 "y": _zahl(d.get("y"), 0, HOEHE), "w": _zahl(d.get("w"), 60, BREITE), "h": _zahl(d.get("h"), 60, HOEHE),
+                 "striche": _ids(d.get("striche"), strich_ids), "sticker": _ids(d.get("sticker"), sticker_ids),
+                 "postits": [str(k)[:20] for k in d.get("postits") or []][:40]}
+            for x in o["rahmen"]:   # was zum neuen Rahmen kommt, gehoert keinem anderen mehr
+                x["striche"] = [i for i in x.get("striche", []) if i not in r["striche"]]
+                x["sticker"] = [i for i in x.get("sticker", []) if i not in r["sticker"]]
+                x["postits"] = [k for k in x.get("postits", []) if k not in r["postits"]]
+            o["rahmen"].append(r)
+            ergebnis = {"rahmen_id": r["id"]}
+        else:
+            r = _rahmen_holen(o, d.get("id"))
+            if aktion == "rahmen_weg":
+                o["rahmen"] = [x for x in o["rahmen"] if x["id"] != r["id"]]
+                for p in o["pfeile"]:   # Pfeile am Rahmen bleiben an der Stelle stehen
+                    for ende in ("a", "b"):
+                        e = p[ende]
+                        if e.get("rahmen") == r["id"]:
+                            p[ende] = {"x": round(r["x"] + e["rx"] * r["w"]), "y": round(r["y"] + e["ry"] * r["h"])}
+            elif aktion == "rahmen_aendern":
+                if "titel" in d:
+                    r["titel"] = _titel(d.get("titel"))
+                for k, kleinst, groesst in (("w", 60, BREITE), ("h", 60, HOEHE)):
+                    if k in d:
+                        r[k] = _zahl(d[k], kleinst, groesst)
+                if "postits" in d:
+                    neu = [str(k)[:20] for k in d.get("postits") or []][:40]
+                    for x in o["rahmen"]:
+                        x["postits"] = [k for k in x.get("postits", []) if k not in neu]
+                    r["postits"] = neu
+                if "striche" in d:
+                    r["striche"] = _ids(d.get("striche"), strich_ids)
+                if "sticker" in d:
+                    r["sticker"] = _ids(d.get("sticker"), sticker_ids)
+            else:   # rahmen_bewegen: um dx, dy; Striche und freie Sticker gehen mit, Post-its kommen mit neuer Lage
+                dx = _zahl(d.get("dx"), -BREITE, BREITE)
+                dy = _zahl(d.get("dy"), -HOEHE, HOEHE)
+                dx = max(-r["x"], min(BREITE - r["w"] - r["x"], dx))
+                dy = max(-r["y"], min(HOEHE - r["h"] - r["y"], dy))
+                r["x"] += dx
+                r["y"] += dy
+                mit = set(r.get("striche", []))
+                for s in striche:
+                    if s["id"] in mit:
+                        s["punkte"] = [[max(0, min(BREITE, p[0] + dx)), max(0, min(HOEHE, p[1] + dy))] + p[2:] for p in s["punkte"]]
+                for s in o["sticker"]:
+                    if s["id"] in r.get("sticker", []) and "x" in s:
+                        s["x"] = max(0, min(BREITE, s["x"] + dx))
+                        s["y"] = max(0, min(HOEHE, s["y"] + dy))
+                for p in o["pfeile"]:   # freie Pfeilenden im Rahmen gehen mit
+                    for e in (p["a"], p["b"]):
+                        if "x" in e and r["x"] - dx <= e["x"] <= r["x"] - dx + r["w"] and r["y"] - dy <= e["y"] <= r["y"] - dy + r["h"]:
+                            e["x"] = max(0, min(BREITE, e["x"] + dx))
+                            e["y"] = max(0, min(HOEHE, e["y"] + dy))
+                for k, lage in (d.get("postits") or {}).items():
+                    if k in r.get("postits", []) and isinstance(lage, list) and len(lage) == 2:
+                        positionen[k] = [_zahl(lage[0], 0, BREITE), _zahl(lage[1], 0, HOEHE)]
+                werte["striche"] = json.dumps(striche, separators=(",", ":"))
+                werte["positionen"] = json.dumps(positionen)
+        werte["objekte"] = json.dumps(o, separators=(",", ":"))
+        _speichern(con, b["id"], **werte)
+        return ergebnis
+
+
+def _titel(wert):
+    text = (str(wert or "")).strip()[:80]
+    return text or "Rahmen"
 
 
 def _umwandeln(con, pid, wer, woche, eid, zone, d):
