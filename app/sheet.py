@@ -1,8 +1,8 @@
-"""Tracking-Sheet: Aufgaben je Phase, Wochenraster mit Plan (b), Endtermin (e) und Ampel (g/y/r), Haekchen "erledigt",
+"""Tracking-Sheet: Tätigkeiten je Phase, Wochenraster mit Plan (b), Endtermin (e) und Ampel (g/y/r), Haekchen "erledigt",
 Probleme, Meilensteine, Versionen (Basisplan, Stand zum Buchungsschluss).
 
 Alle Aenderungen laufen ueber aendern(): eine Aktion, eine Transaktion, ein Ereignis. Team und Lehrkraft nutzen
-dieselben Aktionen; Unterschiede: nur Lehrkraefte duerfen Vorgabe-Aufgaben umbenennen/verwerfen und den Basisplan setzen.
+dieselben Aktionen; Unterschiede: nur Lehrkraefte duerfen Vorgabe-Tätigkeiten umbenennen/verwerfen und den Basisplan setzen.
 """
 import datetime
 import json
@@ -49,10 +49,10 @@ def _aufgabe(con, pid, aid):
     try:
         aid = int(aid)
     except (TypeError, ValueError):
-        raise ProjektFehler("Ungültige Aufgabe.")
+        raise ProjektFehler("Ungültige Tätigkeit.")
     a = con.execute("SELECT * FROM aufgabe WHERE id = ? AND projekt_id = ?", (aid, pid)).fetchone()
     if a is None:
-        raise ProjektFehler("Diese Aufgabe gibt es nicht.")
+        raise ProjektFehler("Diese Tätigkeit gibt es nicht.")
     return a
 
 
@@ -138,7 +138,7 @@ def lesen(con, pid):
 
 
 def momentaufnahme(con, pid):
-    """Was eine Version festhaelt: Aufgaben mit Plan, Endtermin, Ampeln, Verantwortlichen; Meilensteine."""
+    """Was eine Version festhaelt: Tätigkeiten mit Plan, Endtermin, Ampeln, Verantwortlichen; Meilensteine."""
     plan, ampel = _zellen(con, pid)
     aufgaben = {}
     for a in con.execute("SELECT * FROM aufgabe WHERE projekt_id = ?", (pid,)):
@@ -204,7 +204,7 @@ def aendern(con, pid, wer_art, wer, d):
             ph = con.execute("SELECT * FROM phase WHERE id = ? AND projekt_id = ?", (d.get("phase_id"), pid)).fetchone()
             if ph is None:
                 raise ProjektFehler("Diese Phase gibt es nicht.")
-            titel = _text(d.get("titel"), "einen Namen für die Aufgabe", MAX_TITEL)
+            titel = _text(d.get("titel"), "einen Namen für die Tätigkeit", MAX_TITEL)
             pos = con.execute("SELECT COALESCE(MAX(pos), -1) + 1 FROM aufgabe WHERE phase_id = ?", (ph["id"],)).fetchone()[0]
             aid = con.execute("INSERT INTO aufgabe (projekt_id, phase_id, pos, titel, erstellt) VALUES (?, ?, ?, ?, ?)",
                               (pid, ph["id"], pos, titel, db.jetzt())).lastrowid
@@ -237,12 +237,12 @@ def aendern(con, pid, wer_art, wer, d):
         a = _aufgabe(con, pid, d.get("aufgabe_id"))
         aid = a["id"]
         if a["verworfen"] and aktion != "verwerfen":
-            raise ProjektFehler("Diese Aufgabe ist verworfen. Stelle sie zuerst wieder her.")
+            raise ProjektFehler("Diese Tätigkeit ist verworfen. Stelle sie zuerst wieder her.")
 
         if aktion == "titel":
             if a["aus_vorlage"] and not lehrkraft:
-                raise ProjektFehler("Vorgegebene Aufgaben kann nur die Lehrkraft umbenennen.")
-            titel = _text(d.get("titel"), "einen Namen für die Aufgabe", MAX_TITEL)
+                raise ProjektFehler("Vorgegebene Tätigkeiten kann nur die Lehrkraft umbenennen.")
+            titel = _text(d.get("titel"), "einen Namen für die Tätigkeit", MAX_TITEL)
             if titel != a["titel"]:
                 con.execute("UPDATE aufgabe SET titel = ? WHERE id = ?", (titel, aid))
                 ereignis("titel", aufgabe_id=aid, titel=titel, alt=a["titel"])
@@ -260,7 +260,7 @@ def aendern(con, pid, wer_art, wer, d):
                 ereignis("erledigt" if erledigt else "nicht_erledigt", aufgabe_id=aid, titel=a["titel"])
         elif aktion == "verwerfen":
             if a["aus_vorlage"] and not lehrkraft:
-                raise ProjektFehler("Vorgegebene Aufgaben kann nur die Lehrkraft verwerfen.")
+                raise ProjektFehler("Vorgegebene Tätigkeiten kann nur die Lehrkraft verwerfen.")
             verworfen = bool(d.get("verworfen", True))
             con.execute("UPDATE aufgabe SET verworfen = ? WHERE id = ?", (1 if verworfen else 0, aid))
             ereignis("verworfen" if verworfen else "wiederhergestellt", aufgabe_id=aid, titel=a["titel"])

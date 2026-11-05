@@ -49,7 +49,7 @@
     zeilen.push(el('tr', { class: 'b-summe' }, el('td', { class: 'b-name', text: 'Gesamtstatus' }), el('td', {}),
       W.map(w => el('td', { class: 'b-w ' + (gesamt[w] ? 'b-' + gesamt[w] : '') }))));
     return el('table', { class: 'b-raster' },
-      el('thead', {}, el('tr', {}, el('th', { text: 'Aufgabe' }), el('th', { text: 'V.' }), W.map(w => el('th', { text: String(T.kw(T.datum(w))) })))),
+      el('thead', {}, el('tr', {}, el('th', { text: 'Tätigkeit' }), el('th', { text: 'V.' }), W.map(w => el('th', { text: String(T.kw(T.datum(w))) })))),
       el('tbody', {}, zeilen));
   }
 
@@ -87,7 +87,7 @@
       el('p', { class: 'leise', text: 'blau = geplante Woche, e = Endtermin, grün/gelb/rot = Ampel, ◆ = Meilenstein, schraffiert = kein Projekttag, ✓ = erledigt' })),
     abschnitt('Meilensteine', liste(s.meilensteine.filter(m => !m.verworfen), m => T.kwText(m.woche) + ': ' + m.titel)),
     abschnitt('Probleme und Korrekturmaßnahmen', B.probleme.length ? el('table', { class: 'b-tabelle' },
-      el('thead', {}, el('tr', {}, ['KW', 'Aufgabe', 'Ampel', 'Problem', 'Maßnahme', 'V.'].map(t => el('th', { text: t })))),
+      el('thead', {}, el('tr', {}, ['KW', 'Tätigkeit', 'Ampel', 'Problem', 'Maßnahme', 'V.'].map(t => el('th', { text: t })))),
       el('tbody', {}, B.probleme.map(pr => el('tr', {}, el('td', { text: String(T.kw(T.datum(pr.woche))) }), el('td', { text: pr.aufgabe || '' }),
         el('td', { class: 'b-' + pr.ampel, text: AMPEL[pr.ampel] }), el('td', { text: pr.problem }), el('td', { text: pr.massnahme }),
         el('td', { text: pr.verantwortlich || '' })))))

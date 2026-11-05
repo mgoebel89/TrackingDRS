@@ -47,7 +47,7 @@ const Anfragen = (() => {
     f.inhalt = el('div', { class: 'felder' }, T.feld('Artikel', f.artikel),
       el('div', { class: 'felder zwei' }, T.feld('Bestellnummer', f.bestellnr), T.feld('Menge', f.menge)),
       el('div', { class: 'felder zwei' }, T.feld('Preis', f.preis, 'nur zur Information'), T.feld('Lieferant oder Link', f.lieferant)),
-      T.feld('Für die Aufgabe', f.aufgabe), T.feld('Begründung', f.begruendung));
+      T.feld('Für die Tätigkeit', f.aufgabe), T.feld('Begründung', f.begruendung));
     f.werte = () => ({ artikel: f.artikel.value, bestellnr: f.bestellnr.value, menge: Number(f.menge.value), preis: f.preis.value,
       lieferant: f.lieferant.value, aufgabe_id: f.aufgabe.value ? Number(f.aufgabe.value) : null, begruendung: f.begruendung.value });
     return f;
@@ -56,7 +56,7 @@ const Anfragen = (() => {
   function positionenTabelle(liste, eingereicht, aktionen) {
     if (!liste.length) return el('div', { class: 'leise klein-text', text: 'Noch keine Positionen.' });
     return el('div', { class: 'rollbar' }, el('table', { class: 'liste bestell' },
-      el('thead', {}, el('tr', {}, ['Artikel', 'Bestellnr.', 'Menge', 'Preis', 'Lieferant', 'Aufgabe', eingereicht ? 'Stand' : ''].map(t => el('th', { text: t })))),
+      el('thead', {}, el('tr', {}, ['Artikel', 'Bestellnr.', 'Menge', 'Preis', 'Lieferant', 'Tätigkeit', eingereicht ? 'Stand' : ''].map(t => el('th', { text: t })))),
       el('tbody', {}, liste.map(p => el('tr', { class: p.gestrichen ? 'gestrichen' : '' },
         el('td', {}, el('b', { text: p.artikel }), p.begruendung ? el('div', { class: 'leise klein-text', text: p.begruendung }) : null),
         el('td', { class: 'mono', text: p.bestellnr }),
@@ -114,7 +114,7 @@ const Anfragen = (() => {
         inhalt: el('div', { class: 'felder' },
           T.feld({ rueckfrage: 'Frage', ausleihe: 'Was?', abnahme: 'Was soll geprüft werden?' }[art], f.titel),
           art === 'ausleihe' ? el('div', { class: 'felder drei' }, T.feld('Wie viele?', f.menge), T.feld('Ab', f.von), T.feld('Bis', f.bis)) : null,
-          T.feld('Details', f.text), T.feld('Zur Aufgabe', f.aufgabe),
+          T.feld('Details', f.text), T.feld('Zur Tätigkeit', f.aufgabe),
           art === 'rueckfrage' ? el('label', { class: 'haken' }, f.tafel, 'in der Besprechung klären (kommt als Frage auf die Tafel)') : null,
           art === 'abnahme' ? T.feld('Foto (optional)', f.foto, 'Aufbau fotografieren, keine Personen') : null),
         speichern: async () => {
@@ -309,7 +309,7 @@ const Anfragen = (() => {
             if (statusWahl) statusWahl.value = p.status || '';
             return el('tr', {},
               el('td', {}, el('b', { text: p.artikel }), el('div', { class: 'leise klein-text', text: [p.bestellnr, p.lieferant, p.preis].filter(Boolean).join(' · ') }),
-                p.aufgabe ? el('div', { class: 'leise klein-text', text: 'Aufgabe: ' + p.aufgabe }) : null,
+                p.aufgabe ? el('div', { class: 'leise klein-text', text: 'Tätigkeit: ' + p.aufgabe }) : null,
                 p.begruendung ? el('div', { class: 'klein-text', text: p.begruendung }) : null),
               el('td', {}, menge, p.menge_genehmigt && p.menge_genehmigt !== p.menge ? el('div', { class: 'leise klein-text', text: 'beantragt ' + p.menge }) : null),
               el('td', {}, el('div', { class: 'umschalter wege' }, WEGE.map(([w, t]) => el('button', { type: 'button', class: p.entscheidung === w ? 'an' : '',

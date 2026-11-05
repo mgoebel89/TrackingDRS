@@ -151,7 +151,8 @@ td.wer { white-space:nowrap; color:var(--leise); }
 .ms-zeile { margin-top:8px; font-size:.8rem; color:var(--text); display:flex; gap:6px; align-items:center; }
 .ms-zeile::before { content:"◆"; color:var(--blau); }
 canvas.tinte { position:absolute; inset:0; width:100%; height:100%; z-index:1; pointer-events:none; }
-.tafel[data-werkzeug="stift"] canvas.tinte, .tafel[data-werkzeug="radierer"] canvas.tinte { pointer-events:auto; z-index:4; cursor:crosshair; }
+.tafel[data-werkzeug="stift"] canvas.tinte, .tafel[data-werkzeug="marker"] canvas.tinte, .tafel[data-werkzeug="radierer"] canvas.tinte,
+.tafel[data-werkzeug="pfeil"] canvas.tinte, .tafel[data-werkzeug="rahmen"] canvas.tinte { pointer-events:auto; z-index:4; cursor:crosshair; }
 .postit { position:absolute; z-index:2; width:13.5%; min-height:16%; padding:7px 9px 20px; background:#fff1a8; color:#1d2433;
   transform:rotate(var(--dreh,0deg)); box-shadow:0 8px 14px -8px rgba(0,0,0,.45), 0 1px 2px rgba(0,0,0,.18);
   font-family:'Caveat','Segoe Print','Comic Sans MS',cursive; font-size:1.2rem; line-height:1.05; cursor:grab; touch-action:none; }
@@ -170,12 +171,12 @@ canvas.tinte { position:absolute; inset:0; width:100%; height:100%; z-index:1; p
 .foto-bild svg { width:100%; height:100%; display:block; }
 .postit.neu-live { animation:rein .7s cubic-bezier(.2,.8,.3,1); }
 @keyframes rein { from { opacity:0; transform:translateY(-30px) rotate(var(--dreh,0deg)) scale(.9); } }
-.werkzeuge { position:absolute; z-index:6; left:50%; bottom:10px; transform:translateX(-50%); display:flex; align-items:center; gap:3px;
-  background:var(--karte); border:1px solid var(--linie-stark); border-radius:14px; padding:5px; box-shadow:0 10px 24px -12px rgba(16,24,40,.45); }
-.werkzeuge button { width:40px; height:40px; display:grid; place-items:center; border-radius:9px; border:1px solid transparent; background:transparent;
-  color:var(--text); font:inherit; font-size:1.15rem; cursor:pointer; }
-.werkzeuge button:hover { background:var(--knopf); }
-.werkzeuge button.an { background:var(--blau-hell); border-color:var(--blau-mittel); color:var(--blau); }
+.werkzeuge { position:absolute; z-index:6; left:50%; bottom:12px; transform:translateX(-50%); display:flex; align-items:center; gap:2px;
+  background:var(--karte); border:1px solid var(--linie); border-radius:16px; padding:5px 6px; box-shadow:0 12px 28px -14px rgba(16,24,40,.5); }
+.werkzeuge button { width:44px; height:44px; display:grid; place-items:center; border-radius:10px; border:none; background:transparent;
+  color:var(--leise); font:inherit; cursor:pointer; padding:0; }
+.werkzeuge button:hover { background:var(--knopf); color:var(--text); }
+.werkzeuge button.an { background:var(--blau); color:#fff; }
 .werkzeuge button:focus-visible { outline:2px solid var(--blau); outline-offset:1px; }
 .werkzeuge .farbe i { width:16px; height:16px; border-radius:50%; display:block; }
 .werkzeuge .trenner { width:1px; height:26px; background:var(--linie-stark); margin:0 3px; }
@@ -357,6 +358,16 @@ table.pos th, table.pos td { padding:5px 8px; vertical-align:middle; }
 .feld-reihe { display:flex; flex-wrap:wrap; gap:8px; }
 .feld-m { display:grid; gap:2px; font-size:.8rem; }
 .feld-m .etikett { font-size:.58rem; }
+.firma-st { display:inline-block; font-size:.68rem; font-weight:700; padding:1px 7px; border-radius:999px; border:1px solid var(--linie-stark); margin-right:4px; white-space:nowrap; }
+.firma-st.gefragt { border-color:var(--gelb); }
+.firma-st.zugesagt { background:var(--blau-hell); border-color:var(--blau-mittel); color:var(--blau); }
+.firma-st.besorgt { background:var(--gruen); border-color:var(--gruen); color:#1d2433; }
+.firma-st.nein { border-color:var(--rot); color:var(--rot); }
+.haken-k { display:inline-flex; align-items:center; gap:6px; border:1px solid var(--linie-stark); border-radius:8px; padding:5px 10px; font-size:.78rem; font-weight:600; background:var(--karte); }
+.haken-k i { width:16px; height:16px; border:2px solid var(--blau); border-radius:4px; display:inline-block; }
+.pos-wahl { font:inherit; font-size:.76rem; font-weight:600; color:var(--text); background:var(--karte); border:1px solid var(--linie-stark); border-radius:7px; padding:3px 6px; min-width:150px; }
+.pos-wahl.offen { border-color:var(--gelb); }
+.pos-wahl:focus-visible { outline:2px solid var(--blau); outline-offset:1px; }
 .wahl { display:inline-flex; border:1px solid var(--linie-stark); border-radius:7px; overflow:hidden; }
 .wahl span { font-size:.66rem; font-weight:600; padding:2px 6px; border-right:1px solid var(--linie-stark); color:var(--leise); white-space:nowrap; }
 .wahl span:last-child { border-right:none; }
@@ -439,6 +450,111 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
 .legende { display:flex; flex-wrap:wrap; gap:6px 14px; font-size:.82rem; color:var(--leise); align-items:center; }
 .legende .z { display:inline-block; vertical-align:middle; margin-right:4px; }
 
+/* Neu in Fassung 13 */
+.neu-marke { display:inline-block; font-family:var(--f-text); font-size:.64rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--auf-farbe); background:var(--blau); border-radius:4px; padding:1px 6px; vertical-align:2px; }
+h2 .neu-marke, h3 .neu-marke { margin-left:4px; }
+a.neu-karte { display:grid; gap:6px; align-content:start; color:inherit; text-decoration:none; }
+a.neu-karte:hover { border-color:var(--blau-mittel); }
+a.neu-karte:focus-visible { outline:2px solid var(--blau); outline-offset:2px; }
+a.neu-karte b { font-family:var(--f-titel); font-size:1.1rem; }
+a.neu-karte p { font-size:.92rem; color:var(--leise); }
+.neu-karte .etikett { color:var(--blau); }
+.vorher { font-size:.86rem; color:var(--leise); border-left:3px solid var(--linie-stark); padding:2px 0 2px 10px; }
+.vorher b { color:var(--text); }
+
+/* Anfragen-Eingang der Lehrkraft */
+.lk-reiter { display:flex; gap:4px; border-bottom:1px solid var(--linie); }
+.lk-reiter span { display:inline-flex; align-items:center; gap:7px; padding:8px 14px; font-size:.86rem; font-weight:600; color:var(--leise); border-bottom:3px solid transparent; margin-bottom:-1px; }
+.lk-reiter span.an { color:var(--blau); border-bottom-color:var(--blau); }
+.lk-reiter svg, .sym { width:18px; height:18px; flex:none; }
+.sym { display:inline-block; vertical-align:-4px; }
+.fenster-karte { display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px; background:var(--blau-hell); border:1px solid var(--blau-mittel); border-radius:12px 5px 5px 5px; padding:10px 14px; font-size:.84rem; }
+.fenster-karte .sym { width:24px; height:24px; color:var(--blau); }
+.fenster-karte b { display:block; font-family:var(--f-titel); font-size:1rem; color:var(--text); }
+.fenster-karte .rechts { margin-left:auto; display:flex; gap:6px; }
+.filter-reihe { display:flex; flex-wrap:wrap; gap:6px 14px; align-items:center; font-size:.78rem; }
+.filter-reihe .etikett { font-size:.6rem; }
+.fk { display:inline-flex; align-items:center; gap:5px; border:1px solid var(--linie-stark); background:var(--karte); border-radius:999px; padding:3px 10px; font-size:.76rem; font-weight:600; color:var(--leise); }
+.fk.an { background:var(--blau-hell); border-color:var(--blau-mittel); color:var(--blau); }
+.fk .sym { width:15px; height:15px; }
+.fk i { font-style:normal; font-family:var(--f-mono); font-size:.68rem; }
+.vg-zeile { display:grid; grid-template-columns:34px minmax(0,1fr) auto auto; gap:10px; align-items:center; padding:8px 10px; border-bottom:1px solid var(--linie); font-size:.8rem; position:relative; }
+.vg-zeile:last-child { border-bottom:none; }
+.vg-zeile .unter { display:block; color:var(--leise); font-size:.72rem; }
+.vg-zeile.ungelesen b::after { content:""; display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--rot); margin-left:6px; vertical-align:2px; }
+.art-sym { width:34px; height:34px; border-radius:9px; display:grid; place-items:center; }
+.art-sym .sym { width:19px; height:19px; vertical-align:0; }
+.art-sym.frage { background:#ece9fb; color:#4b3fa8; } .art-sym.liste { background:#e2f3ec; color:#0f6e56; }
+.art-sym.leihe { background:#fbefd9; color:#8a540c; } .art-sym.abnahme { background:var(--blau-hell); color:var(--blau); }
+.zust { display:inline-flex; align-items:center; gap:5px; border:1px dashed var(--linie-stark); border-radius:7px; padding:3px 8px; font-size:.74rem; color:var(--leise); white-space:nowrap; background:var(--karte); }
+.zust.gesetzt { border-style:solid; color:var(--text); }
+.zust .sym { width:14px; height:14px; }
+.zust-menue { position:absolute; right:96px; top:34px; z-index:3; width:210px; background:var(--karte); border:1px solid var(--linie-stark); border-radius:10px; padding:6px; display:grid; gap:2px; box-shadow:0 12px 28px -12px rgba(16,24,40,.45); font-size:.78rem; }
+.zust-menue .etikett { font-size:.58rem; padding:2px 6px; }
+.zust-menue span { padding:5px 8px; border-radius:6px; display:flex; gap:8px; align-items:center; }
+.zust-menue span.an { background:var(--blau-hell); color:var(--blau); font-weight:600; }
+.zust-menue hr { border:none; border-top:1px solid var(--linie); margin:3px 0; }
+
+/* Projekttage: Wochenansicht */
+.woche-gitter { display:grid; grid-template-columns:46px repeat(5, minmax(0,1fr)); border:1px solid var(--linie); border-radius:10px; overflow:hidden; background:var(--karte); font-size:.72rem; }
+.wg-kopf { padding:6px 8px; border-left:1px solid var(--linie); border-bottom:1px solid var(--linie); font-weight:700; display:flex; justify-content:space-between; align-items:center; gap:4px; white-space:nowrap; }
+.wg-kopf .sym { width:15px; height:15px; color:var(--leise); }
+.wg-kopf.leer { color:var(--leise); font-weight:500; }
+.wg-zeit { position:relative; height:280px; }
+.wg-zeit span { position:absolute; right:6px; transform:translateY(-50%); font-family:var(--f-mono); font-size:.62rem; color:var(--leise); }
+.wg-tag { position:relative; height:280px; border-left:1px solid var(--linie);
+  background:repeating-linear-gradient(to bottom, transparent 0 39px, var(--linie) 39px 40px); }
+.wg-tag.frei { background:repeating-linear-gradient(135deg, transparent 0 6px, var(--linie) 6px 8px); }
+.wg-pz { position:absolute; left:0; right:0; background:var(--blau-hell); opacity:.7; }
+.wg-t { position:absolute; left:4px; right:4px; border-radius:0 6px 6px 0; border-left:3px solid var(--blau); background:var(--karte); box-shadow:inset 0 0 0 1px var(--blau-mittel); padding:2px 6px; line-height:1.25; overflow:hidden; color:var(--text); }
+.wg-t b { font-family:var(--f-mono); font-size:.62rem; color:var(--blau); margin-right:4px; }
+.wg-t.lk { border-left-color:var(--text); }
+.wg-hinweis { position:absolute; inset:0; display:grid; place-items:center; color:var(--leise); font-size:.7rem; text-align:center; padding:6px; }
+.overlay-flaeche { position:relative; background:rgba(16,24,40,.45); border-radius:0 0 8px 8px; padding:56px 12px 14px; display:grid; align-content:end; min-height:470px; }
+.overlay-dahinter { position:absolute; inset:0; padding:10px; display:grid; gap:8px; align-content:start; opacity:.35; pointer-events:none; }
+.blatt { position:relative; background:var(--karte); border-radius:18px 18px 10px 10px; padding:14px; display:grid; gap:10px; box-shadow:0 -10px 30px -12px rgba(0,0,0,.5); }
+.blatt-griff { width:40px; height:4px; border-radius:2px; background:var(--linie-stark); justify-self:center; margin-top:-6px; }
+.blatt-kopf { display:flex; align-items:center; gap:8px; }
+.blatt-kopf b { font-family:var(--f-titel); font-size:1.1rem; }
+.blatt-kopf .sym { margin-left:auto; color:var(--leise); }
+.tag-wahl { display:flex; gap:6px; }
+.tag-wahl span { flex:1; text-align:center; border:1px solid var(--linie-stark); border-radius:9px; padding:6px 4px; font-size:.78rem; font-weight:600; }
+.tag-wahl span small { display:block; font-weight:500; color:var(--leise); font-size:.64rem; }
+.tag-wahl span.an { background:var(--blau); border-color:var(--blau); color:var(--auf-farbe); }
+.tag-wahl span.an small { color:var(--auf-farbe); }
+.frei-zeiten { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:6px; }
+.frei-zeiten span { border:1px solid var(--blau-mittel); color:var(--blau); border-radius:9px; padding:10px 4px; text-align:center; font-family:var(--f-mono); font-weight:600; font-size:.86rem; }
+.frei-zeiten span.an { background:var(--blau); color:var(--auf-farbe); border-color:var(--blau); }
+
+/* Tafel: Rahmen, Sticker, Pfeile, Flyouts */
+.wz-sym { width:22px; height:22px; display:block; }
+svg.sym, svg.wz-sym { fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+svg.sym.duenn, svg.wz-sym { stroke-width:1.8; }
+.werkzeuge .flyout { position:absolute; bottom:calc(100% + 10px); left:50%; transform:translateX(-50%); background:var(--karte); border:1px solid var(--linie-stark); border-radius:14px; padding:10px; box-shadow:0 14px 30px -14px rgba(16,24,40,.5); display:grid; gap:10px; cursor:default; }
+.werkzeuge .wz-gruppe { position:relative; }
+.flyout .reihe { display:flex; gap:6px; align-items:center; }
+.flyout .fa { width:26px; height:26px; border-radius:50%; border:none; padding:0; cursor:pointer; }
+.flyout .fa.an { box-shadow:0 0 0 2px var(--karte), 0 0 0 4px var(--blau); }
+.flyout .di { width:32px; height:32px; border-radius:8px; border:1px solid var(--linie); display:grid; place-items:center; background:transparent; cursor:pointer; padding:0; }
+.flyout .di.an { border-color:var(--blau); background:var(--blau-hell); }
+.flyout .di i { display:block; border-radius:50%; background:var(--text); }
+.flyout .st-raster { display:grid; grid-template-columns:repeat(6, 34px); gap:4px; }
+.flyout .st-raster button { width:34px; height:34px; border-radius:8px; border:none; background:transparent; cursor:pointer; display:grid; place-items:center; padding:0; }
+.flyout .st-raster button:hover, .flyout .st-raster button.an { background:var(--knopf); }
+.flyout .st-raster .wz-sym { width:21px; height:21px; }
+.flyout .etikett { font-size:.58rem; }
+.sticker { position:absolute; z-index:3; width:3.6%; aspect-ratio:1; padding:4px; border-radius:50%; background:var(--karte); cursor:grab; touch-action:none; box-shadow:0 2px 6px -2px rgba(0,0,0,.4); }
+.sticker svg { width:100%; height:100%; display:block; }
+.postit .sticker { width:32px; left:-12px; top:-14px; }
+.tafel-rahmen { position:absolute; z-index:0; border:1.5px solid var(--blau-mittel); border-radius:6px; background:color-mix(in srgb, var(--blau-hell) 35%, transparent); cursor:grab; touch-action:none; }
+.tafel-rahmen .r-titel { position:absolute; left:6px; top:-11px; background:var(--tafel); color:var(--blau); font-size:.66rem; font-weight:700; padding:0 6px; border-radius:4px; white-space:nowrap; }
+.tafel-rahmen .ziel { position:absolute; top:-11px; right:-6px; background:#00639C; color:#fff; font-size:.6rem; font-weight:700; padding:2px 8px; border-radius:999px; white-space:nowrap; }
+.tafel-rahmen.zieht, .sticker.zieht { cursor:grabbing; }
+.tafel[data-werkzeug="rahmen"], .tafel[data-werkzeug="pfeil"], .tafel[data-werkzeug="sticker"] { cursor:crosshair; }
+.auswahl-box { position:absolute; z-index:5; border:1.5px dashed var(--blau); background:color-mix(in srgb, var(--blau-hell) 40%, transparent); pointer-events:none; }
+.nach-knoepfe { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.nach-knoepfe .k { padding:6px 12px; font-size:.82rem; }
+
 @media (max-width:640px) {
   .cockpit { grid-template-columns:1fr; }
   .geraet.tablet { min-width:0; }
@@ -450,11 +566,56 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
 <header class="kopf">
   <div class="kopf-innen">
     <div class="marke"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M0 10 L10 0 L10 10 Z"/></svg>TrackingDRS</div>
-    <div class="kopf-meta"><span class="status">Entwurf zur Abstimmung</span><span>Stand 27.10.2026</span><span>Projektarbeit Mechatronik, DRS Neuwied</span></div>
+    <div class="kopf-meta"><span class="status">Überarbeitung zur Abstimmung</span><span>Fassung 13 · Stand 05.11.2026</span><span>in Betrieb: Version 0.9.8</span><span>Projektarbeit Mechatronik, DRS Neuwied</span></div>
   </div>
 </header>
 
 <main>
+<!-- Symbole im Stil von Lucide (ISC-Lizenz), als Sprite; die App bekommt sie als SVG-Dateien im Repo -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <g id="i-zeiger"><path d="M4.04 4.69a.5.5 0 0 1 .65-.65l16 6.5a.5.5 0 0 1-.06.95l-6.12 1.58a2 2 0 0 0-1.44 1.44l-1.58 6.12a.5.5 0 0 1-.95.06z"/></g>
+    <g id="i-stift"><path d="M21.17 6.81a2.82 2.82 0 0 0-3.99-3.99L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z"/><path d="m15 5 4 4"/></g>
+    <g id="i-marker"><path d="m9 11-6 6v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/></g>
+    <g id="i-pfeil"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></g>
+    <g id="i-radierer"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></g>
+    <g id="i-postit"><path d="M16 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8Z"/><path d="M15 3v4a2 2 0 0 0 2 2h4"/></g>
+    <g id="i-rahmen"><path d="M22 6H2"/><path d="M22 18H2"/><path d="M6 2v20"/><path d="M18 2v20"/></g>
+    <g id="i-sticker"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01"/><path d="M15 9h.01"/></g>
+    <g id="i-zurueck"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></g>
+    <g id="i-vor"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></g>
+    <g id="i-idee"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></g>
+    <g id="i-problem"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></g>
+    <g id="i-frage"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></g>
+    <g id="i-ok"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></g>
+    <g id="i-nein"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></g>
+    <g id="i-stern"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></g>
+    <g id="i-ziel"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></g>
+    <g id="i-uhr"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></g>
+    <g id="i-flagge"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/></g>
+    <g id="i-gut"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/></g>
+    <g id="i-schlecht"><g transform="rotate(180 12 12)"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/></g></g>
+    <g id="i-team"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></g>
+    <g id="i-fertigung"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94z"/></g>
+    <g id="i-elektrik"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></g>
+    <g id="i-mechanik"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="7"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></g>
+    <g id="i-programm"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></g>
+    <g id="i-material"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 8.7 5 8.7-5"/></g>
+    <g id="i-mass"><path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0Z"/><path d="m14.5 12.5 2-2"/><path d="m11.5 9.5 2-2"/><path d="m8.5 6.5 2-2"/><path d="m17.5 15.5 2-2"/></g>
+    <g id="i-eingang"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></g>
+    <g id="i-wagen"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></g>
+    <g id="i-kalender"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></g>
+    <g id="i-glocke"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></g>
+    <g id="i-person"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></g>
+    <g id="i-liste"><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/></g>
+    <g id="i-mehr"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></g>
+    <g id="i-zu"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></g>
+    <g id="i-laden"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></g>
+    <g id="i-bild"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.09-3.09a2 2 0 0 0-2.82 0L6 21"/></g>
+    <g id="i-links"><path d="m15 18-6-6 6-6"/></g>
+    <g id="i-rechts"><path d="m9 18 6-6-6-6"/></g>
+  </defs>
+</svg>
 
 <section>
   <h1>Projekte über Monate im Blick behalten</h1>
@@ -465,10 +626,23 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
   </div>
 </section>
 
+<section id="neu">
+  <h2><span class="nr">NEU</span>Was diese Überarbeitung ändert</h2>
+  <p>Die Stufen A bis F laufen seit Ende Oktober im Testcontainer. Nach dem ersten Ausprobieren ändern sich sechs Dinge. Die betroffenen Abschnitte und Skizzen unten sind angepasst und mit <span class="neu-marke">neu</span> gekennzeichnet. Gebaut wird das als Stufe I.</p>
+  <div class="raster">
+    <a class="karte neu-karte" href="#s-raster"><div class="etikett">Begriff</div><b>Tätigkeiten statt Aufgaben</b><p>Im Tracking-Sheet und überall, wo man es sieht oder herunterlädt: Oberfläche, Warnungen, Excel, PDF, Tafel. Intern bleibt der Name <code>aufgabe</code>. Die Aufträge aus der Besprechung bleiben Aufträge.</p></a>
+    <a class="karte neu-karte" href="#s-anfragen"><div class="etikett">Anfragen</div><b>Eingang aufgeräumt, zuständige Lehrkraft</b><p>Große Reiter, das Einreichfenster als Statuskarte oben, drei Stände (neu, in Bearbeitung, erledigt). Eine betreuende Lehrkraft lässt sich mit zwei Klicks zuweisen, das Team sieht den Namen.</p></a>
+    <a class="karte neu-karte" href="#s-termine"><div class="etikett">Projekttage</div><b>Wochenansicht und Buchungsfenster</b><p>Die Lehrkraft sieht nur gebuchte Termine als Kästchen in einer Wochenansicht wie in Outlook. Im Alltag reicht der Cockpit-Kalender. Das Team bucht über ein kleines Fenster, das nur freie Zeiten zeigt.</p></a>
+    <a class="karte neu-karte" href="#s-tafel"><div class="etikett">Tafel</div><b>Neue Werkzeugleiste</b><p>Schlanke Symbole ohne Rahmen, unten. Neu: Textmarker, Pfeile, die an Post-its und Rahmen haften, Sticker, Rahmen um Skizzen und Post-its. Ein Rahmen kann Auftrag, Absprache oder Meilenstein werden.</p></a>
+    <a class="karte neu-karte" href="#s-tafel"><div class="etikett">Nach der Besprechung</div><b>PDF und PNG zum Herunterladen</b><p>Team und Lehrkraft laden die eingefrorene Tafel samt Ergebnis als PDF und die Tafel als Bild. Einzelne Rahmen gibt es auch als Bild.</p></a>
+    <a class="karte neu-karte" href="#s-vpn"><div class="etikett">VPN</div><b>Aus dem ganzen VPN erreichbar</b><p>Jedes Gerät in deinem VPN und in deinem Heimnetz erreicht den Lehrerbereich, auch wenn dein Heimnetz dieselben 192.168er-Adressen nutzt wie das Schulnetz. Die Sperre ins Heimnetz bleibt.</p></a>
+  </div>
+</section>
+
 <section>
   <h2><span class="nr">01</span>Was die Basisversion kann</h2>
   <div class="raster">
-    <div class="karte"><div class="etikett">Tracking-Sheet digital</div><p>Dein Sheet als Vorlage: Phasen, Aufgaben, KW-Raster mit <span class="mono">b e g y r</span>, Gesamtstatus je Woche, Probleme mit Maßnahme. Die Schüler bearbeiten es frei wie in Excel, jede Änderung wird protokolliert.</p></div>
+    <div class="karte"><div class="etikett">Tracking-Sheet digital</div><p>Dein Sheet als Vorlage: Phasen, Tätigkeiten, KW-Raster mit <span class="mono">b e g y r</span>, Gesamtstatus je Woche, Probleme mit Maßnahme. Die Schüler bearbeiten es frei wie in Excel, jede Änderung wird protokolliert.</p></div>
     <div class="karte"><div class="etikett">Termine &amp; Besprechungen</div><p>Aus festen Projektzeiten (z. B. donnerstags, dienstags in ungeraden KW) entstehen die Termine automatisch, abzüglich Ferien und Ausfällen. Die Teams buchen sie. Besprochen wird gemeinsam an einer Tafel auf dem Smartboard, mit Stift, Handskizzen und Post-its. Beim Abschließen wird die Tafel eingefroren.</p></div>
     <div class="karte"><div class="etikett">Lehrer-Cockpit</div><p>Die Besprechungen der Woche in Zeitfolge, je Team mit Kurzzusammenfassung und Warnungen. Sie wird ohne KI berechnet, nur aus den Daten.</p></div>
     <div class="karte"><div class="etikett">Anfragen &amp; Extras</div><p>Anfragen mit Bearbeitungsstand (Rückfrage, Bestellung, Ausleihe, Abnahme), Mindmap als Bild/PDF, Fotos, private Lehrernotizen, PDF- und Excel-Export, Projektvorlagen.</p></div>
@@ -482,7 +656,7 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
     <div class="schritt lk"><div class="wer-t">Lehrkraft</div><b>Projekt anlegen</b><span>aus Vorlage, Lehrkräfte zuordnen (Teamteaching)</span></div>
     <div class="schritt lk"><div class="wer-t">Lehrkraft</div><b>Team + Mindmap</b><span>Teammitglieder eintragen, Mindmap hochladen</span></div>
     <div class="schritt lk"><div class="wer-t">Lehrkraft</div><b>Link teilen</b><span>Team-Link in den Teams-Chat der Gruppe</span></div>
-    <div class="schritt"><div class="wer-t">Team</div><b>Planen</b><span>Aufgaben, Zeiträume, Endtermine, Meilensteine</span></div>
+    <div class="schritt"><div class="wer-t">Team</div><b>Planen</b><span>Tätigkeiten, Zeiträume, Endtermine, Meilensteine</span></div>
   </div>
   <div class="woche">
     <div class="etikett">Jede Projektwoche (Woche mit Projekttag)</div>
@@ -510,9 +684,9 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
         <li><b>Spalten sind Kalenderwochen</b> wie im Excel-Blatt.</li>
         <li><b>Zwei Ebenen je Zelle:</b> Der Plan zeigt <span class="mono">b</span> (geplante Bearbeitungswoche) als Balken und <span class="mono">e</span> (Endtermin) als Marke. Der Status <span class="mono">g y r</span> färbt den Balken der jeweiligen Woche grün, gelb oder rot. Geplante Wochen ohne Ampel bleiben blau, der Endtermin bleibt markiert. Eine Ampel in einer ungeplanten Woche erscheint blasser.</li>
         <li><b>Eingabe wie in Excel:</b> Zelle wählen und Buchstaben tippen, oder mit der Maus über die Wochen ziehen, um <span class="mono">b</span> zu planen.</li>
-        <li><b>Genau ein Verantwortlicher</b> je Aufgabe, gewählt aus der Teamliste. Pflicht, sobald die Aufgabe <span class="mono">b</span> oder <span class="mono">e</span> hat.</li>
+        <li><b>Genau ein Verantwortlicher</b> je Tätigkeit, gewählt aus der Teamliste. Pflicht, sobald die Tätigkeit <span class="mono">b</span> oder <span class="mono">e</span> hat.</li>
         <li>Bei <span class="mono">y</span> oder <span class="mono">r</span> öffnet sich ein Pflichtfeld: Problem, Korrekturmaßnahme, verantwortlich.</li>
-        <li>Aufgaben anlegen, umbenennen, verschieben. Gelöschte Aufgaben gelten als <i>verworfen</i> und bleiben für dich sichtbar.</li>
+        <li>Tätigkeiten anlegen, umbenennen, verschieben. Gelöschte Tätigkeiten gelten als <i>verworfen</i> und bleiben für dich sichtbar.</li>
         <li>Verschobene Endtermine merkt sich das System: „ursprünglich KW 50 → jetzt KW 2“.</li>
         <li>Meilensteine ◆ dürfen Team und Lehrkraft setzen und verschieben, jede Änderung wird protokolliert.</li>
         <li>Wochen ohne Projekttermine sind schraffiert.</li>
@@ -520,13 +694,13 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
       </ul></div>
     <div class="karte"><h3>Rund um die Besprechung</h3>
       <ul class="liste">
-        <li><b>Termin buchen</b> im Reiter „Termin“: freien Termin antippen, einer je Woche. Umbuchen geht bis zum Buchungsschluss, den du festlegst. Termine anderer Teams erscheinen nur als „belegt“.</li>
+        <li><b>Termin buchen</b> <span class="neu-marke">neu</span> über „Termin buchen“ in der Übersicht: Ein kleines Fenster zeigt die Projekttage der Woche und für den gewählten Tag nur die noch freien Zeiten. Ein Tipp bucht, einer je Woche. Ändern und Absagen gehen bis zum Buchungsschluss, den du festlegst. Termine anderer Teams erscheinen gar nicht.</li>
         <li><b>Vorbereitung:</b> kurzer Stand und Themen für die Besprechung.</li>
-        <li><b>Anfragen stellen:</b> Rückfrage, Material ausleihen oder Abnahme. Bestellungen sammelt das Team in einer Bestellliste und reicht sie im Einreichfenster ein. Den Bearbeitungsstand sieht das Team jederzeit. Rückfragen mit „in der Besprechung klären“ landen auf der Tafel.</li>
+        <li><b>Anfragen stellen:</b> Rückfrage, Material ausleihen oder Abnahme. Bestellungen sammelt das Team in einer Bestellliste und reicht sie im Einreichfenster ein. Den Stand und die zuständige Lehrkraft sieht das Team jederzeit, z. B. „In Bearbeitung · Matthias Göbel“. Rückfragen mit „in der Besprechung klären“ landen auf der Tafel.</li>
         <li><b>Arbeitsaufträge abhaken.</b> Abhaken reicht, der Zeitpunkt wird gespeichert.</li>
         <li><b>Fotos</b> vom Aufbau per Handy hochladen, mit Datum. Hinweis beim Upload: „Aufbau fotografieren, keine Personen“.</li>
         <li><b>Live an die Tafel:</b> Während der Besprechung schickt das Team Post-its und Fotos vom eigenen Laptop oder Handy direkt auf die Tafel.</li>
-        <li>Abgeschlossene Tafeln und die Mindmap ansehen.</li>
+        <li>Abgeschlossene Tafeln und die Mindmap ansehen. <span class="neu-marke">neu</span> Jede abgeschlossene Besprechung als PDF (Tafel und Ergebnis) und die Tafel als Bild herunterladen.</li>
       </ul></div>
   </div>
 </section>
@@ -534,8 +708,8 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
 <section>
   <h2><span class="nr">04</span>Was du als Lehrkraft siehst</h2>
   <div class="raster-2">
-    <div class="karte"><h3>Cockpit (Startseite)</h3><p>Drei Bausteine. Links der Handlungsbedarf (heute, jetzt erledigen, im Blick behalten), rechts die nächsten zwei Wochen mit deinem Dienstkalender und darunter je Team eine Projektkarte. Dazu gibt es einen eigenen Reiter „Kalender“ für Monat und Halbjahr.</p></div>
-    <div class="karte"><h3>Besprechungstafel (Smartboard)</h3><p>Die Kurzzusammenfassung liegt als Post-its auf der Tafel und wird abgearbeitet. Stift, Skizzen und neue Post-its gehen überall. Post-its in „Aufträge“ oder „Absprachen“ werden zu Einträgen. „Abschließen“ friert die Tafel mit Uhrzeit ein. Auf deinem Monitor läuft parallel die Lehreransicht mit Zusammenfassung und Notizen.</p></div>
+    <div class="karte"><h3>Cockpit (Startseite)</h3><p>Drei Bausteine. Links der Handlungsbedarf (heute, jetzt erledigen, im Blick behalten), rechts die nächsten zwei Wochen mit deinem Dienstkalender und den gebuchten Besprechungen, darunter je Team eine Projektkarte. Dazu gibt es einen eigenen Reiter „Kalender“ für Monat und Halbjahr. Für die Besprechungstermine reicht dir dieser Kalender. Die Wochenansicht der Projekttage brauchst du nur zum Eintragen, Verschieben und Anpassen.</p></div>
+    <div class="karte"><h3>Besprechungstafel (Smartboard)</h3><p>Die Kurzzusammenfassung liegt als Post-its auf der Tafel und wird abgearbeitet. Stift, Textmarker, Pfeile, Sticker, Rahmen und neue Post-its gehen überall. Post-its und Rahmen in „Aufträge“, „Absprachen“ oder „Meilensteine“ werden zu Einträgen. „Abschließen“ friert die Tafel mit Uhrzeit ein, danach gibt es sie als PDF und Bild. Auf deinem Monitor läuft parallel die Lehreransicht mit Zusammenfassung und Notizen.</p></div>
     <div class="karte"><h3>Projektseite</h3><p>Raster mit Versionen und Vergleich (Basisplan oder Stand zu einem Buchungsschluss), Verlauf aller Änderungen (filterbar), Protokolle, Aufträge, Fotos, Mindmap und Lehrernotizen. Lehrernotizen sind nur für Lehrkräfte sichtbar und erscheinen nie auf der Tafel.</p></div>
     <div class="karte"><h3>Verwaltung</h3><p>Projektzeiten, Ausfälle und Einreichfenster für Bestellungen festlegen, Projekte und Teams anlegen, Team-Link erneuern, Vorlagen speichern, Excel-Export im Sheet-Layout, PDF-Export, Archiv, Komplett-Sicherung als ZIP. Lehrkräfte verwaltet ein Admin.</p></div>
   </div>
@@ -548,12 +722,12 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
         <thead><tr><th>Baustein</th><th>Inhalt</th></tr></thead>
         <tbody>
           <tr><td>Ampel</td><td>Gesamtstatus jetzt (schlechteste Ampel der Woche, wie im Sheet) und Verlauf der letzten Besprechungen ● ● ● ●</td></tr>
-          <tr><td>Seit letzter Besprechung</td><td>Neue Aufgaben, verschobene Endtermine (alt → neu), Ampelwechsel, verworfene Aufgaben, Meilensteine, Fotos</td></tr>
+          <tr><td>Seit letzter Besprechung</td><td>Neue Tätigkeiten, verschobene Endtermine (alt → neu), Ampelwechsel, verworfene Tätigkeiten, Meilensteine, Fotos</td></tr>
           <tr><td>Probleme</td><td>Offene Y/R-Einträge mit Korrekturmaßnahme und Verantwortlichem</td></tr>
           <tr><td>Aufträge</td><td>Aufträge der letzten Besprechung: abgehakt (wann), offen, überfällig</td></tr>
           <tr><td>Team</td><td>Vorbereitungstext, Rückfragen mit „in der Besprechung klären“, offene Anfragen</td></tr>
           <tr><td>Ausblick</td><td>Nächster Meilenstein und wie viele Projektwochen noch bis dahin</td></tr>
-          <tr><td>Basisplan</td><td>Abweichung vom Basisplan, z. B. „3 Endtermine später, 1 Aufgabe neu, 1 verworfen“</td></tr>
+          <tr><td>Basisplan</td><td>Abweichung vom Basisplan, z. B. „3 Endtermine später, 1 Tätigkeit neu, 1 verworfen“</td></tr>
         </tbody>
       </table>
     </div>
@@ -567,8 +741,8 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
         <tr><td><b>Nicht aktualisiert</b></td><td>Zum gebuchten Termin gibt es keine Rasteränderung seit der letzten Besprechung</td><td class="wer">Lehrkraft · Team (Erinnerung vorher)</td></tr>
         <tr><td><b>Auftrag überfällig</b></td><td>Die Frist ist abgelaufen und der Auftrag nicht abgehakt</td><td class="wer">Team · Lehrkraft</td></tr>
         <tr><td><b>Rote Ampel</b></td><td>Mindestens ein R in der laufenden KW</td><td class="wer">Lehrkraft</td></tr>
-        <tr><td><b>Endtermin überschritten</b></td><td>Der Endtermin <span class="mono">e</span> liegt in einer vergangenen KW, die Aufgabe ist nicht erledigt</td><td class="wer">Team · Lehrkraft</td></tr>
-        <tr><td><b>Verantwortlich fehlt</b></td><td>Die Aufgabe hat <span class="mono">b</span> oder <span class="mono">e</span>, aber keinen Verantwortlichen</td><td class="wer">Team · Lehrkraft</td></tr>
+        <tr><td><b>Endtermin überschritten</b></td><td>Der Endtermin <span class="mono">e</span> liegt in einer vergangenen KW, die Tätigkeit ist nicht erledigt</td><td class="wer">Team · Lehrkraft</td></tr>
+        <tr><td><b>Verantwortlich fehlt</b></td><td>Die Tätigkeit hat <span class="mono">b</span> oder <span class="mono">e</span>, aber keinen Verantwortlichen</td><td class="wer">Team · Lehrkraft</td></tr>
         <tr><td><b>Anfrage wartet</b></td><td>Eine Anfrage ist seit zwei Schultagen unbearbeitet</td><td class="wer">Lehrkraft</td></tr>
         <tr><td><b>Bestellfenster schließt</b></td><td>Am Tag vor dem Stichtag hat die Bestellliste Positionen, ist aber nicht eingereicht</td><td class="wer">Team</td></tr>
         <tr><td><b>Bestelllisten warten</b></td><td>Das Fenster ist zu, eingereichte Positionen sind noch nicht geprüft</td><td class="wer">Lehrkraft</td></tr>
@@ -578,17 +752,34 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
   </div>
 </section>
 
-<section>
-  <h2><span class="nr">05</span>Anfragen</h2>
-  <p>Das Team stellt Anfragen an die Lehrkräfte des Projekts und sieht jederzeit, ob und wann sie bearbeitet wurden. Jeder Statuswechsel steht mit Uhrzeit und Kürzel der Lehrkraft im Verlauf. Neue Anfragen aller Teams siehst du im Cockpit.</p>
+<section id="s-anfragen">
+  <h2><span class="nr">05</span>Anfragen<span class="neu-marke">neu</span></h2>
+  <p>Das Team stellt Anfragen an die Lehrkräfte des Projekts und sieht jederzeit, wer sie bearbeitet und wie weit sie sind. Jede Anfrage ist ein Vorgang mit Gesprächsverlauf. Jeder Statuswechsel steht mit Uhrzeit und Kürzel der Lehrkraft im Verlauf. Neue Anfragen aller Teams siehst du im Cockpit und im Eingang.</p>
+  <div class="raster-2">
+    <div class="karte"><h3>Drei Stände<span class="neu-marke">neu</span></h3>
+      <ul class="liste">
+        <li><b>Neu:</b> Noch niemand ist zuständig.</li>
+        <li><b>In Bearbeitung:</b> Eine Lehrkraft ist zuständig. Zuweisen setzt diesen Stand von selbst, Zuständigkeit wegnehmen setzt wieder „Neu“.</li>
+        <li><b>Erledigt:</b> abgeschlossen. Schreibt das Team danach noch etwas, geht der Vorgang auf „In Bearbeitung“ bei derselben Lehrkraft zurück.</li>
+        <li><b>Filter im Eingang:</b> Neu, In Bearbeitung und Erledigt lassen sich einzeln an- und abschalten, beim Öffnen sind die ersten beiden an. Dazu kommen „nur meine“ und die Art als Knöpfe mit Symbol.</li>
+      </ul></div>
+    <div class="karte"><h3>Zuständige Lehrkraft<span class="neu-marke">neu</span></h3>
+      <ul class="liste">
+        <li><b>Zwei Klicks:</b> Jede Zeile im Eingang und der Kopf eines Vorgangs haben ein Feld „Zuständig“. Es öffnet eine kurze Liste mit „Ich übernehme“ oben und darunter den anderen Lehrkräften, <b>die das Projekt betreuen</b>.</li>
+        <li>Wer zugewiesen wird, bekommt den Vorgang als ungelesen: rote Zahl, Zahl im Tab, Einblendung. Keine E-Mail.</li>
+        <li>Wenn noch niemand zuständig ist, übernimmt wie bisher, wer zuerst antwortet.</li>
+        <li><b>Das Team sieht den Namen</b>, z. B. „In Bearbeitung · Matthias Göbel“. Jede Zuweisung steht als graue Zeile im Verlauf.</li>
+        <li>Betreut eine Lehrkraft das Projekt nicht mehr, bleiben ihre Vorgänge ihr zugewiesen. Der Eingang zeigt dann „betreut das Projekt nicht mehr“.</li>
+      </ul></div>
+  </div>
   <div class="tabelle-rahmen">
     <table>
       <thead><tr><th>Art</th><th>Das Team gibt an</th><th>Status</th><th>Besonderheit</th></tr></thead>
       <tbody>
-        <tr><td><b>Rückfrage</b></td><td>Frage, optional Bezug zu einer Aufgabe</td><td class="wer">neu → beantwortet</td><td>Häkchen „in der Besprechung klären“ legt sie als Post-it auf die Tafel</td></tr>
-        <tr><td><b>Bestellliste</b></td><td>Positionen sammeln: Artikel, Bestellnummer, Menge, Preis (nur Info), Lieferant/Link, Aufgabe, Begründung</td><td class="wer">sammeln → eingereicht → je Position: bestellen / SchulLager / Firma / ersetzen / ablehnen</td><td>Einreichen nur in Einreichfenstern, die du festlegst (siehe unten)</td></tr>
+        <tr><td><b>Rückfrage</b></td><td>Frage, optional Bezug zu einer Tätigkeit</td><td class="wer">neu → beantwortet</td><td>Häkchen „in der Besprechung klären“ legt sie als Post-it auf die Tafel</td></tr>
+        <tr><td><b>Bestellliste</b></td><td>Positionen sammeln: Artikel, Bestellnummer, Menge, Preis (nur Info), Lieferant/Link, Tätigkeit, Begründung</td><td class="wer">sammeln → eingereicht → je Position: bestellen / SchulLager / Firma / ersetzen / ablehnen</td><td>Einreichen nur in Einreichfenstern, die du festlegst (siehe unten)</td></tr>
         <tr><td><b>Material ausleihen</b></td><td>Was, wie viele, von wann bis wann</td><td class="wer">neu → bereitgelegt → ausgegeben → zurück</td><td>Überfällige Rückgabe erzeugt eine Warnung</td></tr>
-        <tr><td><b>Abnahme / Freigabe</b></td><td>Was geprüft werden soll, Aufgabe, Foto</td><td class="wer">neu → freigegeben / nachbessern</td><td>Die Freigabe steht im Verlauf der Aufgabe, z. B. vor dem ersten Einschalten</td></tr>
+        <tr><td><b>Abnahme / Freigabe</b></td><td>Was geprüft werden soll, Tätigkeit, Foto</td><td class="wer">neu → freigegeben / nachbessern</td><td>Die Freigabe steht im Verlauf der Tätigkeit, z. B. vor dem ersten Einschalten</td></tr>
       </tbody>
     </table>
   </div>
@@ -613,11 +804,11 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
   </div>
   <div class="tabelle-rahmen">
     <table>
-      <thead><tr><th>Entscheidung je Position</th><th>Was passiert</th><th>Das Team sieht</th></tr></thead>
+      <thead><tr><th>Entscheidung je Position (Auswahlliste)</th><th>Was passiert</th><th>Das Team sieht</th></tr></thead>
       <tbody>
-        <tr><td><b>Bestellen</b></td><td>Kommt nach dem Stichtag in die Sammelbestellung je Lieferant. Danach bestellt, geliefert, ausgegeben.</td><td class="wer">wird bestellt → bestellt → geliefert → ausgegeben</td></tr>
+        <tr><td><b>Bestellen</b></td><td>Kommt nach dem Stichtag in die Sammelbestellung je Lieferant. Den Fortschritt (wird bestellt, bestellt, geliefert, ausgegeben) setzt du in der eigenen Spalte „Bestellstatus“, die nur bei bestellten Positionen erscheint.</td><td class="wer">wird bestellt → bestellt → geliefert → ausgegeben</td></tr>
         <tr><td><b>SchulLager</b></td><td>Du verknüpfst die Position mit dem Eintrag im SchulLager (Ort, Bestand). Ohne SchulLager-Anbindung trägst du den Lagerort als Text ein.</td><td class="wer">liegt im Lager → ausgegeben</td></tr>
-        <tr><td><b>Firma</b></td><td>Wird über die Firma eines Schülers besorgt. Das System vermerkt das nur und verfolgt es nicht weiter.</td><td class="wer">über Firma besorgen</td></tr>
+        <tr><td><b>über Firma</b> <span class="neu-marke">neu</span></td><td>Das Team wird in seiner Liste gefragt, ob es den Artikel über eine Firma besorgen kann. Ja: Ein Schüler aus der Teamliste sagt zu und hakt später „besorgt und mitgebracht“ ab. Nein: Die Position geht offen an dich zurück.</td><td class="wer">Frage → zugesagt (Name) → besorgt</td></tr>
         <tr><td><b>Ersetzen</b></td><td>Entweder trägst du den Ersatz direkt ein (Artikel, Bestellnummer, Lieferant) und entscheidest dann bestellen oder SchulLager. Oder du gibst die Position mit Hinweis zurück, und das Team schlägt in der nächsten Liste einen Ersatz vor.</td><td class="wer">ersetzt durch … / Ersatz gesucht</td></tr>
         <tr><td><b>Ablehnen</b></td><td>Mit kurzem Kommentar. Das Team kann die Position in die nächste Liste übernehmen.</td><td class="wer">abgelehnt</td></tr>
       </tbody>
@@ -634,7 +825,7 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
     <div class="skizze breit">
       <div class="skizze-titel"><h3>Cockpit</h3><span class="leise">PC, dein Monitor · links was zu tun ist, rechts was kommt und wie die Projekte stehen</span></div>
       <div class="rahmen"><div class="geraet pc">
-        <div class="app-kopf"><b>TrackingDRS</b><span class="leise">Di 03.11.2026 · KW 45</span>
+        <div class="app-kopf"><b>Projektarbeit MT</b><span class="leise">Di 03.11.2026 · KW 45</span>
           <span class="reiter" style="margin-left:12px"><span class="an">Cockpit</span><span>Kalender</span><span>Projekte</span><span>Anfragen<i class="zahl">3</i></span><span>Aktivitäten</span><span>Termine &amp; Fenster</span></span>
           <span class="rechts"><span class="k">Alle Klassen ▾</span></span></div>
         <div class="ck">
@@ -725,7 +916,7 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
             <li><b>Morgens:</b> Nur die linke Spalte lesen. „Heute“, „Jetzt erledigen“ und „Im Blick behalten“ sind nach Dringlichkeit sortiert und verschwinden, sobald sie erledigt sind.</li>
             <li><b>Vor Besprechungen:</b> „Besprechen ▶“ startet direkt die Tafel auf dem Board.</li>
             <li><b>Was passiert ist:</b> Jede Projektkarte zeigt „seit gestern“. Die vollständige Chronik liegt im Reiter „Aktivitäten“.</li>
-            <li><b>Projektkarten</b> mit Ampel, Verlauf der letzten fünf Wochen, Fortschritt (erledigte Aufgaben), nächstem Meilenstein und Termin. Wer Handlungsbedarf hat, steht vorne und ist rot umrandet. Per Umschalter wird daraus die Ampel-Matrix aller Teams.</li>
+            <li><b>Projektkarten</b> mit Ampel, Verlauf der letzten fünf Wochen, Fortschritt (erledigte Tätigkeiten), nächstem Meilenstein und Termin. Wer Handlungsbedarf hat, steht vorne und ist rot umrandet. Per Umschalter wird daraus die Ampel-Matrix aller Teams.</li>
           </ul></div>
         <div class="karte"><h3>Kalender für die langfristige Planung</h3>
           <ul class="liste">
@@ -737,11 +928,11 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
       </div>
     </div>
 
-    <div class="skizze breit">
-      <div class="skizze-titel"><h3>Tracking-Sheet im Browser</h3><span class="leise">PC, Team-Ansicht · zum Ausprobieren: Zelle anklicken und b, e, g, y oder r tippen · über mehrere Wochen ziehen plant b · Kürzel anklicken wählt den Verantwortlichen</span></div>
+    <div class="skizze breit" id="s-raster">
+      <div class="skizze-titel"><h3>Tracking-Sheet im Browser<span class="neu-marke">neu</span></h3><span class="leise">PC, Team-Ansicht · zum Ausprobieren: Zelle anklicken und b, e, g, y oder r tippen · über mehrere Wochen ziehen plant b · Kürzel anklicken wählt den Verantwortlichen</span></div>
       <div class="rahmen"><div class="geraet pc" id="pc-raster">
-        <div class="app-kopf"><b>TrackingDRS</b><span>Team Klimaanlage</span>
-          <span class="reiter" style="margin-left:12px"><span class="an">Tracking-Sheet</span><span>Anfragen<i class="zahl">1</i></span><span>Termin</span><span>Besprechungen</span><span>Fotos</span><span>Mindmap</span></span>
+        <div class="app-kopf"><b>Projektarbeit MT</b><span>Team Klimaanlage</span>
+          <span class="reiter" style="margin-left:12px"><span>Übersicht</span><span class="an">Tracking-Sheet</span><span>Besprechung</span><span>Anfragen<i class="zahl">1</i></span><span>Fotos</span><span>Projekt</span></span>
           <span class="rechts"><span class="k">Excel-Export</span></span></div>
         <div class="pc-body">
           <div class="pc-haupt">
@@ -765,7 +956,7 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
             </div>
             <div class="r-scroll"><table class="r-tab" id="r-tab"></table></div>
           </div>
-          <aside class="pc-panel" id="r-panel" aria-label="Details der Aufgabe"></aside>
+          <aside class="pc-panel" id="r-panel" aria-label="Details der Tätigkeit"></aside>
           <div class="r-menue" id="r-menue" hidden></div>
           <div class="r-dialog" id="r-dialog" hidden role="dialog" aria-labelledby="r-dialog-titel">
             <b id="r-dialog-titel"></b>
@@ -781,11 +972,11 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
 
     <div class="raster-2" style="align-items:start">
       <div class="skizze">
-        <div class="skizze-titel"><h3>Diese Woche</h3><span class="leise">Handy: Ampeln setzen statt Raster</span></div>
+        <div class="skizze-titel"><h3>Übersicht</h3><span class="leise">Handy: Termin und Ampeln statt Raster</span></div>
         <div class="rahmen"><div class="geraet handy">
           <div class="app-kopf"><b>Klimaanlage</b><span class="rechts"><span class="k">KW 45</span></span></div>
           <div class="app-flaeche">
-            <div class="reiter"><span class="an">Diese Woche</span><span>Raster</span><span>Anfragen</span><span>Fotos</span></div>
+            <div class="reiter"><span class="an">Übersicht</span><span>Sheet</span><span>Anfragen</span><span>Fotos</span></div>
             <div class="banner">Dein Termin: <b>Di 03.11., 08:45</b>. Bis dahin Ampeln setzen.</div>
             <div class="hz">
               <div class="hz-z"><div><b>Marktrecherche Lüfter</b><span class="leise">BW · Ende KW 45</span></div><div class="hz-amp"><span class="an g">g</span><span>y</span><span>r</span></div></div>
@@ -799,88 +990,108 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
       </div>
       <div class="karte"><h3>So füllen die Schüler das Sheet</h3>
         <ol class="schritte">
-          <li><b>Aufgabe anlegen:</b> „+ Aufgabe“ in der Phase, Namen tippen. Ungeplante Ideen dürfen noch ohne Verantwortlichen stehen.</li>
+          <li><b>Tätigkeit anlegen:</b> „+ Tätigkeit“ in der Phase, Namen tippen. Ungeplante Ideen dürfen noch ohne Verantwortlichen stehen.</li>
           <li><b>Planen:</b> Mit der Maus über die Wochen ziehen, das malt den <span class="m-b"></span>b-Balken. Die letzte Woche bekommt automatisch <span class="e-m">e</span>. Den Endtermin verschiebt man, indem man eine andere Zelle wählt und <span class="mono">e</span> tippt. Der alte Termin bleibt gestrichelt sichtbar.</li>
-          <li><b>Verantwortlichen wählen:</b> Sobald die Aufgabe geplant ist, fragt das System nach genau <b>einem</b> Schüler aus der Teamliste. Bis dahin steht ein rotes <span class="vchip fehlt" style="cursor:default">?</span> in der Zeile. Ein Wechsel ist jederzeit möglich und steht im Verlauf.</li>
-          <li><b>Jede Woche vor dem Termin:</b> Für jede laufende Aufgabe die Ampel der aktuellen Woche setzen, am PC per Taste <span class="mono">g y r</span>, am Handy unter „Diese Woche“. Bei y/r sind Problem und Maßnahme Pflicht.</li>
+          <li><b>Verantwortlichen wählen:</b> Sobald die Tätigkeit geplant ist, fragt das System nach genau <b>einem</b> Schüler aus der Teamliste. Bis dahin steht ein rotes <span class="vchip fehlt" style="cursor:default">?</span> in der Zeile. Ein Wechsel ist jederzeit möglich und steht im Verlauf.</li>
+          <li><b>Jede Woche vor dem Termin:</b> Für jede laufende Tätigkeit die Ampel der aktuellen Woche setzen, am PC per Taste <span class="mono">g y r</span>, am Handy in der „Übersicht“. Bei y/r sind Problem und Maßnahme Pflicht.</li>
           <li><b>Excel-Gefühl:</b> Pfeiltasten bewegen die Auswahl, Entf leert die Zelle. Jede Änderung landet mit Uhrzeit im Verlauf rechts.</li>
         </ol>
       </div>
     </div>
 
+    <div class="skizze breit" id="s-termine">
+      <div class="skizze-titel"><h3>Projekttage als Wochenansicht<span class="neu-marke">neu</span></h3><span class="leise">PC, Lehrkraft, Reiter „Termine &amp; Fenster“ · nur gebuchte Termine, Kästchen wie in Outlook</span></div>
+      <div class="rahmen"><div class="geraet pc">
+        <div class="app-kopf"><b>Projektarbeit MT</b><span class="leise">Termine &amp; Fenster</span>
+          <span class="reiter" style="margin-left:12px"><span class="an">Projekttage</span><span>Projektzeiten &amp; Ausfälle</span><span>Einreichfenster</span></span>
+          <span class="rechts"><span class="k">Alle Klassen ▾</span><span class="k" aria-label="Vorige Woche"><svg class="sym" viewBox="0 0 24 24"><use href="#i-links"/></svg></span><span class="k">KW 46 · 09.–13.11.</span><span class="k" aria-label="Nächste Woche"><svg class="sym" viewBox="0 0 24 24"><use href="#i-rechts"/></svg></span></span></div>
+        <div class="app-flaeche" style="gap:10px">
+          <div class="woche-gitter">
+            <div class="wg-kopf" style="border-left:none"></div>
+            <div class="wg-kopf leer">Mo 09.11.</div>
+            <div class="wg-kopf">Di 10.11. <span class="chip">BSMT 22b</span><svg class="sym" viewBox="0 0 24 24" aria-label="Tag anpassen"><use href="#i-mehr"/></svg></div>
+            <div class="wg-kopf leer">Mi 11.11.</div>
+            <div class="wg-kopf">Do 12.11. <span class="chip">BSMT 22a</span><svg class="sym" viewBox="0 0 24 24" aria-label="Tag anpassen"><use href="#i-mehr"/></svg></div>
+            <div class="wg-kopf leer">Fr 13.11.</div>
+            <div class="wg-zeit"><span style="top:6px">09:00</span><span style="top:40px">09:30</span><span style="top:80px">10:00</span><span style="top:120px">10:30</span><span style="top:160px">11:00</span><span style="top:200px">11:30</span><span style="top:240px">12:00</span><span style="top:272px">12:30</span></div>
+            <div class="wg-tag"><div class="wg-hinweis">kein Projekttag</div></div>
+            <div class="wg-tag">
+              <div class="wg-pz" style="top:120px;height:160px"></div>
+              <div class="wg-t" style="top:121px;height:19px"><b>10:30</b>Klimaanlage</div>
+              <div class="wg-t" style="top:161px;height:19px"><b>11:00</b>Hubtisch</div>
+              <div class="wg-t lk" style="top:221px;height:19px"><b>11:45</b>Förderband · von dir</div>
+              <div class="dialog" style="position:absolute;left:6px;right:6px;top:182px;z-index:2;padding:7px;gap:4px;font-size:.7rem"><b>11:15 · Team eintragen</b><span class="eingabe" style="font-size:.7rem;padding:3px 6px">Pneumatik-Greifer ▾</span></div>
+            </div>
+            <div class="wg-tag"><div class="wg-hinweis">kein Projekttag</div></div>
+            <div class="wg-tag">
+              <div class="wg-pz" style="top:40px;height:180px"></div>
+              <div class="wg-t" style="top:41px;height:19px"><b>09:30</b>Solar-Tracker</div>
+              <div class="wg-t" style="top:101px;height:19px"><b>10:15</b>Sortieranlage</div>
+            </div>
+            <div class="wg-tag frei"><div class="wg-hinweis">Päd. Tag<br>entfällt</div></div>
+          </div>
+          <div class="banner w" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><svg class="sym" viewBox="0 0 24 24" style="color:var(--rot)"><use href="#i-problem"/></svg><b>Noch ohne Termin in KW 46:</b> Pneumatik-Greifer <span class="leise">· Buchungsschluss Di 10.11., 10:15 und Do 12.11., 09:00</span></div>
+          <div class="kal-leg"><span><span class="ev bespr">Kästchen</span> gebuchte Besprechung: Klick öffnet das Projekt oder verschiebt</span><span>blau hinterlegt: Besprechungsfenster, Klick auf eine freie Stelle trägt ein Team ein</span><span><svg class="sym" viewBox="0 0 24 24"><use href="#i-mehr"/></svg> am Tageskopf: Tag anpassen oder streichen</span><span><span class="frei-m"></span>entfällt (Ferien, Ausfall)</span></div>
+        </div>
+      </div></div>
+      <p class="vorher"><b>Bisher:</b> je Projekttag eine Karte mit allen angebotenen Zeiten und einem Auswahlfeld pro Zeit, darunter dieselbe Warnzeile an jedem Tag. Die Regeln für Projektzeiten und Ausfälle bleiben, wie sie sind, und liegen im Reiter daneben. Im Alltag schaust du in den Cockpit-Kalender. Dort stehen die gebuchten Besprechungen mit Uhrzeit und Team.</p>
+    </div>
+
     <div class="raster-2" style="align-items:start">
       <div class="skizze">
-        <div class="skizze-titel"><h3>Termine anlegen</h3><span class="leise">Lehrkraft, Reiter „Termine &amp; Fenster“</span></div>
-        <div class="karte" style="display:grid;gap:10px">
-          <div class="feld-reihe">
-            <div class="feld-m"><span class="etikett">Projektzeit</span><span class="eingabe">Di · ungerade KW</span></div>
-            <div class="feld-m"><span class="etikett">Besprechungsfenster</span><span class="eingabe">08:30 – 10:00</span></div>
-            <div class="feld-m"><span class="etikett">Je Termin</span><span class="eingabe">15 min</span></div>
-            <div class="feld-m"><span class="etikett">Für</span><span class="eingabe">BSMT 22b ▾</span></div>
-            <div class="feld-m"><span class="etikett">Buchungsschluss</span><span class="eingabe">Vortag 18:00</span></div>
-          </div>
-          <div class="hinweis-zeile"><span class="k">Ausfall eintragen</span><span class="k haupt">Regel speichern</span></div>
-          <div class="tag-kopf">Di 10.11. · Stand jetzt</div>
-          <div class="slots">
-            <div class="slot belegt">08:30<small>Förderband</small></div>
-            <div class="slot frei">08:45<small>frei</small></div>
-            <div class="slot belegt">09:00<small>Hubtisch</small></div>
-            <div class="slot belegt">09:15<small>Klimaanlage</small></div>
-            <div class="slot belegt">09:30<small>Solar-Tracker · von dir</small></div>
-            <div class="slot frei">09:45<small>frei</small></div>
-          </div>
-          <div class="hinweis-zeile"><span class="chip w">Noch ohne Termin: Sortieranlage, Pneumatik-Greifer</span><span class="k">Team eintragen ▾</span></div>
-        </div>
-        <p class="leise" style="font-size:.88rem">Eine Regel je Projektzeit (jede Woche, gerade oder ungerade KW). An jedem Projekttag entstehen die Termine selbst, Ferien aus dem Schulkalender und eingetragene Ausfälle fallen weg. Einzelne Tage kannst du anpassen oder streichen. Nach dem Buchungsschluss ändern nur noch Lehrkräfte.</p>
-      </div>
-      <div class="skizze">
-        <div class="skizze-titel"><h3>Termin buchen</h3><span class="leise">Team, Handy, Reiter „Termin“</span></div>
+        <div class="skizze-titel"><h3>Termin buchen<span class="neu-marke">neu</span></h3><span class="leise">Team, Handy · Fenster über der Übersicht</span></div>
         <div class="rahmen"><div class="geraet handy">
           <div class="app-kopf"><b>Klimaanlage</b><span class="rechts"><span class="k">KW 46</span></span></div>
-          <div class="app-flaeche">
-            <div class="reiter"><span>Diese Woche</span><span>Raster</span><span class="an">Termin</span><span>Anfragen</span></div>
-            <div class="banner">Euer Termin: <b>Di 10.11., 09:15</b>. Umbuchen bis Mo 09.11., 18:00.</div>
-            <div class="tag-kopf">Di 10.11.</div>
-            <div class="slots">
-              <div class="slot belegt">08:30<small>belegt</small></div>
-              <div class="slot frei">08:45<small>frei</small></div>
-              <div class="slot belegt">09:00<small>belegt</small></div>
-              <div class="slot eigen">09:15<small>✓ euer Termin</small></div>
-              <div class="slot belegt">09:30<small>belegt</small></div>
-              <div class="slot frei">09:45<small>frei</small></div>
+          <div class="overlay-flaeche">
+            <div class="overlay-dahinter">
+              <div class="banner w">Noch kein Termin für KW 46. <b>Termin buchen</b></div>
+              <div class="hz-z"><div><b>Lüfter auslegen</b><span class="leise">BW · Ende KW 46</span></div></div>
+              <div class="hz-z"><div><b>Gehäuse konstruieren</b><span class="leise">TB · Ende KW 48</span></div></div>
             </div>
-            <div class="tag-kopf">Do 12.11.</div>
-            <div class="slots">
-              <div class="slot frei">10:00<small>frei</small></div>
-              <div class="slot belegt">10:15<small>belegt</small></div>
-              <div class="slot frei">10:30<small>frei</small></div>
+            <div class="blatt">
+              <div class="blatt-griff"></div>
+              <div class="blatt-kopf"><b>Termin buchen</b><svg class="sym" viewBox="0 0 24 24" aria-label="Schließen"><use href="#i-zu"/></svg></div>
+              <div class="etikett">Tag</div>
+              <div class="tag-wahl"><span class="an">Di 10.11.<small>5 frei</small></span><span>Do 12.11.<small>4 frei</small></span></div>
+              <div class="etikett">Noch frei am Di 10.11.</div>
+              <div class="frei-zeiten"><span>10:45</span><span>11:15</span><span>11:30</span><span>12:00</span><span>12:15</span></div>
+              <div class="leise" style="font-size:.74rem">Antippen bucht. Buchen, ändern und absagen geht bis Di 10.11., 10:15 Uhr, danach nur noch über die Lehrkraft.</div>
             </div>
-            <div class="leise" style="font-size:.74rem;text-align:center">Freien Termin antippen zum Buchen oder Umbuchen. Je Woche ein Termin.</div>
           </div>
         </div></div>
+      </div>
+      <div class="karte"><h3>So bucht das Team</h3>
+        <ul class="liste">
+          <li><b>„Termin buchen“</b> steht in der Übersicht, solange für die Woche nichts gebucht ist, zusammen mit der roten Erinnerung.</li>
+          <li><b>Erst der Tag, dann die Zeit:</b> Oben stehen die Projekttage der Woche mit der Zahl freier Zeiten. Darunter erscheinen für den gewählten Tag nur die freien Zeiten als große Knöpfe.</li>
+          <li><b>Belegte Zeiten erscheinen nicht.</b> Das Team sieht weder Namen noch „belegt“-Felder anderer Teams.</li>
+          <li><b>Danach</b> zeigt die Übersicht „Euer Termin: Di 10.11., 10:30“ mit <span class="k">Ändern</span> und <span class="k">Absagen</span>. Ändern öffnet dasselbe Fenster.</li>
+          <li>Bucht ein anderes Team dieselbe Zeit im selben Moment, meldet das Fenster „gerade vergeben“ und zeigt die übrigen Zeiten neu.</li>
+        </ul>
+        <p class="vorher" style="margin-top:12px"><b>Bisher:</b> alle Zeiten aller Tage als Raster mit „belegt“ und „frei“ im Reiter „Termin“.</p>
       </div>
     </div>
 
     <div class="skizze breit">
-      <div class="skizze-titel"><h3>Anfragen</h3><span class="leise">PC, Team-Ansicht · neue Anfragen aller Teams siehst du im Cockpit</span></div>
+      <div class="skizze-titel"><h3>Anfragen</h3><span class="leise">PC, Team-Ansicht · das Team sieht bei jeder Anfrage Stand und zuständige Lehrkraft</span></div>
       <div class="rahmen"><div class="geraet pc">
-        <div class="app-kopf"><b>TrackingDRS</b><span>Team Klimaanlage</span>
-          <span class="reiter" style="margin-left:12px"><span>Tracking-Sheet</span><span class="an">Anfragen</span><span>Termin</span><span>Besprechungen</span><span>Fotos</span><span>Mindmap</span></span>
+        <div class="app-kopf"><b>Projektarbeit MT</b><span>Team Klimaanlage</span>
+          <span class="reiter" style="margin-left:12px"><span>Übersicht</span><span>Tracking-Sheet</span><span>Besprechung</span><span class="an">Anfragen</span><span>Fotos</span><span>Projekt</span></span>
           <span class="rechts"><span class="k haupt">+ Neue Anfrage</span></span></div>
         <div class="app-flaeche anf">
           <div class="anf-liste">
             <div class="anf-z an"><span><span class="typ">Bestellliste</span><b>Nächste Liste</b></span><span class="st sammeln">sammeln</span><span class="unter">3 Positionen · Einreichen ab Mo 09.11.</span></div>
-            <div class="anf-z"><span><span class="typ">Abnahme</span><b>Netzteil-Verdrahtung prüfen</b></span><span class="st neu">neu</span><span class="unter">Elektrik verdrahten · vor 20 min</span></div>
-            <div class="anf-z"><span><span class="typ">Bestellliste</span><b>Liste KW 44</b></span><span class="st arbeit">bestellt</span><span class="unter">4 Positionen: 3 genehmigt, 1 abgelehnt</span></div>
-            <div class="anf-z"><span><span class="typ">Ausleihe</span><b>Anemometer und Labornetzgerät</b></span><span class="st fertig">ausgegeben</span><span class="unter">zurück bis Di 10.11.</span></div>
-            <div class="anf-z"><span><span class="typ">Rückfrage</span><b>Dürfen wir 24 V nehmen?</b></span><span class="st fertig">beantwortet</span><span class="unter">in der Besprechung am 03.11. geklärt</span></div>
+            <div class="anf-z"><span><span class="typ">Abnahme</span><b>Netzteil-Verdrahtung prüfen</b></span><span class="st neu">neu</span><span class="unter">Elektrik verdrahten · vor 20 min · noch niemand zuständig</span></div>
+            <div class="anf-z"><span><span class="typ">Bestellliste</span><b>Liste KW 44</b></span><span class="st arbeit">in Bearbeitung</span><span class="unter">bestellt · 4 Positionen: 3 genehmigt, 1 abgelehnt · <b>Matthias Göbel</b></span></div>
+            <div class="anf-z"><span><span class="typ">Ausleihe</span><b>Anemometer und Labornetzgerät</b></span><span class="st arbeit">in Bearbeitung</span><span class="unter">ausgegeben, zurück bis Di 10.11. · <b>Anna Roth</b></span></div>
+            <div class="anf-z"><span><span class="typ">Rückfrage</span><b>Dürfen wir 24 V nehmen?</b></span><span class="st fertig">erledigt</span><span class="unter">in der Besprechung am 03.11. geklärt · Matthias Göbel</span></div>
           </div>
           <div class="tk" style="gap:10px;align-content:start">
             <div class="tk-kopf"><span class="typ">Bestellliste</span><b>Nächste Liste</b><span class="st sammeln" style="margin-left:auto">sammeln</span></div>
             <div class="banner">Nächstes Einreichfenster: <b>Mo 09.11. bis Do 12.11., 12:00</b>. Bis dahin sammelt ihr hier, dann reicht ihr die Liste einmal ein.</div>
             <div class="tabelle-rahmen">
               <table class="pos">
-                <thead><tr><th>Artikel</th><th>Bestellnr.</th><th>Menge</th><th>Preis</th><th>Lieferant</th><th>Aufgabe</th></tr></thead>
+                <thead><tr><th>Artikel</th><th>Bestellnr.</th><th>Menge</th><th>Preis</th><th>Lieferant</th><th>Tätigkeit</th></tr></thead>
                 <tbody>
                   <tr><td>Axiallüfter 80×80 mm, 24 V, Kugellager</td><td class="mono">FAN 8025-24</td><td><span class="menge">2</span></td><td class="wer">8,90 €</td><td>Elektronikversand</td><td>Lüfter auslegen (BW)</td></tr>
                   <tr><td>Lüfterschutzgitter 80 mm</td><td class="mono">GRILL 80</td><td><span class="menge">2</span></td><td class="wer">0,95 €</td><td>Elektronikversand</td><td>Lüfter auslegen (BW)</td></tr>
@@ -889,7 +1100,7 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
                 </tbody>
               </table>
             </div>
-            <div class="eingabe">+ Position: Artikel, Bestellnummer, Menge, Preis, Lieferant oder Link, Aufgabe, Begründung …</div>
+            <div class="eingabe">+ Position: Artikel, Bestellnummer, Menge, Preis, Lieferant oder Link, Tätigkeit, Begründung …</div>
             <div class="hinweis-zeile"><span class="k" style="opacity:.55">Liste einreichen (ab Mo 09.11.)</span><span class="leise">Der Preis ist nur zur Information und hat keinen Einfluss auf die Bestellung.</span></div>
           </div>
         </div>
@@ -897,11 +1108,45 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
     </div>
 
     <div class="skizze breit">
-      <div class="skizze-titel"><h3>Bestelllisten prüfen</h3><span class="leise">PC, Lehrkraft · Reiter „Anfragen“ während eines Einreichfensters</span></div>
+      <div class="skizze-titel"><h3>Anfragen und Bestellungen: Eingang<span class="neu-marke">neu</span></h3><span class="leise">PC, Lehrkraft · große Reiter, Einreichfenster sofort sichtbar, zuständige Lehrkraft direkt in der Zeile</span></div>
       <div class="rahmen"><div class="geraet pc">
-        <div class="app-kopf"><b>TrackingDRS</b><span class="leise">Do 12.11.2026 · KW 46</span>
+        <div class="app-kopf"><b>Projektarbeit MT</b><span class="leise">Do 05.11.2026 · KW 45</span>
+          <span class="reiter" style="margin-left:12px"><span>Cockpit</span><span>Kalender</span><span>Projekte</span><span class="an">Anfragen<i class="zahl">3</i></span><span>Aktivitäten</span><span>Termine &amp; Fenster</span></span>
+          <span class="rechts"><span class="k"><svg class="sym" viewBox="0 0 24 24"><use href="#i-glocke"/></svg>Windows-Hinweise: aus</span></span></div>
+        <div class="lk-reiter" style="background:var(--karte);padding:0 10px"><span class="an"><svg class="sym" viewBox="0 0 24 24"><use href="#i-eingang"/></svg>Eingang <i class="zahl">3</i></span><span><svg class="sym" viewBox="0 0 24 24"><use href="#i-wagen"/></svg>Bestellungen und Einreichfenster</span></div>
+        <div class="app-flaeche" style="gap:10px">
+          <div class="fenster-karte"><svg class="sym" viewBox="0 0 24 24"><use href="#i-kalender"/></svg>
+            <div><b>Einreichfenster läuft bis Do 12.11., 12:00 Uhr</b>Klasse BSMT 22a und 22b · 2 von 6 Teams haben eingereicht</div>
+            <span class="rechts"><span class="k">Sammelbestellung</span><span class="k">+ Neues Fenster</span></span></div>
+          <div class="filter-reihe">
+            <span class="etikett">Stand</span>
+            <span class="fk an">Neu <i>2</i></span><span class="fk an">In Bearbeitung <i>4</i></span><span class="fk">Erledigt</span>
+            <span class="fk"><svg class="sym" viewBox="0 0 24 24"><use href="#i-person"/></svg>nur meine</span>
+            <span class="etikett" style="margin-left:8px">Art</span>
+            <span class="fk"><svg class="sym" viewBox="0 0 24 24"><use href="#i-frage"/></svg>Rückfrage</span><span class="fk"><svg class="sym" viewBox="0 0 24 24"><use href="#i-liste"/></svg>Bestellliste</span><span class="fk"><svg class="sym" viewBox="0 0 24 24"><use href="#i-material"/></svg>Ausleihe</span><span class="fk"><svg class="sym" viewBox="0 0 24 24"><use href="#i-ok"/></svg>Abnahme</span>
+            <span class="k" style="margin-left:auto">Alle Teams ▾</span>
+          </div>
+          <div class="tk" style="padding:0;gap:0">
+            <div class="vg-zeile ungelesen"><span class="art-sym abnahme"><svg class="sym" viewBox="0 0 24 24"><use href="#i-ok"/></svg></span><span><b>Netzteil-Verdrahtung prüfen</b><span class="unter">Abnahme · Hubtisch · vor 20 min</span></span><span class="st neu">neu</span><span class="zust"><svg class="sym" viewBox="0 0 24 24"><use href="#i-person"/></svg>Zuständig: niemand ▾</span>
+              <div class="zust-menue"><span class="etikett">Betreuen das Projekt</span><span class="an"><svg class="sym" viewBox="0 0 24 24"><use href="#i-person"/></svg>Ich übernehme</span><hr><span>Anna Roth (ROT)</span><span>Peter Klein (KLE)</span></div></div>
+            <div class="vg-zeile ungelesen"><span class="art-sym frage"><svg class="sym" viewBox="0 0 24 24"><use href="#i-frage"/></svg></span><span><b>Welcher Servo reicht?</b><span class="unter">Rückfrage · Solar-Tracker · seit gestern</span></span><span class="st neu">neu</span><span class="zust"><svg class="sym" viewBox="0 0 24 24"><use href="#i-person"/></svg>niemand ▾</span></div>
+            <div class="vg-zeile"><span class="art-sym liste"><svg class="sym" viewBox="0 0 24 24"><use href="#i-liste"/></svg></span><span><b>Liste KW 46</b><span class="unter">Bestellliste · Klimaanlage · eingereicht Mi 10:14</span></span><span class="st arbeit">in Bearbeitung</span><span class="zust gesetzt"><svg class="sym" viewBox="0 0 24 24"><use href="#i-person"/></svg>Ich ▾</span></div>
+            <div class="vg-zeile"><span class="art-sym leihe"><svg class="sym" viewBox="0 0 24 24"><use href="#i-material"/></svg></span><span><b>Anemometer und Labornetzgerät</b><span class="unter">Ausleihe · Klimaanlage · zurück bis Di 10.11.</span></span><span class="st arbeit">in Bearbeitung</span><span class="zust gesetzt"><svg class="sym" viewBox="0 0 24 24"><use href="#i-person"/></svg>Anna Roth ▾</span></div>
+            <div class="vg-zeile"><span class="art-sym frage"><svg class="sym" viewBox="0 0 24 24"><use href="#i-frage"/></svg></span><span><b>Sonderfenster für Lüfter?</b><span class="unter">Rückfrage · Klimaanlage · Team hat nach „erledigt“ geantwortet</span></span><span class="st arbeit">in Bearbeitung</span><span class="zust gesetzt"><svg class="sym" viewBox="0 0 24 24"><use href="#i-person"/></svg>Ich ▾</span></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="legende"><span><span class="art-sym frage" style="display:inline-grid;width:22px;height:22px;vertical-align:middle"><svg class="sym" viewBox="0 0 24 24" style="width:13px;height:13px"><use href="#i-frage"/></svg></span> Rückfrage</span><span><span class="art-sym liste" style="display:inline-grid;width:22px;height:22px;vertical-align:middle"><svg class="sym" viewBox="0 0 24 24" style="width:13px;height:13px"><use href="#i-liste"/></svg></span> Bestellliste</span><span><span class="art-sym leihe" style="display:inline-grid;width:22px;height:22px;vertical-align:middle"><svg class="sym" viewBox="0 0 24 24" style="width:13px;height:13px"><use href="#i-material"/></svg></span> Ausleihe</span><span><span class="art-sym abnahme" style="display:inline-grid;width:22px;height:22px;vertical-align:middle"><svg class="sym" viewBox="0 0 24 24" style="width:13px;height:13px"><use href="#i-ok"/></svg></span> Abnahme</span><span>roter Punkt: ungelesen</span><span>ohne Fenster: „Kein Einreichfenster offen“ mit „+ Neues Fenster“</span></div>
+      <p class="vorher"><b>Bisher:</b> „Eingang“ und „Einreichfenster“ als kleiner Umschalter am rechten Rand, Stände „Aktiv“, „Offen“, „Meine“ als gleichrangige Filter, Art nur im Auswahlmenü, unbeschriftete Glocke. Die Leermeldung erklärt künftig, woher Anfragen kommen (Reiter „Anfragen“ im Team-Link).</p>
+    </div>
+
+    <div class="skizze breit">
+      <div class="skizze-titel"><h3>Bestelllisten prüfen<span class="neu-marke">neu</span></h3><span class="leise">PC, Lehrkraft · Reiter „Bestellungen und Einreichfenster“ während eines Fensters</span></div>
+      <div class="rahmen"><div class="geraet pc">
+        <div class="app-kopf"><b>Projektarbeit MT</b><span class="leise">Do 12.11.2026 · KW 46</span>
           <span class="reiter" style="margin-left:12px"><span>Cockpit</span><span>Kalender</span><span>Projekte</span><span class="an">Anfragen<i class="zahl">4</i></span><span>Aktivitäten</span><span>Termine &amp; Fenster</span></span>
           <span class="rechts"><span class="k">Fenster bearbeiten</span><span class="k">Sonderfenster …</span></span></div>
+        <div class="lk-reiter" style="background:var(--karte);padding:0 10px"><span><svg class="sym" viewBox="0 0 24 24"><use href="#i-eingang"/></svg>Eingang <i class="zahl">3</i></span><span class="an"><svg class="sym" viewBox="0 0 24 24"><use href="#i-wagen"/></svg>Bestellungen und Einreichfenster</span></div>
         <div class="app-flaeche anf">
           <div class="anf-liste">
             <div class="banner">Einreichfenster <b>Mo 09.11. bis Do 12.11., 12:00</b> · BSMT 22a und 22b · noch 2 Stunden</div>
@@ -914,17 +1159,15 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
           </div>
           <div class="tk" style="gap:10px;align-content:start">
             <div class="tk-kopf"><b>Klimaanlage · Liste KW 46</b><span class="leise">eingereicht Mi 11.11. 10:14</span><span class="st neu" style="margin-left:auto">in Prüfung</span></div>
+            <div class="hinweis-zeile"><span class="leise">Alle offenen Positionen:</span><select id="pos-alle" class="pos-wahl" aria-label="Status für alle offenen Positionen"><option>auswählen …</option><option>Bestellen</option><option>aus SchulLager</option><option>über Firma</option></select><span class="leise">· 1 Position noch offen</span></div>
             <div class="tabelle-rahmen"><table class="pos">
-              <thead><tr><th>Artikel</th><th>Menge</th><th>Woher?</th><th>Details</th></tr></thead>
+              <thead><tr><th>Artikel</th><th>Menge</th><th>Entscheidung</th><th>Bestellstatus</th><th>Details</th></tr></thead>
               <tbody>
-                <tr><td>Axiallüfter 80×80 mm, 24 V<span class="klein">FAN 8025-24 · Elektronikversand · 8,90 €</span></td><td><span class="menge">2</span></td>
-                  <td><span class="wahl"><span class="an">Bestellen</span><span>SchulLager</span><span>Firma</span><span>Ersetzen</span><span>Ablehnen</span></span></td><td>kommt in die Sammelbestellung</td></tr>
-                <tr><td>Lüfterschutzgitter 80 mm<span class="klein">GRILL 80 · Elektronikversand · 0,95 €</span></td><td><span class="menge"><s>2</s>1</span></td>
-                  <td><span class="wahl"><span>Bestellen</span><span class="an">SchulLager</span><span>Firma</span><span>Ersetzen</span><span>Ablehnen</span></span></td><td>verknüpft: Lüftergitter 80 mm, Regal B3, 6 Stück</td></tr>
-                <tr><td>Temperatursensor DS18B20<span class="klein">DS18B20-WP · Elektronikversand</span></td><td><span class="menge">1</span></td>
-                  <td><span class="wahl"><span>Bestellen</span><span>SchulLager</span><span>Firma</span><span class="an">Ersetzen</span><span>Ablehnen</span></span></td><td>durch: DS18B20-Modul mit Pull-up, MOD-DS18B20, wird bestellt</td></tr>
-                <tr><td>Aluprofil 20×20 Nut 6, 500 mm<span class="klein">ohne Bestellnr. · Mechanikshop</span></td><td><span class="menge">4</span></td>
-                  <td><span class="wahl"><span>Bestellen</span><span>SchulLager</span><span class="an">Firma</span><span>Ersetzen</span><span>Ablehnen</span></span></td><td>über die Firma eines Schülers</td></tr>
+                <tr><td>Axiallüfter 80×80 mm, 24 V<span class="klein">FAN 8025-24 · Elektronikversand · 8,90 €</span></td><td><span class="menge">2</span></td><td><select id="pos-1" class="pos-wahl" aria-label="Entscheidung"><option>offen</option><option selected>Bestellen</option><option>aus SchulLager</option><option>über Firma</option><option>Ersetzen …</option><option>Ablehnen …</option></select></td><td><select id="bst-1" class="pos-wahl" aria-label="Bestellstatus"><option>wird bestellt</option><option selected>bestellt</option><option>geliefert</option><option>ausgegeben</option></select></td><td>in der Sammelbestellung vom 12.11.</td></tr>
+                <tr><td>Lüfterschutzgitter 80 mm<span class="klein">GRILL 80 · Elektronikversand · 0,95 €</span></td><td><span class="menge"><s>2</s>1</span></td><td><select id="pos-2" class="pos-wahl" aria-label="Entscheidung"><option>offen</option><option>Bestellen</option><option selected>aus SchulLager</option><option>über Firma</option><option>Ersetzen …</option><option>Ablehnen …</option></select></td><td></td><td>verknüpft: Lüftergitter 80 mm, Regal B3, 6 Stück</td></tr>
+                <tr><td>Temperatursensor DS18B20<span class="klein">DS18B20-WP · Elektronikversand</span></td><td><span class="menge">1</span></td><td><select id="pos-3" class="pos-wahl" aria-label="Entscheidung"><option>offen</option><option>Bestellen</option><option>aus SchulLager</option><option>über Firma</option><option selected>Ersetzen …</option><option>Ablehnen …</option></select></td><td><select id="bst-3" class="pos-wahl" aria-label="Bestellstatus"><option selected>wird bestellt</option><option>bestellt</option><option>geliefert</option><option>ausgegeben</option></select></td><td>durch: DS18B20-Modul mit Pull-up, MOD-DS18B20</td></tr>
+                <tr><td>Aluprofil 20×20 Nut 6, 500 mm<span class="klein">ohne Bestellnr. · Mechanikshop</span></td><td><span class="menge">4</span></td><td><select id="pos-4" class="pos-wahl" aria-label="Entscheidung"><option>offen</option><option>Bestellen</option><option>aus SchulLager</option><option selected>über Firma</option><option>Ersetzen …</option><option>Ablehnen …</option></select></td><td></td><td><span class="firma-st zugesagt">zugesagt · Tim Becker</span> noch nicht besorgt</td></tr>
+                <tr><td>Kabelbinder 200 mm, 100 Stück<span class="klein">ohne Bestellnr. · Baumarkt</span></td><td><span class="menge">1</span></td><td><select id="pos-5" class="pos-wahl offen" aria-label="Entscheidung"><option selected>offen</option><option>Bestellen</option><option>aus SchulLager</option><option>über Firma</option><option>Ersetzen …</option><option>Ablehnen …</option></select></td><td></td><td><span class="leise">noch nicht entschieden</span></td></tr>
               </tbody></table></div>
             <div class="ck-block" style="background:var(--bg)">
               <div class="ck-titel"><h4>Nach dem Stichtag: Sammelbestellung</h4><span class="rechts"><span class="k">Excel</span><span class="k">PDF</span></span></div>
@@ -936,10 +1179,47 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
           </div>
         </div>
       </div></div>
+      <p class="vorher"><b>Neu:</b> Die Entscheidung je Position ist eine Auswahlliste (offen, Bestellen, aus SchulLager, über Firma, Ersetzen …, Ablehnen …) statt fünf Knöpfen. Die Spalte <b>Bestellstatus</b> (wird bestellt, bestellt, geliefert, ausgegeben) erscheint nur, wenn mindestens eine Position bestellt wird, und hat nur in diesen Zeilen eine Auswahl. Das gilt auch für einen Ersatzartikel, der bestellt wird. „Ersetzen …“ und „Ablehnen …“ öffnen ein kleines Feld für Ersatzartikel bzw. Kommentar, „aus SchulLager“ eines für den Lagerort. „Alle offenen Positionen“ über der Tabelle entscheidet mehrere auf einmal. <b>Bisher:</b> fünf Knöpfe nebeneinander je Position.</p>
     </div>
 
-    <div class="skizze">
-      <div class="skizze-titel"><h3>Besprechungstafel</h3><span class="leise">Smartboard an deinem PC, Klimaanlage · Di 03.11., 08:45 · zum Ausprobieren: Post-its ziehen, mit dem Stift zeichnen, neue Post-its setzen</span></div>
+    <div class="raster-2" style="align-items:start">
+      <div class="skizze">
+        <div class="skizze-titel"><h3>Geprüfte Liste beim Team<span class="neu-marke">neu</span></h3><span class="leise">Team, Handy · Reiter „Anfragen“, Liste KW 46</span></div>
+        <div class="rahmen"><div class="geraet handy">
+          <div class="app-kopf"><b>Klimaanlage</b><span class="rechts"><span class="k">Liste KW 46</span></span></div>
+          <div class="app-flaeche">
+            <div class="banner w"><b>Eine Frage an euch:</b> Könnt ihr das Aluprofil über eure Firma besorgen?</div>
+            <div class="hz">
+              <div class="hz-z"><div><b>Axiallüfter 80×80 mm, 2×</b><span class="leise">bestellt am 12.11.</span></div><span class="st arbeit">bestellt</span></div>
+              <div class="hz-z"><div><b>Lüfterschutzgitter, 1×</b><span class="leise">liegt im Lager, Regal B3</span></div><span class="st fertig">im Lager</span></div>
+              <div class="hz-z"><div><b>Temperatursensor</b><span class="leise">ersetzt durch DS18B20-Modul, wird bestellt</span></div><span class="st arbeit">ersetzt</span></div>
+              <div class="hz-z offen" style="display:grid;gap:8px"><div><b>Aluprofil 20×20, 4×</b><span class="leise">Kann jemand das über seine Firma besorgen?</span></div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap"><span class="k haupt">Ja, ich: Tim Becker ▾</span><span class="k">Nein, geht nicht</span></div></div>
+              <div class="hz-z" style="display:grid;gap:8px"><div><b>Schrumpfschlauch-Set</b><span class="leise">über die Firma · zugesagt von Lena Schmitt</span></div>
+                <span class="haken-k"><i></i>Besorgt und mitgebracht</span></div>
+            </div>
+            <div class="leise" style="font-size:.74rem;text-align:center">Abhaken speichert den Zeitpunkt. Die Lehrkraft sieht es sofort.</div>
+          </div>
+        </div></div>
+      </div>
+      <div class="karte"><h3>„Über Firma“: das Team wird gefragt<span class="neu-marke">neu</span></h3>
+        <div class="ablauf" style="margin:8px 0 12px">
+          <div class="schritt lk"><div class="wer-t">Lehrkraft</div><b>über Firma</b><span>in der Auswahlliste der Position</span></div>
+          <div class="schritt"><div class="wer-t">Team</div><b>Frage beantworten</b><span>Ja mit Namen oder Nein</span></div>
+          <div class="schritt"><div class="wer-t">Schüler</div><b>Abhaken</b><span>„besorgt und mitgebracht“</span></div>
+        </div>
+        <ul class="liste">
+          <li><b>Frage in der Liste:</b> Bei der Position steht „Kann jemand das über seine Firma besorgen?“, oben zusätzlich ein Hinweis. Der Reiter „Anfragen“ bekommt die rote Zahl.</li>
+          <li><b>Ja:</b> Das Team wählt aus der Teamliste, wer es besorgt. Danach steht bei der Position der Haken „Besorgt und mitgebracht“. Abhaken speichert den Zeitpunkt, Rücknahme geht mit Verlaufseintrag.</li>
+          <li><b>Nein:</b> Die Position geht mit „Firma nicht möglich“ an dich zurück, Stand wieder offen, als ungelesen im Eingang. Du entscheidest neu, z. B. Bestellen.</li>
+          <li><b>Du siehst den Stand</b> in der Spalte „Details“ deiner Prüftabelle: <span class="firma-st gefragt">gefragt</span> <span class="firma-st zugesagt">zugesagt · Name</span> <span class="firma-st besorgt">besorgt · Do 14:10</span> <span class="firma-st nein">nicht möglich</span>.</li>
+          <li>Wie bisher verfolgt das System nur Zusage und Haken, keine Lieferung, keine Kosten.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="skizze" id="s-tafel">
+      <div class="skizze-titel"><h3>Besprechungstafel<span class="neu-marke">neu</span></h3><span class="leise">Smartboard an deinem PC, Klimaanlage · Di 03.11., 08:45 · zum Ausprobieren: Post-its ziehen, mit dem Stift zeichnen, neue Post-its setzen</span></div>
       <div class="rahmen"><div class="board">
         <div class="board-kopf">
           <b>Klimaanlage</b><span>Di 03.11. · 08:45</span><span class="ampel a-y"></span>
@@ -967,29 +1247,97 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
           <div class="postit gruen" style="left:74%;top:9%;--dreh:-1deg"><span class="art">Absprache</span><span class="text" contenteditable="true" spellcheck="false">24 V ist freigegeben</span><span class="fuss">Tafel · 08:55</span><span class="ziel">→ Absprache</span></div>
           <div class="postit blau" style="left:74%;top:46%;--dreh:1deg"><span class="art">Auftrag</span><span class="text" contenteditable="true" spellcheck="false">2 Lüfter vergleichen</span><span class="fuss">bis 10.11.</span><span class="ziel">→ Auftrag</span></div>
           <div class="werkzeuge" role="toolbar" aria-label="Werkzeuge">
-            <button type="button" data-w="hand" class="an" title="Verschieben" aria-label="Verschieben">✥</button>
-            <button type="button" data-w="stift" title="Stift" aria-label="Stift">✎</button>
-            <button type="button" data-w="radierer" title="Radierer" aria-label="Radierer">⌫</button>
-            <button type="button" data-w="postit" title="Neues Post-it: auf die Tafel tippen" aria-label="Neues Post-it">▢</button>
+            <button type="button" data-w="hand" class="an" title="Auswählen und verschieben · V" aria-label="Auswählen und verschieben"><svg class="wz-sym" viewBox="0 0 24 24"><use href="#i-zeiger"/></svg></button>
+            <span class="wz-gruppe">
+              <button type="button" data-w="stift" title="Stift · P" aria-label="Stift"><svg class="wz-sym" viewBox="0 0 24 24"><use href="#i-stift"/></svg></button>
+              <span class="flyout" data-fuer="stift" hidden>
+                <span class="reihe"><button type="button" class="fa an" data-farbe="tinte" style="background:var(--tinte)" aria-label="Schwarz"></button><button type="button" class="fa" data-farbe="blau" style="background:var(--blau)" aria-label="Blau"></button><button type="button" class="fa" data-farbe="rot" style="background:var(--rot)" aria-label="Rot"></button><button type="button" class="fa" data-farbe="gruen" style="background:#4f8a1a" aria-label="Grün"></button><button type="button" class="fa" data-farbe="orange" style="background:#e07a10" aria-label="Orange"></button></span>
+                <span class="reihe"><button type="button" class="di" data-dicke="1.4" aria-label="Fein"><i style="width:4px;height:4px"></i></button><button type="button" class="di an" data-dicke="2.4" aria-label="Mittel"><i style="width:8px;height:8px"></i></button><button type="button" class="di" data-dicke="4.5" aria-label="Dick"><i style="width:13px;height:13px"></i></button></span>
+              </span>
+            </span>
+            <span class="wz-gruppe">
+              <button type="button" data-w="marker" title="Textmarker · M" aria-label="Textmarker"><svg class="wz-sym" viewBox="0 0 24 24"><use href="#i-marker"/></svg></button>
+              <span class="flyout" data-fuer="marker" hidden>
+                <span class="reihe"><button type="button" class="fa an" data-farbe="gelb" style="background:#f5c400" aria-label="Gelb"></button><button type="button" class="fa" data-farbe="mgruen" style="background:#7fd13b" aria-label="Grün"></button><button type="button" class="fa" data-farbe="rosa" style="background:#ff6fb0" aria-label="Rosa"></button><button type="button" class="fa" data-farbe="hblau" style="background:#4fb3ff" aria-label="Blau"></button></span>
+              </span>
+            </span>
+            <button type="button" data-w="pfeil" title="Pfeil · A: von Post-it zu Post-it ziehen, er haftet an beiden" aria-label="Pfeil"><svg class="wz-sym" viewBox="0 0 24 24"><use href="#i-pfeil"/></svg></button>
+            <button type="button" data-w="radierer" title="Radierer · E" aria-label="Radierer"><svg class="wz-sym" viewBox="0 0 24 24"><use href="#i-radierer"/></svg></button>
             <span class="trenner"></span>
-            <button type="button" class="farbe an" data-f="tinte" title="Schwarz" aria-label="Stiftfarbe Schwarz"><i style="background:var(--tinte)"></i></button>
-            <button type="button" class="farbe" data-f="blau" title="Blau" aria-label="Stiftfarbe Blau"><i style="background:var(--blau)"></i></button>
-            <button type="button" class="farbe" data-f="rot" title="Rot" aria-label="Stiftfarbe Rot"><i style="background:var(--rot)"></i></button>
+            <button type="button" data-w="postit" title="Post-it · N: auf die Tafel tippen" aria-label="Post-it"><svg class="wz-sym" viewBox="0 0 24 24"><use href="#i-postit"/></svg></button>
+            <button type="button" data-w="rahmen" title="Rahmen · F: Rechteck um eine Skizze ziehen" aria-label="Rahmen"><svg class="wz-sym" viewBox="0 0 24 24"><use href="#i-rahmen"/></svg></button>
+            <span class="wz-gruppe">
+              <button type="button" data-w="sticker" title="Sticker · S" aria-label="Sticker"><svg class="wz-sym" viewBox="0 0 24 24"><use href="#i-sticker"/></svg></button>
+              <span class="flyout" data-fuer="sticker" hidden>
+                <span class="etikett">Sticker wählen, dann auf die Tafel oder ein Post-it tippen</span>
+                <span class="st-raster">
+                  <button type="button" class="an" data-sticker="idee" title="Idee" style="color:#c98a1e"><svg class="wz-sym" viewBox="0 0 24 24"><use href="#i-idee"/></svg></button>
+                  <button type="button" data-sticker="problem" title="Problem" style="color:#c98a1e"><svg class="wz-sym" viewBox="0 0 24 24"><use href="#i-problem"/></svg></button>
+                  <button type="button" data-sticker="frage" title="Frage" style="color:#6f62d6"><svg class="wz-sym" viewBox="0 0 24 24"><use href="#i-frage"/></svg></button>
+                  <button type="button" data-sticker="ok" title="erledigt" style="color:#4f8a1a"><svg class="wz-sym" viewBox="0 0 24 24"><use href="#i-ok"/></svg></button>
+                  <button type="button" data-sticker="nein" title="verworfen" style="color:#c43b3b"><svg class="wz-sym" viewBox="0 0 24 24"><use href="#i-nein"/></svg></button>
+                  <button type="button" data-sticker="stern" title="wichtig" style="color:#c98a1e"><svg class="wz-sym" viewBox="0 0 24 24"><use href="#i-stern"/></svg></button>
+                  <button type="button" data-sticker="ziel" title="Ziel" style="color:#2f7fc0"><svg class="wz-sym" viewBox="0 0 24 24"><use href="#i-ziel"/></svg></button>
+                  <button type="button" data-sticker="uhr" title="Zeit" style="color:#2f7fc0"><svg class="wz-sym" viewBox="0 0 24 24"><use href="#i-uhr"/></svg></button>
+                  <button type="button" data-sticker="flagge" title="Meilenstein" style="color:#2f7fc0"><svg class="wz-sym" viewBox="0 0 24 24"><use href="#i-flagge"/></svg></button>
+                  <button type="button" data-sticker="gut" title="gut" style="color:#4f8a1a"><svg class="wz-sym" viewBox="0 0 24 24"><use href="#i-gut"/></svg></button>
+                  <button type="button" data-sticker="schlecht" title="schlecht" style="color:#c43b3b"><svg class="wz-sym" viewBox="0 0 24 24"><use href="#i-schlecht"/></svg></button>
+                  <button type="button" data-sticker="team" title="Team"><svg class="wz-sym" viewBox="0 0 24 24"><use href="#i-team"/></svg></button>
+                  <button type="button" data-sticker="fertigung" title="Fertigung"><svg class="wz-sym" viewBox="0 0 24 24"><use href="#i-fertigung"/></svg></button>
+                  <button type="button" data-sticker="elektrik" title="Elektrik"><svg class="wz-sym" viewBox="0 0 24 24"><use href="#i-elektrik"/></svg></button>
+                  <button type="button" data-sticker="mechanik" title="Mechanik"><svg class="wz-sym" viewBox="0 0 24 24"><use href="#i-mechanik"/></svg></button>
+                  <button type="button" data-sticker="programm" title="Programm"><svg class="wz-sym" viewBox="0 0 24 24"><use href="#i-programm"/></svg></button>
+                  <button type="button" data-sticker="material" title="Material"><svg class="wz-sym" viewBox="0 0 24 24"><use href="#i-material"/></svg></button>
+                  <button type="button" data-sticker="mass" title="Maß"><svg class="wz-sym" viewBox="0 0 24 24"><use href="#i-mass"/></svg></button>
+                </span>
+              </span>
+            </span>
             <span class="trenner"></span>
-            <button type="button" data-aktion="zurueck" title="Rückgängig" aria-label="Rückgängig">↶</button>
+            <button type="button" data-aktion="zurueck" title="Rückgängig · Strg+Z" aria-label="Rückgängig"><svg class="wz-sym" viewBox="0 0 24 24"><use href="#i-zurueck"/></svg></button>
+            <button type="button" data-aktion="vor" title="Wiederholen · Strg+Y" aria-label="Wiederholen"><svg class="wz-sym" viewBox="0 0 24 24"><use href="#i-vor"/></svg></button>
           </div>
         </div>
       </div></div>
       <div class="legende">
-        <span><i class="pi-m blau"></i>Auftrag</span><span><i class="pi-m orange"></i>Problem</span><span><i class="pi-m pink"></i>Frage</span><span><i class="pi-m grau"></i>Änderung im Raster</span><span><i class="pi-m gelb"></i>Idee</span><span><i class="pi-m gruen"></i>Absprache</span><span><i class="pi-m weiss"></i>Foto</span>
+        <span><i class="pi-m blau"></i>Auftrag</span><span><i class="pi-m orange"></i>Problem</span><span><i class="pi-m pink"></i>Frage</span><span><i class="pi-m grau"></i>Änderung im Raster</span><span><i class="pi-m gelb"></i>Idee</span><span><i class="pi-m gruen"></i>Absprache</span><span><i class="pi-m weiss"></i>Foto</span><span>zum Ausprobieren: Werkzeug unten wählen, Stift, Textmarker und Sticker klappen dabei ihre Auswahl auf, ein zweiter Tipp schließt sie · den Rahmen „Lüfter im Gehäuse“ verschieben, der Inhalt geht mit, der Pfeil haftet</span>
       </div>
       <div class="raster-2">
+        <div class="karte"><h3>Die Werkzeugleiste<span class="neu-marke">neu</span></h3>
+          <ul class="liste">
+            <li><b>Unten in der Mitte</b>, schwebend über der Tafel. Nur Symbole ohne Knopfrahmen, groß genug für den Finger (44 px). Das aktive Werkzeug ist blau gefüllt.</li>
+            <li><b>Zeichnen:</b> Auswählen, Stift, Textmarker (breit und halbdurchsichtig), Pfeil, Radierer. Farben und Strichstärke klappen über Stift und Textmarker auf und schließen sich beim Zeichnen.</li>
+            <li><b>Ablegen:</b> Post-it, Rahmen, Sticker. Die Sticker-Auswahl hat 18 Symbole: Idee, Problem, Frage, erledigt, verworfen, wichtig, Ziel, Zeit, Meilenstein, gut, schlecht, Team, dazu Fertigung, Elektrik, Mechanik, Programm, Material, Maß.</li>
+            <li><b>Rückgängig und Wiederholen</b>, mit Strg+Z und Strg+Y. Beim Darüberfahren zeigt jedes Symbol Name und Tastenkürzel.</li>
+            <li>Die Symbole sind freie Linien-Symbole (Lucide, ISC-Lizenz) und liegen als SVG-Dateien im Repo. Sie funktionieren deshalb auch ohne Internet.</li>
+          </ul>
+          <p class="vorher" style="margin-top:12px"><b>Bisher:</b> Schriftzeichen ✥ ✎ ⌫ ▢ ↶ in Kästchen, fünf Farben und drei Strichstärken immer sichtbar.</p></div>
+        <div class="karte"><h3>Rahmen, Pfeile, Sticker<span class="neu-marke">neu</span></h3>
+          <ul class="liste">
+            <li><b>Rahmen</b> um eine Skizze ziehen: Alles, was ganz darin liegt, gehört dazu, also Striche, Textmarker, Sticker und Post-its. Ein Strich, der im Rahmen beginnt, gehört ebenfalls dazu. Mit dem Auswählen-Werkzeug lassen sich Striche auch nachträglich per Rechteck markieren und „In Rahmen fassen“.</li>
+            <li>Ein Rahmen hat einen <b>Titel</b> und verhält sich wie ein Post-it: verschieben, vergrößern, löschen. Der Inhalt geht mit.</li>
+            <li><b>Rahmen als Eintrag:</b> In „Ergebnis“ gezogen oder über sein Menü „Als Auftrag …“ wird er Auftrag, Absprache oder Meilenstein. Die Skizze hängt als Bild am Eintrag, das Team sieht sie in Protokoll, Aufträgen und Übersicht. Der Rahmen bekommt die Marke „Auftrag · bis Do 12.11.“.</li>
+            <li><b>Pfeile haften</b>, wenn sie auf einem Post-it oder Rahmen beginnen oder enden, und gehen beim Verschieben mit.</li>
+            <li><b>Sticker</b> auf einem Post-it haften an dessen Ecke und wandern mit ihm. Freie Sticker sind Teil der Zeichnung. Sticker werden nie zu Einträgen.</li>
+            <li><b>Beim Abschließen</b> wandern offene Post-its und Rahmen, die nicht im Ergebnis liegen, auf die nächste Tafel, samt Inhalt, Stickern und Pfeilen zwischen ihnen.</li>
+          </ul></div>
         <div class="karte"><h3>So arbeitet die Tafel</h3>
           <ul class="liste">
             <li><b>Links „Seit letztem Mal“:</b> Die Kurzzusammenfassung liegt beim Start als Post-its bereit, also offene und erledigte Aufträge, Probleme, Fragen des Teams und Änderungen im Raster.</li>
-            <li><b>Mitte „Skizzen &amp; Ideen“:</b> Freie Fläche für Stift und neue Post-its. Fotos und Post-its von Schülergeräten erscheinen hier live.</li>
-            <li><b>Rechts „Ergebnis“:</b> Ein Post-it in „Aufträge“ wird beim Abschließen ein Arbeitsauftrag (Frist wählen), eines in „Absprachen“ eine Absprache, eines in „Meilensteine“ ein Meilenstein im Raster.</li>
-            <li><b>Abschließen</b> friert die Tafel als Bild mit Uhrzeit ins Protokoll ein. Nicht erledigte Aufträge, offene Fragen und Ideen wandern auf die nächste Tafel.</li>
+            <li><b>Mitte „Skizzen &amp; Ideen“:</b> Freie Fläche für Stift, Rahmen und neue Post-its. Fotos und Post-its von Schülergeräten erscheinen hier live.</li>
+            <li><b>Rechts „Ergebnis“:</b> Ein Post-it oder Rahmen in „Aufträge“ wird beim Abschließen ein Arbeitsauftrag (Frist wählen), in „Absprachen“ eine Absprache, in „Meilensteine“ ein Meilenstein im Raster.</li>
+            <li><b>Abschließen</b> friert die Tafel mit Uhrzeit ins Protokoll ein.</li>
+          </ul></div>
+        <div class="karte"><h3>Nach dem Abschließen: PDF und Bild<span class="neu-marke">neu</span></h3>
+          <p>Bei jeder abgeschlossenen Besprechung, im Reiter „Besprechung“ des Teams, in der Team-Übersicht unter „Letzte Besprechung“ und auf deiner Projektseite:</p>
+          <div class="nach-knoepfe" style="margin:10px 0">
+            <span class="k haupt"><svg class="sym" viewBox="0 0 24 24"><use href="#i-laden"/></svg>PDF herunterladen</span>
+            <span class="k"><svg class="sym" viewBox="0 0 24 24"><use href="#i-bild"/></svg>Tafel als Bild (PNG)</span>
+          </div>
+          <ul class="liste">
+            <li><b>PDF</b>, A4 quer, z. B. <code>Besprechung KW 46 – Klimaanlage.pdf</code>. Seite 1 zeigt die Tafel, wie sie beim Abschließen aussah. Seite 2 zeigt das Ergebnis: Aufträge mit Frist, Absprachen, Meilensteine, geklärte Fragen, Skizzen aus Rahmen als Bild beim Eintrag, dazu die Kurzzusammenfassung.</li>
+            <li><b>PNG</b> der Tafel in hoher Auflösung (3200 × 1800) für Präsentation und Dokumentation. Einzelne Rahmen gibt es über ihr Menü ebenfalls als Bild.</li>
+            <li>Die Dateien entstehen im Container, nicht über den Druckdialog. Sie sehen auf jedem Gerät gleich aus und lassen sich direkt in den Teams-Chat oder in Moodle hochladen.</li>
+            <li><b>Lehrernotizen sind nie enthalten.</b></li>
           </ul></div>
         <div class="karte"><h3>Dein PC am Board</h3>
           <ul class="liste">
@@ -1005,8 +1353,8 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
   </div>
 </section>
 
-<section>
-  <h2><span class="nr">07</span>Erreichbarkeit: Schulnetz und VPN</h2>
+<section id="s-vpn">
+  <h2><span class="nr">07</span>Erreichbarkeit: Schulnetz und VPN<span class="neu-marke">neu</span></h2>
   <p>Im Schulnetz ist der Container immer über seine normale Adresse erreichbar. Zusätzlich baut er selbst eine WireGuard-Verbindung zu deinem gemieteten Server auf. Darüber ist von zuhause <b>nur dieser Container</b> erreichbar.</p>
   <div class="banner w" style="font-size:.95rem"><b>Harte Anforderung:</b> Aus dem Schulnetz darf niemand in dein Heimnetz gelangen, auch nicht über einen übernommenen Container. Deshalb sitzt die Sperre auf dem Server, nicht im Container.</div>
   <div class="karte netz" style="overflow-x:auto">
@@ -1063,10 +1411,27 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
       </ul></div>
     <div class="karte"><h3>Einrichtung</h3>
       <ul class="liste">
-        <li>Das Installationsskript fragt optional nach den WireGuard-Daten (Server, Schlüssel, Adresse) und testet die Verbindung.</li>
-        <li>Der Proxmox-Kernel bringt WireGuard mit. Im Probelauf ist zu prüfen, ob <code>wg0</code> im unprivilegierten CT direkt angelegt werden kann. Sonst weicht das Skript auf <code>wireguard-go</code> mit <code>/dev/net/tun</code> aus.</li>
-        <li>Das HTTPS-Zertifikat gilt für die Schul-IP <i>und</i> die VPN-IP, mit eigener CA wie bei der Roboter-Simulation.</li>
+        <li><b>Im Lehrerbereich</b> unter Einstellungen → VPN (nur Admins): entweder die Werte eintragen oder deine fertige Client-Datei (<code>.conf</code>) hochladen bzw. einfügen. Auf der Konsole geht dasselbe mit <code>trackingdrs vpn einrichten</code>.</li>
+        <li>Im unprivilegierten CT legt der Proxmox-Kernel <code>wg0</code> direkt an, <code>wireguard-go</code> ist nicht nötig (geprüft).</li>
+        <li>Das HTTPS-Zertifikat gilt für die Schul-IP <i>und</i> die VPN-IP, mit eigener CA wie bei der Roboter-Simulation. Kommt die erste VPN-Adresse dazu, entsteht einmalig ein neues Stammzertifikat. Deshalb erst das VPN einrichten, dann das Zertifikat auf deine Geräte verteilen.</li>
       </ul></div>
+  </div>
+  <div class="karte"><h3>Aus dem ganzen VPN erreichbar<span class="neu-marke">neu</span></h3>
+    <p>Du willst den Lehrerbereich von jedem Gerät erreichen: von Teilnehmern deines VPN und von Geräten in deinem Heimnetz, das wie das Schulnetz <code>192.168.0.0/16</code> nutzt.</p>
+    <div class="raster-2" style="margin-top:10px">
+      <ul class="liste">
+        <li><b>Problem bisher:</b> Der Container nimmt aus dem Tunnel nur Absender aus dem VPN-Netz an (im Test <code>10.0.0.0/24</code>). Einen Eintrag <code>0.0.0.0/0</code> verwirft der Import, denn wg-quick würde damit den ganzen Verkehr des Containers über den Server leiten. Den sperrt die Sperre dort aber absichtlich, und Updates, Kalender-Abos und DNS fielen aus.</li>
+        <li><b>Gleiche Adressen:</b> Eine Anfrage von <code>192.168.178.20</code> könnte aus dem Schulnetz oder von zuhause kommen. Nach der Adresse allein ginge die Antwort ins Schulnetz.</li>
+      </ul>
+      <ul class="liste">
+        <li><b>Eingang:</b> Über den Tunnel nimmt der Container Verbindungen von <b>jeder</b> Absenderadresse an, weiterhin nur auf Port 443.</li>
+        <li><b>Rückweg entlang der Verbindung:</b> Der Container markiert jede Verbindung, die über <code>wg0</code> hereinkommt, und schickt ihre Antworten gezielt zurück in den Tunnel. Die Adresse spielt dafür keine Rolle.</li>
+        <li><b>Eigener Verkehr</b> des Containers (Updates, Kalender, DNS) geht wie bisher direkt übers Schulnetz.</li>
+        <li><b>Bedienung:</b> <code>0.0.0.0/0</code> in der Client-Datei wird als „alle Absender zulassen“ übernommen, ohne den Container umzuleiten. Im Werte-Formular gibt es dafür den Schalter „Alle Teilnehmer meines VPN“.</li>
+        <li>Die Sperre auf dem Server und der tägliche Sperrtest bleiben unverändert. Der Container kann weiterhin nichts von sich aus erreichen.</li>
+      </ul>
+    </div>
+    <p class="leise" style="margin-top:10px">Außerhalb des Containers prüfst du: Dein Router kennt den Weg zur VPN-Adresse des Containers (z. B. <code>10.0.0.0/16</code> über den Tunnel), und auf dem Server hat der Teilnehmer deines Heimnetzes <code>192.168.0.0/16</code> in seinen AllowedIPs.</p>
   </div>
 </section>
 
@@ -1134,13 +1499,23 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
 <section>
   <h2><span class="nr">10</span>Bauplan in Stufen</h2>
   <div class="stufen">
-    <div class="stufe"><span class="s">A</span><div><b>Grundgerüst</b><p>Repo, Proxmox-Skript, Installation, Lehrkraft-Konten, HTTPS, Firewall. Projekte, Teams und Team-Link, Standardvorlage.</p></div></div>
-    <div class="stufe"><span class="s">B</span><div><b>Tracking-Raster</b><p>Raster mit Plan- und Statusebene (Tasten wie in Excel, Ziehen plant b), genau ein Verantwortlicher je Aufgabe, Ereignisprotokoll, Y/R-Pflichtfeld, Verworfen/Verschoben, Meilensteine, Gesamtstatus, Versionen zum Buchungsschluss, Basisplan, Vergleich (überlagert und als Liste), Handyansicht „Diese Woche“.</p></div></div>
-    <div class="stufe"><span class="s">C</span><div><b>Termine &amp; Cockpit</b><p>Projektzeiten als Regeln (Wochentag, Uhrzeit, jede/gerade/ungerade KW), Ausfälle, Ferien aus dem Schulkalender-Abo, automatische Termine mit Buchungsschluss, Buchung durch das Team, Versionen zum Buchungsschluss, Häkchen „erledigt“, Warnungen, Cockpit (Handlungsbedarf, Zwei-Wochen-Kalender, Projektkarten, Ampel-Matrix), Kalender-Reiter mit Dienstkalender-Abo (ICS) und Ferien.</p></div></div>
-    <div class="stufe"><span class="s">D</span><div><b>Besprechung</b><p>Vorbereitung, Fragen, Kurzzusammenfassung, Besprechungstafel (Zonen, Stift, Post-its, live von Schülergeräten), Arbeitsaufträge, Tafel einfrieren.</p></div></div>
-    <div class="stufe"><span class="s">E</span><div><b>Anfragen</b><p>Rückfrage, Ausleihe, Abnahme mit Status, Antwortverlauf und Warnungen. Bestelllisten mit Einreichfenstern, Sonderfenstern und Prüfung je Position. Sammelbestellung je Lieferant als Excel/PDF.</p></div></div>
-    <div class="stufe"><span class="s">F</span><div><b>Extras</b><p>Fotos, Mindmap, Lehrernotizen, Vorlagen speichern, Excel-Export, PDF-Export, Archiv, ZIP-Sicherung.</p></div></div>
-    <div class="stufe"><span class="s">G</span><div><b>VPN &amp; Probelauf</b><p>WireGuard im Installer, Sperrregeln auf dem Server, Sperrtest als root im Container, Test von zuhause, Probelauf mit einer Klasse.</p></div></div>
+    <div class="stufe"><span class="s">A</span><div><b>Grundgerüst <span class="chip">gebaut</span></b><p>Repo, Proxmox-Skript, Installation, Lehrkraft-Konten, HTTPS, Firewall. Projekte, Teams und Team-Link, Standardvorlage.</p></div></div>
+    <div class="stufe"><span class="s">B</span><div><b>Tracking-Raster <span class="chip">gebaut</span></b><p>Raster mit Plan- und Statusebene (Tasten wie in Excel, Ziehen plant b), genau ein Verantwortlicher je Tätigkeit, Ereignisprotokoll, Y/R-Pflichtfeld, Verworfen/Verschoben, Meilensteine, Gesamtstatus, Versionen zum Buchungsschluss, Basisplan, Vergleich (überlagert und als Liste), Handyansicht „Diese Woche“.</p></div></div>
+    <div class="stufe"><span class="s">C</span><div><b>Termine &amp; Cockpit <span class="chip">gebaut</span></b><p>Projektzeiten als Regeln (Wochentag, Uhrzeit, jede/gerade/ungerade KW), Ausfälle, Ferien aus dem Schulkalender-Abo, automatische Termine mit Buchungsschluss, Buchung durch das Team, Versionen zum Buchungsschluss, Häkchen „erledigt“, Warnungen, Cockpit (Handlungsbedarf, Zwei-Wochen-Kalender, Projektkarten, Ampel-Matrix), Kalender-Reiter mit Dienstkalender-Abo (ICS) und Ferien.</p></div></div>
+    <div class="stufe"><span class="s">D</span><div><b>Besprechung <span class="chip">gebaut</span></b><p>Vorbereitung, Fragen, Kurzzusammenfassung, Besprechungstafel (Zonen, Stift, Post-its, live von Schülergeräten), Arbeitsaufträge, Tafel einfrieren.</p></div></div>
+    <div class="stufe"><span class="s">E</span><div><b>Anfragen <span class="chip">gebaut</span></b><p>Rückfrage, Ausleihe, Abnahme mit Status, Antwortverlauf und Warnungen. Bestelllisten mit Einreichfenstern, Sonderfenstern und Prüfung je Position. Sammelbestellung je Lieferant als Excel/PDF.</p></div></div>
+    <div class="stufe"><span class="s">F</span><div><b>Extras <span class="chip">gebaut</span></b><p>Fotos, Mindmap, Lehrernotizen, Vorlagen speichern, Excel-Export, PDF-Export, Archiv, ZIP-Sicherung.</p></div></div>
+    <div class="stufe"><span class="s">G</span><div><b>VPN &amp; Probelauf</b> <span class="chip">teilweise</span><p>Gebaut: Einrichtung im Lehrerbereich (Werte oder Client-Datei), Sperrregeln für den Server, täglicher Sperrtest. Offen: echter Lauf mit deiner Client-Datei, Test von zuhause, Probelauf mit einer Klasse.</p></div></div>
+    <div class="stufe" style="border-color:var(--blau-mittel)"><span class="s">I</span><div><b>Überarbeitung nach dem ersten Test</b> <span class="neu-marke">neu</span><p>Vorschlag für die Reihenfolge, jeder Schritt einzeln im Testcontainer und auf GitHub:</p>
+      <ol class="schritte" style="margin-top:6px">
+        <li><b>I1 Tätigkeiten:</b> alle sichtbaren Texte, Meldungen, Excel, Bericht, Vorlagen. Klein, gut als Einstieg.</li>
+        <li><b>I2 VPN aus dem ganzen VPN:</b> Eingang von jedem Absender, Rückweg entlang der Verbindung, 0.0.0.0/0 im Import, Schalter im Formular. Danach der echte Lauf mit deiner Client-Datei und der Test von zuhause.</li>
+        <li><b>I3 Anfragen:</b> Reiter, Statuskarte zum Einreichfenster, Entscheidung je Bestellposition als Auswahlliste, eigene Spalte Bestellstatus, Firma-Frage ans Team mit Zusage und Haken, drei Stände mit Filtern, Zuständig-Feld mit „Ich übernehme“, Name für das Team, beschrifteter Hinweis-Schalter.</li>
+        <li><b>I4 Projekttage:</b> Wochenansicht für die Lehrkraft, Buchungsfenster für das Team, Ändern und Absagen.</li>
+        <li><b>I5 Tafel-Werkzeuge:</b> neue Leiste mit Symbolen, Textmarker, Pfeile mit Haften, Sticker, Wiederholen.</li>
+        <li><b>I6 Rahmen:</b> Rahmen anlegen und befüllen, verschieben, Titel, als Auftrag, Absprache oder Meilenstein mit Bild, Mitwandern auf die nächste Tafel.</li>
+        <li><b>I7 PDF und PNG:</b> Tafel und Ergebnis als PDF, Tafel und einzelne Rahmen als Bild, Knöpfe für Team und Lehrkraft.</li>
+      </ol></div></div>
     <div class="stufe"><span class="s">H</span><div><b>Optional: SchulLager</b><p>Bestellungen als Beschaffung übergeben, Ausleihen aus dem Bestand, Status zurückholen. Kann jederzeit nachgerüstet werden.</p></div></div>
   </div>
   <p class="leise">Für später vorgemerkt: Personenbezug je Eintrag, Moodle-Abgaben vermerken, Pflichtenheft-Anforderungen als Prüfliste, KI-Zusammenfassung, Bewertungshilfe.</p>
@@ -1149,7 +1524,11 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
 <section>
   <h2><span class="nr">11</span>Offene Punkte</h2>
     <div class="karte">
-    <p><b>Alle Punkte sind entschieden</b> (27.10.2026). Die Antworten stehen in Abschnitt 12.</p>
+    <p>Die Punkte vom 27.10. sind entschieden. Aus der Überarbeitung bleiben zwei kleine Punkte. Bis du anders entscheidest, gilt jeweils mein Vorschlag.</p>
+    <ol class="offen" style="margin-top:10px">
+      <li><b>Name der zuständigen Lehrkraft beim Team:</b> voller Name oder Kürzel?<span class="vorschlag"><b>Vorschlag:</b> voller Name aus dem Konto, z. B. „Matthias Göbel“. Mit Kürzeln können Schüler oft wenig anfangen.</span></li>
+      <li><b>Bauweise der PDF:</b> Die Tafel als Vektorgrafik (scharf in jeder Größe, Text durchsuchbar) oder als eingebettetes Bild?<span class="vorschlag"><b>Vorschlag:</b> Seite 2 (Ergebnis) als echter Text, die Tafel auf Seite 1 als hochaufgelöstes Bild. Das ist robust und sieht genauso aus wie auf dem Board.</span></li>
+    </ol>
   </div>
 </section>
 
@@ -1173,7 +1552,7 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
         <tr><td>Bildschirme</td><td>Board als erweiterter Bildschirm (schon eingerichtet): Tafel im Vollbild auf dem Board, Cockpit, Lehreransicht und Lehrernotizen auf deinem Monitor</td></tr>
         <tr><td>Raster</td><td>Spalten = Kalenderwochen. Plan als blauer Balken (b) mit Endtermin-Marke (e), die Ampel (g, y, r) färbt den Balken der jeweiligen Woche. Eingabe per Taste wie in Excel oder durch Ziehen.</td></tr>
         <tr><td>Versionen</td><td>Automatisch eine Version zu jedem Buchungsschluss, dazu ein Basisplan je Projekt (setzt die Lehrkraft, neu setzen möglich, der alte bleibt erhalten). Vergleich überlagert im Raster und als Änderungsliste. Team und Lehrkraft sehen beides.</td></tr>
-        <tr><td>Verantwortlich</td><td>Genau ein Schüler je Aufgabe, Pflicht sobald die Aufgabe geplant ist</td></tr>
+        <tr><td>Verantwortlich</td><td>Genau ein Schüler je Tätigkeit, Pflicht sobald die Tätigkeit geplant ist</td></tr>
         <tr><td>Anfragen</td><td>Rückfrage, Bestellliste, Material ausleihen, Abnahme/Freigabe, jeweils mit Status für das Team. SchulLager-Anbindung für Bestellung und Ausleihe optional.</td></tr>
         <tr><td>Bestellungen</td><td>Teams sammeln in einer Bestellliste und reichen nur in Einreichfenstern ein (von, bis Stichtag, im Cockpit festgelegt). Sonderfenster für einzelne Teams vergibst du. Felder mit Bestellnummer und Preis (nur Info, keine Summen, kein Budget). Entscheidung je Position: bestellen, SchulLager (verknüpft), Firma (nur Vermerk), ersetzen (du trägst ein oder das Team sucht), ablehnen.</td></tr>
         <tr><td>Terminbuchung</td><td>Projektzeiten als Regeln (z. B. jeden Donnerstag, dienstags in ungeraden KW) mit Besprechungsfenster und Terminlänge; Termine entstehen automatisch, ohne Ferien (Schulkalender-Abo) und von Hand eingetragene Ausfälle; einzelne Tage anpassbar; Buchungsschluss legst du fest. Teams buchen einen Termin je Woche per Tipp und sehen andere Buchungen nur als „belegt“.</td></tr>
@@ -1187,7 +1566,7 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
         <tr><td>Heimnetz-Schutz</td><td>Aus dem Schulnetz darf niemand ins Heimnetz, auch nicht über einen übernommenen Container. Die Sperre sitzt auf dem Server: vom Container nur Antworten.</td></tr>
         <tr><td>Daten</td><td>Vor- und Nachname, Archiv + Löschen von Hand, Proxmox-Backup</td></tr>
         <tr><td>Zugriff Schüler</td><td>Nur in der Schule (Schulnetz, Schul-WLAN). Team-Links über HTTP, Lehrerbereich nur HTTPS.</td></tr>
-        <tr><td>Erledigt</td><td>Häkchen „erledigt“ je Aufgabe mit Zeitstempel (Grundlage für Fortschritt und Warnung „Endtermin überschritten“)</td></tr>
+        <tr><td>Erledigt</td><td>Häkchen „erledigt“ je Tätigkeit mit Zeitstempel (Grundlage für Fortschritt und Warnung „Endtermin überschritten“)</td></tr>
         <tr><td>Andere Teams</td><td>Jedes Team sieht nur sein eigenes Projekt</td></tr>
         <tr><td>Datenschutz</td><td>Fernzugriff mit vollen Namen ist mit Schulleitung/DSB geklärt</td></tr>
         <tr><td>Ordnung</td><td>Projekte nach Klasse und Schuljahr, Archiv nach Schuljahr</td></tr>
@@ -1195,6 +1574,15 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
         <tr><td>Benachrichtigung</td><td>Neue Anfragen nur im Cockpit (Zähler, Warnung), keine E-Mails</td></tr>
         <tr><td>Kalender</td><td>Outlook erlaubt das Veröffentlichen: Dienstkalender per ICS-Abo; Ferien aus dem Schulkalender-Abo, Ausfälle von Hand</td></tr>
         <tr><td>Name</td><td>TrackingDRS</td></tr>
+        <tr><td>Begriff <span class="neu-marke">05.11.</span></td><td>„Tätigkeit“ statt „Aufgabe“ in allem, was man sieht oder herunterlädt (Oberfläche, Dokumente, Tafel). Intern bleibt <code>aufgabe</code>. Aufträge aus der Besprechung bleiben Aufträge.</td></tr>
+        <tr><td>VPN <span class="neu-marke">05.11.</span></td><td>Der Lehrerbereich ist von jedem Gerät im VPN und im Heimnetz (192.168.0.0/16) erreichbar: Eingang von jedem Absender, nur Port 443, Antwort entlang der Verbindung. Die Sperre ins Heimnetz bleibt.</td></tr>
+        <tr><td>Anfragen <span class="neu-marke">05.11.</span></td><td>Drei Stände: neu, in Bearbeitung, erledigt. Kein „Zu erledigen“. Zuweisen in zwei Klicks, nur an Lehrkräfte, die das Projekt betreuen. Das Team sieht den Namen der zuständigen Lehrkraft.</td></tr>
+        <tr><td>Anfragen-Seite <span class="neu-marke">05.11.</span></td><td>Große Reiter „Eingang“ und „Bestellungen und Einreichfenster“, Statuskarte zum Einreichfenster, Filter mit Zahlen, Art als Knöpfe mit Symbol</td></tr>
+        <tr><td>Projekttage <span class="neu-marke">05.11.</span></td><td>Lehrkraft: nur gebuchte Termine in einer Wochenansicht wie in Outlook, im Alltag reicht der Cockpit-Kalender. Kein Übertrag nach Outlook. Team: Buchungsfenster mit Tag und nur den freien Zeiten.</td></tr>
+        <tr><td>Tafel-Leiste <span class="neu-marke">05.11.</span></td><td>Unten, moderne Symbole ohne Knopfrahmen. Neu: Textmarker, Pfeile (haften an Post-its und Rahmen), Sticker (18 Symbole, Auswahl passt erst einmal), Wiederholen</td></tr>
+        <tr><td>Rahmen <span class="neu-marke">05.11.</span></td><td>Fassen Striche, Sticker und auch Post-its zusammen, verschiebbar, werden in „Ergebnis“ zu Auftrag, Absprache oder Meilenstein mit Bild. Nicht im Ergebnis: wandern wie offene Post-its mit.</td></tr>
+        <tr><td>Bestellprüfung <span class="neu-marke">05.11.</span></td><td>Entscheidung je Position per Auswahlliste statt fünf Knöpfen, dazu „Alle offenen Positionen“ auf einmal. Bestellstatus in einer eigenen Spalte, die nur bei bestellten Positionen erscheint. „Über Firma“: Das Team wird gefragt, ein Schüler sagt zu und hakt „besorgt“ ab, bei Nein geht die Position offen zurück.</td></tr>
+        <tr><td>Downloads <span class="neu-marke">05.11.</span></td><td>Nach jeder Besprechung für Team und Lehrkraft: PDF (Tafel und Ergebnis) und die Tafel als PNG, einzelne Rahmen ebenfalls als PNG. Ohne Lehrernotizen.</td></tr>
       </tbody>
     </table>
   </div>
@@ -1209,9 +1597,28 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
   const cv = document.getElementById('tinte'), ctx = cv.getContext('2d');
   const leiste = tafel.querySelector('.werkzeuge');
   const unter = [...tafel.querySelectorAll('.unterzone')];
-  const striche = [], texte = [], verlauf = [];
-  let werkzeug = 'hand', farbe = 'tinte', aktiv = null, zug = null;
-  const farbWert = f => getComputedStyle(document.documentElement).getPropertyValue('--' + f).trim() || '#1d2433';
+  const striche = [], texte = [], pfeile = [], verlauf = [], wieder = [];
+  const rahmenInhalt = new Map();              // Rahmen-Element -> { striche:Set, els:Set }
+  let werkzeug = 'hand', stiftFarbe = 'tinte', stiftDicke = 2.4, markerFarbe = 'gelb', stickerArt = 'idee';
+  let aktiv = null, zug = null, pfeilNeu = null, rahmenNeu = null, tafelZuletzt = false;
+  const FARBE = { tinte: () => wert('--tinte'), blau: () => wert('--blau'), rot: () => wert('--rot'), gruen: () => '#4f8a1a', orange: () => '#e07a10',
+    gelb: () => '#f5c400', mgruen: () => '#7fd13b', rosa: () => '#ff6fb0', hblau: () => '#4fb3ff' };
+  const STICKER = { idee: '#c98a1e', problem: '#c98a1e', frage: '#6f62d6', ok: '#4f8a1a', nein: '#c43b3b', stern: '#c98a1e', ziel: '#2f7fc0', uhr: '#2f7fc0',
+    flagge: '#2f7fc0', gut: '#4f8a1a', schlecht: '#c43b3b', team: '', fertigung: '', elektrik: '', mechanik: '', programm: '', material: '', mass: '' };
+  const STICKER_NAME = { idee: 'Idee', problem: 'Problem', frage: 'Frage', ok: 'erledigt', nein: 'verworfen', stern: 'wichtig', ziel: 'Ziel', uhr: 'Zeit',
+    flagge: 'Meilenstein', gut: 'gut', schlecht: 'schlecht', team: 'Team', fertigung: 'Fertigung', elektrik: 'Elektrik', mechanik: 'Mechanik',
+    programm: 'Programm', material: 'Material', mass: 'Maß' };
+  function wert(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim() || '#1d2433'; }
+  const farbWert = f => (FARBE[f] || FARBE.tinte)();
+  const sym = (n, cls) => `<svg class="${cls || 'wz-sym'}" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-${n}"/></svg>`;
+  const W = () => tafel.clientWidth, H = () => tafel.clientHeight;
+  const pos = e => { const r = tafel.getBoundingClientRect(); return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height]; };
+  const begrenzt = (v, max) => Math.min(Math.max(v, 0), max);
+  const prozent = (el, k) => parseFloat(el.style[k]) / 100;
+  const box = el => ({ x: el.offsetLeft / W(), y: el.offsetTop / H(), w: el.offsetWidth / W(), h: el.offsetHeight / H() });
+  const mitte = el => { const b = box(el); return [b.x + b.w / 2, b.y + b.h / 2]; };
+  const drin = (p, b) => p[0] >= b.x && p[0] <= b.x + b.w && p[1] >= b.y && p[1] <= b.y + b.h;
+  const merken = v => { verlauf.push(v); wieder.length = 0; };
 
   // Vorgezeichnete Handskizze in Tafel-Koordinaten (0..1), leicht verwackelt
   const zitter = (a, b, n, s) => Array.from({ length: n + 1 }, (_, i) => {
@@ -1226,30 +1633,51 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
   striche.push({ f: 'tinte', w: 2.4, pts: zitter([0.455, 0.46], [0.532, 0.46], 12, 9) });
   striche.push({ f: 'tinte', w: 2.4, pts: [[0.518, 0.443, 0.5], [0.534, 0.46, 0.5], [0.518, 0.478, 0.5]] });
   striche.push({ f: 'blau', w: 2, pts: Array.from({ length: 21 }, (_, i) => [0.46 + i * 0.0035, 0.425 + Math.sin(i * 0.9) * 0.006, 0.5]) });
+  striche.push({ f: 'gelb', w: 11, marker: true, pts: zitter([0.552, 0.471], [0.628, 0.471], 10, 4) });
   texte.push({ t: 'Lüfter', x: 0.362, y: 0.478, f: 'tinte' }, { t: 'Gehäuse', x: 0.557, y: 0.478, f: 'tinte' },
-    { t: 'Luftstrom', x: 0.462, y: 0.405, f: 'blau', k: 0.8 }, { t: '?', x: 0.333, y: 0.39, f: 'rot', k: 1.4 });
+    { t: 'Luftstrom', x: 0.462, y: 0.405, f: 'blau', k: 0.8 });
 
+  function punkt(a) {
+    if (!a.el) return [a.x, a.y];
+    const b = box(a.el);
+    return [b.x + a.rx * b.w, b.y + a.ry * b.h];
+  }
   function zeichnen() {
-    const W = tafel.clientWidth, H = tafel.clientHeight;
-    ctx.clearRect(0, 0, W, H);
+    const w = W(), h = H();
+    ctx.clearRect(0, 0, w, h);
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     for (const s of striche) {
       ctx.strokeStyle = farbWert(s.f);
+      ctx.globalAlpha = s.marker ? 0.38 : 1;
+      if (s.marker) {
+        ctx.lineWidth = s.w * (w / 900); ctx.beginPath();
+        s.pts.forEach((p, i) => i ? ctx.lineTo(p[0] * w, p[1] * h) : ctx.moveTo(p[0] * w, p[1] * h));
+        ctx.stroke(); continue;
+      }
       for (let i = 1; i < s.pts.length; i++) {
         const a = s.pts[i - 1], b = s.pts[i];
-        ctx.lineWidth = s.w * (0.6 + b[2] * 0.8) * (W / 900);
-        ctx.beginPath(); ctx.moveTo(a[0] * W, a[1] * H); ctx.lineTo(b[0] * W, b[1] * H); ctx.stroke();
+        ctx.lineWidth = s.w * (0.6 + b[2] * 0.8) * (w / 900);
+        ctx.beginPath(); ctx.moveTo(a[0] * w, a[1] * h); ctx.lineTo(b[0] * w, b[1] * h); ctx.stroke();
       }
+    }
+    ctx.globalAlpha = 1;
+    for (const p of pfeilNeu ? pfeile.concat([pfeilNeu]) : pfeile) {
+      const [x1, y1] = punkt(p.a), [x2, y2] = punkt(p.b);
+      const ax = x1 * w, ay = y1 * h, bx = x2 * w, by = y2 * h, wi = Math.atan2(by - ay, bx - ax), l = 14 * (w / 900);
+      ctx.strokeStyle = farbWert(p.f); ctx.lineWidth = 2.6 * (w / 900);
+      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by);
+      ctx.moveTo(bx - l * Math.cos(wi - 0.45), by - l * Math.sin(wi - 0.45)); ctx.lineTo(bx, by);
+      ctx.lineTo(bx - l * Math.cos(wi + 0.45), by - l * Math.sin(wi + 0.45)); ctx.stroke();
     }
     for (const t of texte) {
       ctx.fillStyle = farbWert(t.f);
-      ctx.font = `600 ${Math.round(H * 0.05 * (t.k || 1))}px Caveat, 'Segoe Print', cursive`;
-      ctx.fillText(t.t, t.x * W, t.y * H);
+      ctx.font = `600 ${Math.round(h * 0.05 * (t.k || 1))}px Caveat, 'Segoe Print', cursive`;
+      ctx.fillText(t.t, t.x * w, t.y * h);
     }
   }
   function groesse() {
     const d = window.devicePixelRatio || 1;
-    cv.width = Math.round(tafel.clientWidth * d); cv.height = Math.round(tafel.clientHeight * d);
+    cv.width = Math.round(W() * d); cv.height = Math.round(H() * d);
     ctx.setTransform(d, 0, 0, d, 0, 0);
     zeichnen();
   }
@@ -1258,46 +1686,138 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
   try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', zeichnen); } catch (e) {}
   new MutationObserver(zeichnen).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
-  const pos = e => { const r = tafel.getBoundingClientRect(); return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height]; };
-  const begrenzt = (v, max) => Math.min(Math.max(v, 0), max);
+  // Elemente auf der Tafel: Post-it, Sticker, Rahmen
+  function ablegen(el) { tafel.insertBefore(el, leiste); }
+  function sticker(art, x, y, aufPostit) {
+    const s = document.createElement('div');
+    s.className = 'sticker'; s.dataset.s = art; s.title = STICKER_NAME[art];
+    s.style.color = STICKER[art] || 'var(--leise)';
+    s.innerHTML = sym(art);
+    if (aufPostit) aufPostit.appendChild(s);
+    else { s.style.left = begrenzt(x - 0.017, 0.96) * 100 + '%'; s.style.top = begrenzt(y - 0.03, 0.93) * 100 + '%'; ablegen(s); }
+    return s;
+  }
+  function rahmen(x, y, w, h, titel) {
+    const r = document.createElement('div');
+    r.className = 'tafel-rahmen';
+    Object.assign(r.style, { left: x * 100 + '%', top: y * 100 + '%', width: w * 100 + '%', height: h * 100 + '%' });
+    r.innerHTML = `<span class="r-titel" contenteditable="true" spellcheck="false">${titel}</span>`;
+    ablegen(r);
+    rahmenInhalt.set(r, { striche: new Set(), texte: new Set(), els: new Set() });
+    einsammeln(r);
+    return r;
+  }
+  // Alles, was vollständig im Rahmen liegt, gehört dazu: Striche, Post-its, freie Sticker
+  function einsammeln(r) {
+    const b = box(r), inh = rahmenInhalt.get(r);
+    for (const s of striche) if (!s.rahmen && s.pts.every(p => drin(p, b))) { s.rahmen = r; inh.striche.add(s); }
+    for (const t of texte) if (!t.rahmen && drin([t.x, t.y], b)) { t.rahmen = r; inh.texte.add(t); }
+    for (const el of tafel.querySelectorAll(':scope > .postit, :scope > .sticker'))
+      if (!el.rahmen && drin(mitte(el), b)) { el.rahmen = r; inh.els.add(el); }
+  }
+  function rahmenVon(p) {
+    for (const [r] of rahmenInhalt) if (r.isConnected && drin(p, box(r))) return r;
+    return null;
+  }
+  function zuRahmen(el) {                      // nach dem Verschieben eines Post-its oder Stickers
+    const r = rahmenVon(mitte(el));
+    if (el.rahmen === r) return;
+    if (el.rahmen) rahmenInhalt.get(el.rahmen).els.delete(el);
+    el.rahmen = r;
+    if (r) rahmenInhalt.get(r).els.add(el);
+  }
+  function verschieben(el, dx, dy) {
+    const b = box(el);
+    el.style.left = begrenzt(prozent(el, 'left') + dx, 1 - b.w) * 100 + '%';
+    el.style.top = begrenzt(prozent(el, 'top') + dy, 1 - b.h) * 100 + '%';
+  }
 
-  // Stift und Radierer
+  // Ergebnis-Zone: Post-its und Rahmen werden beim Abschließen zu Einträgen
+  function zielVon(el) {
+    const [cx, cy] = mitte(el);
+    if (cx < 0.72) return null;
+    return cy < 0.385 ? 0 : cy < 0.77 ? 1 : 2;
+  }
+  function zuordnen(el) {
+    const z = zielVon(el);
+    let b = el.querySelector(':scope > .ziel');
+    if (z === null) { if (b) b.remove(); return; }
+    if (!b) { b = document.createElement('span'); b.className = 'ziel'; el.appendChild(b); }
+    b.textContent = '→ ' + unter[z].dataset.ziel + (el.classList.contains('tafel-rahmen') ? ' mit Skizze' : '');
+  }
+
+  // Stift, Textmarker, Radierer, Pfeil, Rahmen ziehen: auf der Zeichenfläche
   function radieren(x, y) {
-    const W = tafel.clientWidth, H = tafel.clientHeight;
+    const w = W(), h = H(), nah = (p, q) => Math.hypot((p[0] - q[0]) * w, (p[1] - q[1]) * h) < 14;
     for (let i = striche.length - 1; i >= 0; i--) {
-      if (striche[i].pts.some(p => Math.hypot((p[0] - x) * W, (p[1] - y) * H) < 14)) striche.splice(i, 1);
+      const s = striche[i];
+      if (s.pts.some(p => nah(p, [x, y]))) { striche.splice(i, 1); merken({ art: 'weg-strich', s }); }
+    }
+    for (let i = pfeile.length - 1; i >= 0; i--) {
+      const a = punkt(pfeile[i].a), b = punkt(pfeile[i].b);
+      const t = Array.from({ length: 11 }, (_, k) => [a[0] + (b[0] - a[0]) * k / 10, a[1] + (b[1] - a[1]) * k / 10]);
+      if (t.some(p => nah(p, [x, y]))) { const p = pfeile.splice(i, 1)[0]; merken({ art: 'weg-pfeil', p }); }
     }
     zeichnen();
   }
+  function anker(e, x, y) {
+    const el = document.elementsFromPoint(e.clientX, e.clientY).map(n => n.closest && n.closest('.postit, .tafel-rahmen')).find(Boolean);
+    if (!el || !tafel.contains(el)) return { x, y };
+    const b = box(el);
+    return { el, rx: (x - b.x) / b.w, ry: (y - b.y) / b.h };
+  }
   cv.addEventListener('pointerdown', e => {
     cv.setPointerCapture(e.pointerId);
+    flyoutsZu();
     const [x, y] = pos(e);
-    if (werkzeug === 'stift') {
-      aktiv = { f: farbe, w: 2.4, pts: [[x, y, e.pressure || 0.5]] };
-      striche.push(aktiv); verlauf.push({ art: 'strich', s: aktiv });
+    if (werkzeug === 'stift' || werkzeug === 'marker') {
+      const marker = werkzeug === 'marker';
+      aktiv = marker ? { f: markerFarbe, w: 11, marker: true, pts: [[x, y, 0.5]] } : { f: stiftFarbe, w: stiftDicke, pts: [[x, y, e.pressure || 0.5]] };
+      const r = rahmenVon([x, y]);
+      if (r) { aktiv.rahmen = r; rahmenInhalt.get(r).striche.add(aktiv); }
+      striche.push(aktiv); merken({ art: 'strich', s: aktiv });
     } else if (werkzeug === 'radierer') { aktiv = { radierer: true }; radieren(x, y); }
+    else if (werkzeug === 'pfeil') { pfeilNeu = { f: stiftFarbe, a: anker(e, x, y), b: { x, y } }; aktiv = { pfeil: true }; }
+    else if (werkzeug === 'rahmen') {
+      const kasten = document.createElement('div'); kasten.className = 'auswahl-box'; ablegen(kasten);
+      rahmenNeu = { x0: x, y0: y, x, y, kasten }; aktiv = { rahmen: true };
+    }
   });
   cv.addEventListener('pointermove', e => {
     if (!aktiv) return;
     const [x, y] = pos(e);
     if (aktiv.radierer) radieren(x, y);
-    else { aktiv.pts.push([x, y, e.pressure || 0.5]); zeichnen(); }
+    else if (aktiv.pfeil) { pfeilNeu.b = { x, y }; zeichnen(); }
+    else if (aktiv.rahmen) {
+      Object.assign(rahmenNeu, { x, y });
+      const l = Math.min(x, rahmenNeu.x0), t = Math.min(y, rahmenNeu.y0);
+      Object.assign(rahmenNeu.kasten.style, { left: l * 100 + '%', top: t * 100 + '%', width: Math.abs(x - rahmenNeu.x0) * 100 + '%', height: Math.abs(y - rahmenNeu.y0) * 100 + '%' });
+    } else { aktiv.pts.push([x, y, e.pressure || 0.5]); zeichnen(); }
   });
-  ['pointerup', 'pointercancel'].forEach(n => cv.addEventListener(n, () => { aktiv = null; }));
+  const loslassenZeichnen = e => {
+    if (aktiv && aktiv.pfeil) {
+      const [x, y] = pos(e), a = punkt(pfeilNeu.a);
+      if (Math.hypot((x - a[0]) * W(), (y - a[1]) * H()) > 20) {
+        pfeilNeu.b = anker(e, x, y);
+        if (!(pfeilNeu.a.el && pfeilNeu.a.el === pfeilNeu.b.el)) { pfeile.push(pfeilNeu); merken({ art: 'pfeil', p: pfeilNeu }); }
+      }
+      pfeilNeu = null; zeichnen();
+    } else if (aktiv && aktiv.rahmen) {
+      const n = rahmenNeu; n.kasten.remove(); rahmenNeu = null;
+      const w = Math.abs(n.x - n.x0), h = Math.abs(n.y - n.y0);
+      if (w > 0.05 && h > 0.06) {
+        const r = rahmen(Math.min(n.x, n.x0), Math.min(n.y, n.y0), w, h, 'Neuer Rahmen');
+        merken({ art: 'el', el: r }); zuordnen(r);
+        werkzeugSetzen('hand');
+        const t = r.querySelector('.r-titel'); t.focus(); document.getSelection().selectAllChildren(t);
+      }
+    }
+    aktiv = null;
+  };
+  cv.addEventListener('pointerup', loslassenZeichnen);
+  cv.addEventListener('pointercancel', loslassenZeichnen);
 
-  // Post-its: Zone erkennen, verschieben, neu anlegen
-  function zielVon(p) {
-    const cx = (p.offsetLeft + p.offsetWidth / 2) / tafel.clientWidth, cy = (p.offsetTop + p.offsetHeight / 2) / tafel.clientHeight;
-    if (cx < 0.72) return null;
-    return cy < 0.385 ? 0 : cy < 0.77 ? 1 : 2;
-  }
-  function zuordnen(p) {
-    const z = zielVon(p);
-    let b = p.querySelector('.ziel');
-    if (z === null) { if (b) b.remove(); return; }
-    if (!b) { b = document.createElement('span'); b.className = 'ziel'; p.appendChild(b); }
-    b.textContent = '→ ' + unter[z].dataset.ziel;
-  }
+  // Antippen und Ziehen: Post-its, Sticker, Rahmen
   function neuesPostit(x, y) {
     const p = document.createElement('div');
     p.className = 'postit gelb';
@@ -1305,65 +1825,142 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
     p.style.top = begrenzt(y - 0.06, 0.82) * 100 + '%';
     p.style.setProperty('--dreh', (Math.random() * 4 - 2).toFixed(1) + 'deg');
     p.innerHTML = '<span class="art">Idee</span><span class="text" contenteditable="true" spellcheck="false"></span><span class="fuss">Tafel · gerade eben</span>';
-    tafel.insertBefore(p, leiste);
-    verlauf.push({ art: 'postit', p });
+    ablegen(p);
+    merken({ art: 'el', el: p });
     werkzeugSetzen('hand');
-    zuordnen(p);
+    zuordnen(p); zuRahmen(p);
     p.querySelector('.text').focus();
   }
   tafel.addEventListener('pointerdown', e => {
+    tafelZuletzt = true;
     if (e.target === cv || e.target.closest('.werkzeuge')) return;
+    flyoutsZu();
     const [x, y] = pos(e);
     if (werkzeug === 'postit') { e.preventDefault(); neuesPostit(x, y); return; }
-    const p = e.target.closest('.postit');
-    if (!p || werkzeug !== 'hand') return;
+    if (werkzeug === 'sticker') {
+      e.preventDefault();
+      const p = e.target.closest('.postit');
+      const s = sticker(stickerArt, x, y, p && !p.querySelector(':scope > .sticker') ? p : null);
+      if (!s.parentElement.classList.contains('postit')) zuRahmen(s);
+      merken({ art: 'el', el: s });
+      return;
+    }
+    if (werkzeug !== 'hand') return;
+    let el = e.target.closest('.sticker, .postit, .tafel-rahmen');
+    if (!el) return;
+    if (el.classList.contains('sticker') && el.parentElement.classList.contains('postit')) el = el.parentElement;
     if (e.target.isContentEditable && document.activeElement === e.target) return;
     e.preventDefault();
     if (document.activeElement && document.activeElement.isContentEditable) document.activeElement.blur();
-    zug = { p, ziel: e.target, x0: x, y0: y, dx: x - parseFloat(p.style.left) / 100, dy: y - parseFloat(p.style.top) / 100, bewegt: false };
+    zug = { el, ziel: e.target, x0: x, y0: y, lx: x, ly: y, bewegt: false };
     tafel.setPointerCapture(e.pointerId);
-    p.classList.add('zieht');
+    el.classList.add('zieht');
   });
   tafel.addEventListener('pointermove', e => {
     if (!zug) return;
-    const [x, y] = pos(e);
+    const [x, y] = pos(e), dx = x - zug.lx, dy = y - zug.ly;
     if (Math.hypot(x - zug.x0, y - zug.y0) > 0.005) zug.bewegt = true;
-    zug.p.style.left = begrenzt(x - zug.dx, 0.86) * 100 + '%';
-    zug.p.style.top = begrenzt(y - zug.dy, 0.82) * 100 + '%';
-    const z = zielVon(zug.p);
-    unter.forEach((u, i) => u.classList.toggle('hier', i === z));
+    if (!zug.bewegt) return;
+    const vorher = box(zug.el);
+    verschieben(zug.el, dx, dy);
+    const nachher = box(zug.el), rx = nachher.x - vorher.x, ry = nachher.y - vorher.y;
+    if (zug.el.classList.contains('tafel-rahmen')) {   // Inhalt geht mit
+      const inh = rahmenInhalt.get(zug.el);
+      inh.els.forEach(n => verschieben(n, rx, ry));
+      inh.striche.forEach(s => s.pts.forEach(p => { p[0] += rx; p[1] += ry; }));
+      inh.texte.forEach(t => { t.x += rx; t.y += ry; });
+    }
+    zug.lx += rx; zug.ly += ry;
+    const z = zielVon(zug.el);
+    unter.forEach((u, i) => u.classList.toggle('hier', i === z && !zug.el.classList.contains('sticker')));
+    zeichnen();
   });
   const loslassen = () => {
     if (!zug) return;
-    zug.p.classList.remove('zieht');
+    const el = zug.el;
+    el.classList.remove('zieht');
     unter.forEach(u => u.classList.remove('hier'));
-    if (zug.bewegt) zuordnen(zug.p);
-    else if (zug.ziel.classList.contains('text')) zug.ziel.focus();
-    zug = null;
+    if (zug.bewegt) {
+      if (el.classList.contains('sticker')) {
+        const p = [...tafel.querySelectorAll(':scope > .postit')].find(n => drin(mitte(el), box(n)) && !n.querySelector(':scope > .sticker'));
+        if (p) { el.style.left = el.style.top = ''; if (el.rahmen) rahmenInhalt.get(el.rahmen).els.delete(el); el.rahmen = null; p.appendChild(el); }
+        else zuRahmen(el);
+      } else {
+        zuordnen(el);
+        if (el.classList.contains('postit')) zuRahmen(el);
+      }
+    } else if (zug.ziel.isContentEditable) zug.ziel.focus();
+    zug = null; zeichnen();
   };
   tafel.addEventListener('pointerup', loslassen);
   tafel.addEventListener('pointercancel', loslassen);
 
-  // Werkzeugleiste
-  function werkzeugSetzen(w) {
+  // Werkzeugleiste mit ausklappbaren Feldern für Stift, Textmarker und Sticker
+  const flyouts = [...leiste.querySelectorAll('.flyout')];
+  function flyoutsZu(ausser) { flyouts.forEach(f => { if (f !== ausser) f.hidden = true; }); }
+  function werkzeugSetzen(w, aufklappen) {
+    const vorher = werkzeug;
     werkzeug = w; tafel.dataset.werkzeug = w;
     leiste.querySelectorAll('[data-w]').forEach(b => b.classList.toggle('an', b.dataset.w === w));
+    const f = leiste.querySelector(`.flyout[data-fuer="${w}"]`);
+    flyoutsZu(f);
+    if (f && aufklappen) f.hidden = vorher === w ? !f.hidden : false;
+  }
+  function rueck() {
+    const v = verlauf.pop(); if (!v) return;
+    if (v.art === 'strich') striche.splice(striche.indexOf(v.s), 1);
+    else if (v.art === 'weg-strich') striche.push(v.s);
+    else if (v.art === 'pfeil') pfeile.splice(pfeile.indexOf(v.p), 1);
+    else if (v.art === 'weg-pfeil') pfeile.push(v.p);
+    else if (v.art === 'el') { v.eltern = v.el.parentElement; v.el.remove(); }
+    wieder.push(v); zeichnen();
+  }
+  function vor() {
+    const v = wieder.pop(); if (!v) return;
+    if (v.art === 'strich') striche.push(v.s);
+    else if (v.art === 'weg-strich') striche.splice(striche.indexOf(v.s), 1);
+    else if (v.art === 'pfeil') pfeile.push(v.p);
+    else if (v.art === 'weg-pfeil') pfeile.splice(pfeile.indexOf(v.p), 1);
+    else if (v.art === 'el') { if (v.eltern && v.eltern !== tafel) v.eltern.appendChild(v.el); else ablegen(v.el); }
+    verlauf.push(v); zeichnen();
   }
   leiste.addEventListener('click', e => {
     const b = e.target.closest('button');
     if (!b) return;
-    if (b.dataset.w) werkzeugSetzen(b.dataset.w);
-    else if (b.dataset.f) {
-      farbe = b.dataset.f;
-      leiste.querySelectorAll('[data-f]').forEach(x => x.classList.toggle('an', x === b));
-      werkzeugSetzen('stift');
-    } else if (b.dataset.aktion === 'zurueck') {
-      const v = verlauf.pop();
-      if (!v) return;
-      if (v.art === 'strich') { const i = striche.indexOf(v.s); if (i >= 0) striche.splice(i, 1); zeichnen(); }
-      else v.p.remove();
-    }
+    if (b.dataset.w) werkzeugSetzen(b.dataset.w, true);
+    else if (b.dataset.farbe) {
+      const f = b.closest('.flyout');
+      f.querySelectorAll('[data-farbe]').forEach(x => x.classList.toggle('an', x === b));
+      if (f.dataset.fuer === 'marker') markerFarbe = b.dataset.farbe; else stiftFarbe = b.dataset.farbe;
+    } else if (b.dataset.dicke) {
+      b.closest('.flyout').querySelectorAll('[data-dicke]').forEach(x => x.classList.toggle('an', x === b));
+      stiftDicke = +b.dataset.dicke;
+    } else if (b.dataset.sticker) {
+      leiste.querySelectorAll('[data-sticker]').forEach(x => x.classList.toggle('an', x === b));
+      stickerArt = b.dataset.sticker;
+      b.closest('.flyout').hidden = true;
+    } else if (b.dataset.aktion === 'zurueck') rueck();
+    else if (b.dataset.aktion === 'vor') vor();
   });
+  document.addEventListener('pointerdown', e => { if (!tafel.contains(e.target)) { tafelZuletzt = false; flyoutsZu(); } });
+  document.addEventListener('keydown', e => {
+    if (!tafelZuletzt || (e.target.isContentEditable) || e.target.closest('input, textarea, select')) return;
+    const k = e.key.toLowerCase();
+    if ((e.ctrlKey || e.metaKey) && k === 'z') { e.preventDefault(); e.shiftKey ? vor() : rueck(); return; }
+    if ((e.ctrlKey || e.metaKey) && k === 'y') { e.preventDefault(); vor(); return; }
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const w = { v: 'hand', p: 'stift', m: 'marker', a: 'pfeil', e: 'radierer', n: 'postit', f: 'rahmen', s: 'sticker' }[k];
+    if (w) { e.preventDefault(); werkzeugSetzen(w); }
+  });
+
+  // Beispielinhalt: Rahmen um die Skizze, Sticker an zwei Post-its, Pfeil von der Idee zum Rahmen
+  const idee = tafel.querySelector('.postit.gelb'), problem = tafel.querySelector('.postit.orange');
+  const skizze = rahmen(0.335, 0.33, 0.35, 0.245, 'Lüfter im Gehäuse');
+  sticker('idee', 0, 0, idee);
+  sticker('problem', 0, 0, problem);
+  sticker('frage', 0.336, 0.27);
+  pfeile.push({ f: 'blau', a: { el: idee, rx: 0.1, ry: 0.05 }, b: { el: skizze, rx: 0.72, ry: 1 } });
+  requestAnimationFrame(zeichnen);
 
   // Live-Beispiel: ein Schülerhandy schickt eine Frage auf die Tafel
   setTimeout(() => {
@@ -1371,7 +1968,7 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
     p.className = 'postit pink neu-live';
     p.style.cssText = 'left:16.5%;top:69%;--dreh:2deg';
     p.innerHTML = '<span class="art">Frage</span><span class="text" contenteditable="true" spellcheck="false">Reicht ein 12-V-Netzteil?</span><span class="fuss">vom Handy · gerade eben</span>';
-    tafel.insertBefore(p, leiste);
+    ablegen(p);
   }, 3500);
 })();
 </script>
@@ -1412,7 +2009,7 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
 
   let gew = finde('Gehäuse konstruieren'), sel = null, zieh = null, menueSeit = 0;
 
-  // Versionen: Stand zum Buchungsschluss und Basisplan (Beispieldaten), Schlüssel = Aufgabennummer
+  // Versionen: Stand zum Buchungsschluss und Basisplan (Beispieldaten), Schlüssel = Tätigkeitsnummer
   const kopie = st => Object.fromEntries(Object.entries(st).map(([n, x]) => [n, { ...x, b: new Set(x.b), s: { ...x.s } }]));
   const stand = () => Object.fromEntries(alle().map(a => [a.nr, { b: new Set(a.b), e: a.e, v: a.v, verworfen: a.verworfen, s: { ...a.s } }]));
   const nrVon = t => finde(t).nr;
@@ -1492,10 +2089,10 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
   function render() {
     const breite = 3 + KW.length;
     diffListe = vgl ? unterschiede(vgl) : [];
-    let h = '<thead><tr><th></th><th class="links">Aufgabe</th><th class="links">Verantw.</th>' +
+    let h = '<thead><tr><th></th><th class="links">Tätigkeit</th><th class="links">Verantw.</th>' +
       KW.map((w, k) => `<th class="${k === JETZT ? 'jetzt' : ''}" title="KW ${w}">${w}</th>`).join('') + '</tr></thead><tbody>';
     for (const p of phasen) {
-      h += `<tr class="phase"><td colspan="${breite}">${p.n}<button type="button" class="neu-auf" data-neu="${p.n}">+ Aufgabe</button></td></tr>`;
+      h += `<tr class="phase"><td colspan="${breite}">${p.n}<button type="button" class="neu-auf" data-neu="${p.n}">+ Tätigkeit</button></td></tr>`;
       for (const a of p.a) {
         const chip = a.v ? `<button type="button" class="vchip" data-v="${a.nr}" title="${name(a.v)}">${a.v}</button>`
           : braucht(a) ? `<button type="button" class="vchip fehlt" data-v="${a.nr}" title="Verantwortlich fehlt">?</button>`
@@ -1519,15 +2116,15 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
 
   function panelZeigen() {
     const a = gew;
-    if (!a) { panel.innerHTML = '<p class="leise">Aufgabe anklicken, um Details zu sehen.</p>'; return; }
+    if (!a) { panel.innerHTML = '<p class="leise">Tätigkeit anklicken, um Details zu sehen.</p>'; return; }
     const bs = [...a.b].sort((x, y) => x - y);
     const plan = bs.length ? `KW ${KW[bs[0]]} bis KW ${KW[bs[bs.length - 1]]}` : 'noch nicht geplant';
     const ende = a.e !== null ? `KW ${KW[a.e]}` + (a.eAlt !== null && a.eAlt !== a.e ? ` <span class="leise">(ursprünglich KW ${KW[a.eAlt]})</span>` : '') : 'kein Endtermin';
     panel.innerHTML = vglBlock() +
-      `<div><div class="etikett">Aufgabe ${a.nr}${a.verworfen ? ' · verworfen' : ''}</div><input class="titel" id="r-name" value="${esc(a.t)}" aria-label="Name der Aufgabe"${a.verworfen ? ' disabled' : ''}></div>` +
+      `<div><div class="etikett">Tätigkeit ${a.nr}${a.verworfen ? ' · verworfen' : ''}</div><input class="titel" id="r-name" value="${esc(a.t)}" aria-label="Name der Tätigkeit"${a.verworfen ? ' disabled' : ''}></div>` +
       `<div><div class="etikett">Verantwortlich · genau einer</div><div class="v-wahl${braucht(a) ? ' pflicht' : ''}">` +
       TEAM.map(t => `<button type="button" data-pv="${t.k}" class="${a.v === t.k ? 'an' : ''}" aria-pressed="${a.v === t.k}"${a.verworfen ? ' disabled' : ''}>${t.n}</button>`).join('') + '</div>' +
-      (braucht(a) ? '<div class="r-hinweis" style="margin-top:4px">Pflicht, weil die Aufgabe geplant ist</div>' : '') + '</div>' +
+      (braucht(a) ? '<div class="r-hinweis" style="margin-top:4px">Pflicht, weil die Tätigkeit geplant ist</div>' : '') + '</div>' +
       `<div><div class="etikett">Plan</div>${plan}<br>Ende: ${ende}</div>` +
       (a.probleme.length ? `<div><div class="etikett">Probleme</div>` + a.probleme.map(p =>
         `<div><span class="dot ${p.f}" style="vertical-align:-3px"></span> KW ${KW[p.kw]}: ${esc(p.p)}<br><span class="leise">→ ${esc(p.m)} (${p.v})</span></div>`).join('') + '</div>' : '') +
@@ -1547,7 +2144,7 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
     const bb = koerper.getBoundingClientRect(), kb = knopf.getBoundingClientRect();
     menue.style.left = (kb.left - bb.left) + 'px';
     menue.style.top = (kb.bottom - bb.top + 4) + 'px';
-    menue.innerHTML = '<div class="etikett">Verantwortlich · genau einer</div>' + (braucht(a) ? '<div class="pflicht-t">Pflicht, weil die Aufgabe geplant ist</div>' : '') +
+    menue.innerHTML = '<div class="etikett">Verantwortlich · genau einer</div>' + (braucht(a) ? '<div class="pflicht-t">Pflicht, weil die Tätigkeit geplant ist</div>' : '') +
       TEAM.map(t => `<button type="button" data-mv="${t.k}" class="${a.v === t.k ? 'an' : ''}"><span class="vchip">${t.k}</span>${t.n}</button>`).join('');
     menue.dataset.a = a.nr;
     menue.hidden = false;
@@ -1566,7 +2163,7 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
   }
 
   function setzen(a, k, taste) {
-    if (a.verworfen) return sag('Verworfene Aufgaben sind gesperrt.');
+    if (a.verworfen) return sag('Verworfene Tätigkeiten sind gesperrt.');
     if (FREI.has(k) && taste !== 'Delete') return sag('KW ' + KW[k] + ' ist keine Projektwoche.');
     const kw = 'KW ' + KW[k];
     if (taste === 'b') {
@@ -1634,7 +2231,7 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
     if (!zieh) return;
     const z = zieh; zieh = null;
     if (z.von === z.bis) { render(); return; }
-    if (z.a.verworfen) { render(); return sag('Verworfene Aufgaben sind gesperrt.'); }
+    if (z.a.verworfen) { render(); return sag('Verworfene Tätigkeiten sind gesperrt.'); }
     const l = Math.min(z.von, z.bis), h = Math.max(z.von, z.bis), ks = [];
     for (let k = l; k <= h; k++) if (!FREI.has(k)) { z.a.b.add(k); ks.push(k); }
     if (!ks.length) { render(); return; }
@@ -1650,7 +2247,7 @@ ol.offen .vorschlag b { color:var(--blau); font-weight:600; }
     const neu = e.target.closest('[data-neu]');
     if (neu) {
       const p = phasen.find(x => x.n === neu.dataset.neu);
-      const a = auf('Neue Aufgabe', null, [], null);
+      const a = auf('Neue Tätigkeit', null, [], null);
       a.log.push([jetzt(), 'Angelegt']);
       p.a.push(a); gew = a; sel = null; render();
       const feld = document.getElementById('r-name'); feld.focus(); feld.select();

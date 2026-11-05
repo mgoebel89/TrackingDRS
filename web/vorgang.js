@@ -44,7 +44,7 @@ const Vorgang = (() => {
         el('b', { text: v.titel }),
         v.art === 'ausleihe' ? el('div', { class: 'leise', text: v.menge + ' · ' + datum(v.von) + ' bis ' + datum(v.bis) }) : null,
         v.text ? el('div', { class: 'vortext', text: v.text }) : null,
-        v.aufgabe ? el('div', { class: 'leise klein-text', text: 'Aufgabe: ' + v.aufgabe }) : null,
+        v.aufgabe ? el('div', { class: 'leise klein-text', text: 'Tätigkeit: ' + v.aufgabe }) : null,
         v.bild ? el('img', { class: 'vg-bild', src: bildBasis + '/bild/' + v.bild, alt: 'Foto', onclick: () => gross(bildBasis + '/bild/' + v.bild) }) : null));
     return el('div', { class: 'vg-verlauf' }, eroeffnung, v.verlauf.map(n => n.art === 'ereignis'
       ? el('div', { class: 'vg-ereignis' }, el('span', { text: ereignisText(n) }), el('span', { class: 'leise', text: ' · ' + wann(n.zeit) }))

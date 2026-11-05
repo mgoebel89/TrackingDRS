@@ -615,7 +615,7 @@ def warnungen(con, pid):
         offen = [a for a in aufgaben if not a["erledigt"] and (a["id"], aw) in zellen and zellen[(a["id"], aw)]["plan"]
                  and not zellen[(a["id"], aw)]["ampel"]]
         if offen:
-            n = "%d Aufgabe%s" % (len(offen), "" if len(offen) == 1 else "n")
+            n = "%d Tätigkeit%s" % (len(offen), "" if len(offen) == 1 else "en")
             if vorbei:
                 liste.append({"art": "nicht_aktualisiert", "stufe": "warnung", "woche": aw,
                               "text": "%s ohne Ampel für %s zum Buchungsschluss." % (n, kw_text(aw))})
@@ -644,7 +644,7 @@ def warnungen(con, pid):
         k[0] == a["id"] and z["plan"] for k, z in zellen.items()))]
     if ohne:
         liste.append({"art": "verantwortlich_fehlt", "stufe": "hinweis",
-                      "text": "%d geplante Aufgabe%s ohne Verantwortlichen." % (len(ohne), "" if len(ohne) == 1 else "n")})
+                      "text": "%d geplante Tätigkeit%s ohne Verantwortlichen." % (len(ohne), "" if len(ohne) == 1 else "en")})
     return liste
 
 

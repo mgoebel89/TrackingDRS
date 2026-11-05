@@ -103,7 +103,7 @@ class Besprechung(unittest.TestCase):
         self.sh(aktion="meilenstein_neu", woche="2026-11-23", titel="Konstruktion fertig")
         z = besprechung.zusammenfassung(self.con, self.pid, "2026-11-02")
         texte = [a["text"] for a in z["aenderungen"]]
-        self.assertIn("Neue Aufgabe „Lüfter auslegen“", texte)
+        self.assertIn("Neue Tätigkeit „Lüfter auslegen“", texte)
         self.assertIn("„Lüfter auslegen“: Ende keins → KW 47", texte)   # zusammengefasst: erster alter, letzter neuer Wert
         self.assertIn("„Lüfter auslegen“: KW 45 rot – Lüfter nicht lieferbar", texte)
         self.assertEqual(z["ampel"], {"woche": "2026-11-02", "ampel": "r"})

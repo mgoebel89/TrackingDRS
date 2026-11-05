@@ -81,7 +81,7 @@ def foto_neu(con, pid, daten_dir, wer_art, wer, d):
     titel = _text(d.get("titel"), 200)
     aufgabe_id = d.get("aufgabe_id") or None
     if aufgabe_id is not None and not con.execute("SELECT 1 FROM aufgabe WHERE id = ? AND projekt_id = ?", (aufgabe_id, pid)).fetchone():
-        raise ProjektFehler("Diese Aufgabe gibt es nicht.")
+        raise ProjektFehler("Diese Tätigkeit gibt es nicht.")
     name, typ = speichern(daten_dir, d.get("bild"))
     with db.transaktion(con):
         fid = con.execute("INSERT INTO datei (projekt_id, art, name, typ, titel, aufgabe_id, erstellt, wer_art, wer) "
@@ -153,7 +153,7 @@ def notiz_aendern(con, pid, wer, nid, d):
 # --- Vorlagen ---
 
 def vorlage_speichern(con, pid, name, mit_team=False):
-    """Phasen und Aufgaben eines Projekts als eigene Vorlage (nur Vorgaben, auf Wunsch auch die Aufgaben des Teams)."""
+    """Phasen und Tätigkeiten eines Projekts als eigene Vorlage (nur Vorgaben, auf Wunsch auch die Tätigkeiten des Teams)."""
     name = _text(name, 80, "einen Namen", pflicht=True)
     phasen = []
     for ph in con.execute("SELECT * FROM phase WHERE projekt_id = ? ORDER BY pos", (pid,)).fetchall():

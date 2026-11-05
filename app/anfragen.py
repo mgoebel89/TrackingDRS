@@ -53,7 +53,7 @@ def _aufgabe(con, pid, aid):
     except (TypeError, ValueError):
         a = None
     if a is None:
-        raise ProjektFehler("Diese Aufgabe gibt es nicht.")
+        raise ProjektFehler("Diese Tätigkeit gibt es nicht.")
     return a["id"]
 
 

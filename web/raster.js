@@ -3,7 +3,7 @@
 //
 // Ebenen je Zelle: Plan (b = geplante Woche, als blauer Balken), Endtermin (e, Marke) und Ampel (g/y/r faerbt den
 // Balken der Woche). Eingabe: Zelle anklicken und Taste druecken (wie in Excel), ueber Wochen ziehen plant b.
-// Wochen ohne Projekttag sind schraffiert (sobald fuer das Projekt eine Projektzeit gilt); erledigte Aufgaben tragen ein ✓.
+// Wochen ohne Projekttag sind schraffiert (sobald fuer das Projekt eine Projektzeit gilt); erledigte Tätigkeiten tragen ein ✓.
 'use strict';
 
 const Raster = (() => {
@@ -156,13 +156,13 @@ const Raster = (() => {
       const W = wochen();
       const breite = 3 + W.length;
       let nr = 0;
-      const kopf = el('tr', {}, el('th', {}), el('th', { class: 'links', text: 'Aufgabe' }), el('th', { class: 'links', text: 'Verantw.' }),
+      const kopf = el('tr', {}, el('th', {}), el('th', { class: 'links', text: 'Tätigkeit' }), el('th', { class: 'links', text: 'Verantw.' }),
         W.map(w => el('th', { class: (w === S.sheet.jetzt ? 'jetzt' : '') + (frei(w) ? (ausfall(w) ? ' frei ausfall' : ' frei') : ''),
           title: T.tagText(w) + (ausfall(w) ? ' · ' + ausfall(w) : frei(w) ? ' · kein Projekttag' : ''), text: String(T.kw(T.datum(w))) })));
       const zeilen = [];
       for (const ph of S.sheet.phasen) {
         zeilen.push(el('tr', { class: 'phase' }, el('td', { colspan: String(breite) }, ph.name,
-          nurLesen() ? null : el('button', { type: 'button', class: 'neu-auf', onclick: () => aufgabeNeu(ph) }, '+ Aufgabe'))));
+          nurLesen() ? null : el('button', { type: 'button', class: 'neu-auf', onclick: () => aufgabeNeu(ph) }, '+ Tätigkeit'))));
         for (const a of ph.aufgaben) {
           nr += 1;
           const klassen = [a.verworfen ? 'verworfen' : '', a.erledigt ? 'erledigt' : '', a.id === S.gew ? 'gewaehlt' : ''].join(' ').trim();
@@ -212,30 +212,30 @@ const Raster = (() => {
       }
       const a = S.gew ? aufgabe(S.gew) : null;
       if (!a) {
-        teile.push(el('p', { class: 'leise', text: nurLesen() ? 'Aufgabe oder Zelle anklicken, um Details und Verlauf zu sehen.'
-          : 'Aufgabe oder Zelle anklicken, um Details zu sehen. Tasten: b, e, g, y, r, Entf, Pfeile.' }));
+        teile.push(el('p', { class: 'leise', text: nurLesen() ? 'Tätigkeit oder Zelle anklicken, um Details und Verlauf zu sehen.'
+          : 'Tätigkeit oder Zelle anklicken, um Details zu sehen. Tasten: b, e, g, y, r, Entf, Pfeile.' }));
         return teile;
       }
       const darfTitel = !nurLesen() && !a.verworfen && !a.aus_vorlage;
-      const titel = el('input', { class: 'titel', value: a.titel, maxlength: '120', 'aria-label': 'Name der Aufgabe', readonly: !darfTitel });
+      const titel = el('input', { class: 'titel', value: a.titel, maxlength: '120', 'aria-label': 'Name der Tätigkeit', readonly: !darfTitel });
       titel.addEventListener('change', () => { if (titel.value.trim() && titel.value !== a.titel) senden('titel', { aufgabe_id: a.id, titel: titel.value }); });
       titel.addEventListener('keydown', ev => { if (ev.key === 'Enter') titel.blur(); });
       const plan = a.plan.length ? T.kwText(a.plan[0]) + ' bis ' + T.kwText(a.plan[a.plan.length - 1]) : 'noch nicht geplant';
       const ende = a.ende ? T.kwText(a.ende) + (a.ende_ursprung && a.ende_ursprung !== a.ende ? ' (ursprünglich ' + T.kwText(a.ende_ursprung) + ')' : '') : 'kein Endtermin';
-      teile.push(el('div', {}, el('div', { class: 'etikett', text: a.verworfen ? 'Aufgabe · verworfen' : a.aus_vorlage ? 'Vorgabe der Lehrkraft' : 'Aufgabe' }), titel));
+      teile.push(el('div', {}, el('div', { class: 'etikett', text: a.verworfen ? 'Tätigkeit · verworfen' : a.aus_vorlage ? 'Vorgabe der Lehrkraft' : 'Tätigkeit' }), titel));
       teile.push(el('div', {}, el('div', { class: 'etikett', text: 'Verantwortlich · genau einer' }),
         el('div', { class: 'v-wahl' + (braucht(a) ? ' pflicht' : '') },
           S.sheet.mitglieder.filter(m => m.aktiv || m.id === a.verantwortlich_id).map(m => el('button', {
             type: 'button', class: a.verantwortlich_id === m.id ? 'an' : '', 'aria-pressed': String(a.verantwortlich_id === m.id),
             disabled: a.verworfen || nurLesen(), onclick: () => verantwortlichSetzen(a, m.id) }, m.vorname + ' ' + m.nachname))),
-        braucht(a) ? el('div', { class: 'r-hinweis', text: 'Pflicht, weil die Aufgabe geplant ist' }) : null,
+        braucht(a) ? el('div', { class: 'r-hinweis', text: 'Pflicht, weil die Tätigkeit geplant ist' }) : null,
         S.sheet.mitglieder.length ? null : el('div', { class: 'leise', text: 'Noch keine Teammitglieder eingetragen.' })));
       teile.push(el('div', {}, el('div', { class: 'etikett', text: 'Plan' }), plan, el('br'), 'Ende: ' + ende));
       if (!a.verworfen && !nurLesen()) {
         teile.push(el('div', {}, el('div', { class: 'etikett', text: 'Erledigt' }),
           el('label', { class: 'haken' }, el('input', { type: 'checkbox', checked: !!a.erledigt,
             onchange: ev => senden('erledigt', { aufgabe_id: a.id, erledigt: ev.target.checked }) }),
-          a.erledigt ? 'erledigt ' + T.zeitText(a.erledigt) : 'Aufgabe ist erledigt')));
+          a.erledigt ? 'erledigt ' + T.zeitText(a.erledigt) : 'Tätigkeit ist erledigt')));
       } else if (a.erledigt) {
         teile.push(el('div', { class: 'leise', text: '✓ erledigt ' + T.zeitText(a.erledigt) }));
       }
@@ -288,7 +288,7 @@ const Raster = (() => {
       if (!S.sel) { T.meldung('Erst eine Zelle im Raster anklicken.', true); return; }
       const a = aufgabe(S.sel.a), w = wochen()[S.sel.k];
       if (!a) return;
-      if (a.verworfen) { T.meldung('Diese Aufgabe ist verworfen.', true); return; }
+      if (a.verworfen) { T.meldung('Diese Tätigkeit ist verworfen.', true); return; }
       let ok = null;
       if (taste === 'b') ok = await senden('plan', { aufgabe_id: a.id, wochen: [w], wert: !a.plan.includes(w) });
       else if (taste === 'e') ok = a.ende === w ? {} : await senden('ende', { aufgabe_id: a.id, woche: w });
@@ -334,8 +334,8 @@ const Raster = (() => {
     async function aufgabeNeu(ph) {
       const titel = el('input', { required: true, maxlength: '120', placeholder: 'z. B. Lüfter auslegen' });
       const aid = await T.dialog({
-        titel: 'Neue Aufgabe · ' + ph.name, knopf: 'Anlegen',
-        inhalt: el('div', { class: 'felder' }, T.feld('Name der Aufgabe', titel)),
+        titel: 'Neue Tätigkeit · ' + ph.name, knopf: 'Anlegen',
+        inhalt: el('div', { class: 'felder' }, T.feld('Name der Tätigkeit', titel)),
         speichern: async () => {
           const antwort = await T.api('POST', basis + '/sheet', { aktion: 'aufgabe_neu', phase_id: ph.id, titel: titel.value });
           S.sheet = antwort.sheet; S.verlauf = {};
@@ -418,7 +418,7 @@ const Raster = (() => {
       const aktive = S.sheet.mitglieder.filter(m => m.aktiv);
       const menue = el('div', { class: 'r-menue', role: 'menu' },
         el('div', { class: 'etikett', text: 'Verantwortlich · genau einer' }),
-        braucht(a) ? el('div', { class: 'pflicht-t', text: 'Pflicht, weil die Aufgabe geplant ist' }) : null,
+        braucht(a) ? el('div', { class: 'pflicht-t', text: 'Pflicht, weil die Tätigkeit geplant ist' }) : null,
         aktive.length ? aktive.map(m => el('button', { type: 'button', role: 'menuitem', class: a.verantwortlich_id === m.id ? 'an' : '',
           onclick: () => verantwortlichSetzen(a, m.id) }, el('span', { class: 'vchip', text: m.kuerzel }), m.vorname + ' ' + m.nachname))
           : el('div', { class: 'leise', text: 'Noch keine Teammitglieder eingetragen.' }));
@@ -522,7 +522,7 @@ const Raster = (() => {
       const laufend = alleAufgaben().filter(a => !a.verworfen && (a.plan.includes(w) || a.ende === w || a.ampel[w]));
       const offen = laufend.filter(a => !a.ampel[w] && !a.erledigt).length;
       return el('div', { class: 'stapel' },
-        el('div', { class: 'banner' }, T.kwText(w) + ': ' + (laufend.length ? (offen ? offen + ' von ' + laufend.length + ' Aufgaben brauchen noch eine Ampel.' : 'Alle Ampeln gesetzt.') : 'Für diese Woche ist nichts geplant.')),
+        el('div', { class: 'banner' }, T.kwText(w) + ': ' + (laufend.length ? (offen ? offen + ' von ' + laufend.length + ' Tätigkeiten brauchen noch eine Ampel.' : 'Alle Ampeln gesetzt.') : 'Für diese Woche ist nichts geplant.')),
         laufend.length ? el('div', { class: 'hz' }, laufend.map(a => el('div', { class: 'hz-z' + (a.ampel[w] || a.erledigt ? '' : ' offen') },
           el('div', {}, el('b', { text: (a.erledigt ? '✓ ' : '') + a.titel }), el('span', { class: 'leise', text:
             (a.verantwortlich_id ? kuerzel(a.verantwortlich_id) : 'ohne Verantwortlichen') + (a.ende ? ' · Ende ' + T.kwText(a.ende) : '') +
@@ -532,7 +532,7 @@ const Raster = (() => {
             onclick: () => f === 'g' ? ampelSetzen(a, w, 'g') : problemDialog(a, w, f) }, f)),
           el('button', { type: 'button', class: 'erl' + (a.erledigt ? ' an' : ''), 'aria-label': 'erledigt', title: a.erledigt ? 'doch nicht erledigt' : 'erledigt',
             'aria-pressed': String(!!a.erledigt), disabled: nurLesen(), onclick: () => senden('erledigt', { aufgabe_id: a.id, erledigt: !a.erledigt }) }, '✓'))))) : null,
-        el('p', { class: 'leise', text: 'Planen und Aufgaben anlegen geht im Reiter „Tracking-Sheet“, am besten am PC oder Tablet.' }));
+        el('p', { class: 'leise', text: 'Planen und Tätigkeiten anlegen geht im Reiter „Tracking-Sheet“, am besten am PC oder Tablet.' }));
     }
 
     // --- Nachladen, damit mehrere Geraete denselben Stand sehen ---

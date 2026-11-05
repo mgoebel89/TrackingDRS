@@ -69,7 +69,7 @@ def _mitglied_pruefen(m):
 
 def anlegen(con, wer, titel, klasse, start, ende, lehrkraefte, mitglieder, vorlage="standard", schuljahr=None,
             beschreibung=""):
-    """Legt ein Projekt mit Phasen und Vorgabe-Aufgaben aus der Vorlage an. wer: Kuerzel der Lehrkraft."""
+    """Legt ein Projekt mit Phasen und Vorgabe-Tätigkeiten aus der Vorlage an. wer: Kuerzel der Lehrkraft."""
     titel = _text(titel, "einen Projekttitel", laenge=80)
     klasse = _text(klasse, "eine Klasse", laenge=30)
     beschreibung = _text(beschreibung, "eine Beschreibung", pflicht=False, laenge=2000)

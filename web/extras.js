@@ -33,7 +33,7 @@ const Extras = (() => {
   function fotoForm(aufgaben, senden) {
     const datei = el('input', { type: 'file', accept: 'image/*', capture: 'environment', hidden: true });
     const titel = el('input', { maxlength: '200', placeholder: 'Was ist zu sehen? z. B. Gehäuse, 1. Druck', 'aria-label': 'Beschreibung' });
-    const aufgabe = el('select', { class: 'klein', 'aria-label': 'Aufgabe' }, el('option', { value: '', text: 'ohne Aufgabe' }),
+    const aufgabe = el('select', { class: 'klein', 'aria-label': 'Tätigkeit' }, el('option', { value: '', text: 'ohne Tätigkeit' }),
       (aufgaben || []).map(a => el('option', { value: String(a.id), text: a.titel })));
     datei.addEventListener('change', async () => {
       if (!datei.files.length) return;

@@ -289,7 +289,7 @@ async function vorlageSpeichern(p) {
   const ok = await T.dialog({
     titel: 'Als Vorlage speichern', knopf: 'Speichern',
     inhalt: el('div', { class: 'felder' }, T.feld('Name der Vorlage', name),
-      el('label', { class: 'haken' }, mitTeam, 'auch die Aufgaben des Teams übernehmen (sonst nur Phasen und Vorgaben)'),
+      el('label', { class: 'haken' }, mitTeam, 'auch die Tätigkeiten des Teams übernehmen (sonst nur Phasen und Vorgaben)'),
       el('p', { class: 'leise', text: 'Die Vorlage steht danach beim Anlegen neuer Projekte zur Auswahl.' })),
     speichern: () => T.api('POST', '/api/projekte/' + p.id + '/vorlage', { name: name.value, mit_team: mitTeam.checked }),
   });

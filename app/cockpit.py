@@ -22,7 +22,7 @@ VERLAUF_WOCHEN = 10
 
 
 def gesamt_je_woche(con, pid):
-    """Gesamtstatus je Woche wie im Sheet: die schlechteste Ampel aller nicht verworfenen Aufgaben."""
+    """Gesamtstatus je Woche wie im Sheet: die schlechteste Ampel aller nicht verworfenen Tätigkeiten."""
     gesamt = {}
     for z in con.execute("SELECT z.woche, z.ampel FROM zelle z JOIN aufgabe a ON a.id = z.aufgabe_id "
                          "WHERE a.projekt_id = ? AND a.verworfen = 0 AND z.ampel IS NOT NULL", (pid,)):
@@ -135,7 +135,7 @@ BEREICHE = {
                  "position_gestrichen", "position_zurueck", "liste_eingereicht", "position_entschieden", "position_status"),
 }
 STANDARD_BEREICHE = ("raster", "anfragen")
-ZUSAMMEN = datetime.timedelta(minutes=15)   # gleiche Aenderung an derselben Aufgabe innerhalb dieser Zeit: eine Zeile
+ZUSAMMEN = datetime.timedelta(minutes=15)   # gleiche Aenderung an derselben Tätigkeit innerhalb dieser Zeit: eine Zeile
 RANG_HINWEIS = {"ampel_r": 0, "nachricht": 1, "anfrage": 2, "ampel_y": 3, "verschoben": 4, "liste": 5, "entfallen": 6, "meilenstein": 7}
 
 
@@ -169,8 +169,8 @@ def aktivitaeten_seit(con, konto, zeitraum):
 
 
 def _verdichten(ereignisse):
-    """Serien zusammenfassen: Planaenderungen derselben Aufgabe (gleiche Richtung), Endtermin- und Ampel-Aenderungen
-    derselben Aufgabe kurz hintereinander werden eine Zeile. Erwartet aelteste zuerst."""
+    """Serien zusammenfassen: Planaenderungen derselben Tätigkeit (gleiche Richtung), Endtermin- und Ampel-Aenderungen
+    derselben Tätigkeit kurz hintereinander werden eine Zeile. Erwartet aelteste zuerst."""
     liste = []
     for e in ereignisse:
         d = e["daten"]

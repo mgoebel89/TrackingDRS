@@ -135,7 +135,7 @@ def sheet_xlsx(con, pid):
          ["Klasse %s · %s bis %s · Team: %s · Stand %s" % (p["klasse"], "KW %d/%s" % (_kw(W[0]), W[0][:4]), "KW %d/%s" % (_kw(W[-1]), W[-1][:4]),
                                                          team or "–", datetime.datetime.now().strftime("%d.%m.%Y %H:%M"))],
          [],
-         [("Nr", KOPF), ("Aufgabe", KOPF), ("Verantw.", KOPF), ("Erledigt", KOPF)] + [(_kw(w), KOPF) for w in W]]
+         [("Nr", KOPF), ("Tätigkeit", KOPF), ("Verantw.", KOPF), ("Erledigt", KOPF)] + [(_kw(w), KOPF) for w in W]]
     nr = 0
     gesamt = {}
     for ph in d["phasen"]:
@@ -167,7 +167,7 @@ def sheet_xlsx(con, pid):
     tracking = _blatt(z, [5, 42, 9, 9] + [4.2] * len(W), fixiert=(4, 4))
 
     titel = {a["id"]: a["titel"] for ph in d["phasen"] for a in ph["aufgaben"]}
-    probleme = [[("KW", KOPF), ("Aufgabe", KOPF), ("Ampel", KOPF), ("Problem", KOPF), ("Korrekturmaßnahme", KOPF), ("Verantw.", KOPF),
+    probleme = [[("KW", KOPF), ("Tätigkeit", KOPF), ("Ampel", KOPF), ("Problem", KOPF), ("Korrekturmaßnahme", KOPF), ("Verantw.", KOPF),
                  ("Eingetragen", KOPF)]]
     for pr in con.execute("SELECT pr.* FROM problem pr JOIN aufgabe a ON a.id = pr.aufgabe_id WHERE a.projekt_id = ? ORDER BY pr.woche, pr.id", (pid,)):
         probleme.append([_kw(pr["woche"]), (titel.get(pr["aufgabe_id"], ""), UMBRUCH), (pr["ampel"], farbe[pr["ampel"]]), (pr["problem"], UMBRUCH),

@@ -90,7 +90,7 @@ def _seit(con, pid, woche):
 # --- Kurzzusammenfassung ---
 
 def _aenderungen(con, pid, seit):
-    """Was sich seit der letzten Besprechung am Tracking-Sheet getan hat, zusammengefasst je Aufgabe."""
+    """Was sich seit der letzten Besprechung am Tracking-Sheet getan hat, zusammengefasst je Tätigkeit."""
     ende, ampel, liste = {}, {}, []
     planaenderungen = 0
     for e in con.execute("SELECT * FROM ereignis WHERE projekt_id = ? AND zeit > ? AND art IN (%s) ORDER BY id"
@@ -98,7 +98,7 @@ def _aenderungen(con, pid, seit):
         d = json.loads(e["daten"])
         art = e["art"]
         if art == "aufgabe_neu":
-            liste.append({"art": "neu", "text": "Neue Aufgabe „%s“" % d["titel"]})
+            liste.append({"art": "neu", "text": "Neue Tätigkeit „%s“" % d["titel"]})
         elif art == "ende":
             alt = ende.get(d["aufgabe_id"], {"alt": d.get("alt")})["alt"]
             ende[d["aufgabe_id"]] = {"alt": alt, "neu": d.get("woche"), "titel": d["titel"]}
@@ -160,7 +160,7 @@ def _basisplan(con, pid):
     if frueher:
         teile.append("%d Endtermin%s früher" % (frueher, "" if frueher == 1 else "e"))
     if neu:
-        teile.append("%d Aufgabe%s neu" % (neu, "" if neu == 1 else "n"))
+        teile.append("%d Tätigkeit%s neu" % (neu, "" if neu == 1 else "en"))
     if weg:
         teile.append("%d verworfen" % weg)
     return ", ".join(teile) if teile else "wie im Basisplan"
@@ -306,7 +306,7 @@ def aendern(con, pid, wer_art, wer, d):
             b = _anlegen(con, pid, woche)
             con.execute("UPDATE besprechung SET vorbereitung = ?, vorbereitet = ? WHERE id = ?", (text, jetzt, b["id"]))
             ereignis("vorbereitung", woche=woche)
-        elif aktion == "notizen":   # nur Lehrkraefte, kein Ereignis: das Team sieht den Verlauf seiner Aufgaben
+        elif aktion == "notizen":   # nur Lehrkraefte, kein Ereignis: das Team sieht den Verlauf seiner Tätigkeiten
             if not lehrkraft:
                 raise ProjektFehler("Lehrernotizen schreibt nur die Lehrkraft.")
             b = _anlegen(con, pid, woche)

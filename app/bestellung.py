@@ -190,7 +190,7 @@ def _felder(con, pid, d, alt=None):
     if "aufgabe_id" in d or alt is None:
         aid = d.get("aufgabe_id") or None
         if aid is not None and not con.execute("SELECT 1 FROM aufgabe WHERE id = ? AND projekt_id = ?", (aid, pid)).fetchone():
-            raise ProjektFehler("Diese Aufgabe gibt es nicht.")
+            raise ProjektFehler("Diese Tätigkeit gibt es nicht.")
         w["aufgabe_id"] = aid
     return w
 
