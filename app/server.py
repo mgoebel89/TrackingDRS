@@ -716,8 +716,13 @@ def api_anfragen(h, con, daten):
 def api_vorgaenge(h, con, daten):
     k = h.konto(con)
     projekt = _abfrage(h, "projekt")
-    h.antwort(200, {"vorgaenge": anfragen.vorgaenge_lehrkraft(con, k, _abfrage(h, "filter", "aktiv"),
-                                                             _ganzzahl(projekt) if projekt else None, _abfrage(h, "art")),
+    projekt = _ganzzahl(projekt) if projekt else None
+    staende = _abfrage(h, "staende")
+    if staende is not None:   # Eingang ab 0.10.2: Knoepfe je Stand, "nur meine", Zahlen und Betreuer
+        e = anfragen.eingang(con, k, projekt, _abfrage(h, "art"), [s for s in staende.split(",") if s], _abfrage(h, "meine") == "1")
+        h.antwort(200, dict(e, zaehler=anfragen.zaehler(con, k)))
+        return
+    h.antwort(200, {"vorgaenge": anfragen.vorgaenge_lehrkraft(con, k, _abfrage(h, "filter", "aktiv"), projekt, _abfrage(h, "art")),
                     "zaehler": anfragen.zaehler(con, k)})
 
 

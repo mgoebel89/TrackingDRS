@@ -102,6 +102,17 @@ const T = {
     anfr: 'M3.5 6h17v12h-17zM3.5 7l8.5 6.5L20.5 7',
     fotos: 'M3.5 8h4l1.8-2.5h5.4L16.5 8h4v11h-17zM12 10.5a3.25 3.25 0 1 0 0 6.5a3.25 3.25 0 1 0 0-6.5',
     projekt: 'M3.5 6h6l2 2.5h9v10.5h-17z',
+    // Anfragen (Lucide-Formen, ISC-Lizenz)
+    eingang: 'M22 12h-6l-2 3h-4l-2-3H2M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z',
+    wagen: 'M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12M8 20a1 1 0 1 0 0 2a1 1 0 1 0 0-2M19 20a1 1 0 1 0 0 2a1 1 0 1 0 0-2',
+    glocke: 'M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0',
+    glocke_aus: 'M8.7 3A6 6 0 0 1 18 8a21.3 21.3 0 0 0 .6 5M17 17H3s3-2 3-9a4.67 4.67 0 0 1 .3-1.7M10.3 21a1.94 1.94 0 0 0 3.4 0M2 2l20 20',
+    person: 'M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2M12 3a4 4 0 1 0 0 8a4 4 0 1 0 0-8',
+    frage: 'M12 2a10 10 0 1 0 0 20a10 10 0 1 0 0-20M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01',
+    liste: 'M3 17l2 2 4-4M3 7l2 2 4-4M13 6h8M13 12h8M13 18h8',
+    material: 'M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73zM12 22V12M3.3 7l8.7 5 8.7-5',
+    abnahme: 'M12 2a10 10 0 1 0 0 20a10 10 0 1 0 0-20M9 12l2 2 4-4',
+    kalender: 'M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM16 2v4M8 2v4M3 10h18',
   },
   // Reiterleiste (Team-Ansicht und Projektseite der Lehrkraft): klebt unter der Kopfzeile, am Handy feste Leiste unten.
   // eintraege: [{schluessel, ziel, lang, kurz, symbol, zahl}], zahl = Platz fuer einen roten Zaehler
@@ -272,6 +283,10 @@ const T = {
       position_entschieden: () => '„' + d.artikel + '“: ' + ({ bestellen: 'wird bestellt', lager: 'aus dem SchulLager', firma: 'über die Firma',
         ersetzen: d.ersatz ? 'ersetzt durch ' + d.ersatz : 'Ersatz gesucht', ablehnen: 'abgelehnt' })[d.entscheidung] + (d.kommentar ? ' – ' + d.kommentar : ''),
       position_status: () => '„' + d.artikel + '“: ' + (d.status || 'Status zurückgesetzt'),
+      firma_zugesagt: () => '„' + d.artikel + '“: ' + d.name + ' besorgt es über die Firma',
+      firma_nein: () => '„' + d.artikel + '“: über die Firma nicht möglich',
+      firma_besorgt: () => '„' + d.artikel + '“: über die Firma besorgt und mitgebracht',
+      firma_nicht_besorgt: () => '„' + d.artikel + '“: Haken „besorgt“ zurückgenommen',
       foto_neu: () => 'Foto' + (d.titel ? ': „' + d.titel + '“' : ' hochgeladen'),
       foto_verworfen: () => 'Foto entfernt' + (d.titel ? ': „' + d.titel + '“' : ''),
       mindmap: () => 'Mindmap hochgeladen: ' + d.titel,

@@ -9,7 +9,9 @@ const Anfragen = (() => {
   const ARTEN = { rueckfrage: 'Rückfrage', ausleihe: 'Ausleihe', abnahme: 'Abnahme' };
   const STATUS = { neu: 'neu', beantwortet: 'beantwortet', bereitgelegt: 'bereitgelegt', ausgegeben: 'ausgegeben', zurueck: 'zurück',
     abgelehnt: 'abgelehnt', freigegeben: 'freigegeben', nachbessern: 'nachbessern', zurueckgezogen: 'zurückgezogen' };
-  const WEGE = [['bestellen', 'Bestellen'], ['lager', 'SchulLager'], ['firma', 'Firma'], ['ersetzen', 'Ersetzen'], ['ablehnen', 'Ablehnen']];
+  const WEGE = [['bestellen', 'Bestellen'], ['lager', 'aus SchulLager'], ['firma', 'über Firma'], ['ersetzen', 'Ersetzen …'], ['ablehnen', 'Ablehnen …']];
+  const BESTELLSTATUS = [['', 'wird bestellt'], ['bestellt', 'bestellt'], ['geliefert', 'geliefert'], ['ausgegeben', 'ausgegeben']];
+  const FIRMA = { gefragt: 'Team gefragt', zugesagt: 'zugesagt', besorgt: 'besorgt', nein: 'über Firma nicht möglich' };
 
   const datum = text => text ? text.slice(8, 10) + '.' + text.slice(5, 7) + '.' : '';
   const stichtag = text => T.kurzTag(text) + ', ' + text.slice(11, 16);
@@ -17,7 +19,9 @@ const Anfragen = (() => {
 
   function posStatus(p, eingereicht) {
     if (!eingereicht) return '';
-    if (!p.entscheidung) return 'in Prüfung';
+    if (!p.entscheidung) return p.firma_stand === 'nein' ? 'in Prüfung (über die Firma nicht möglich)' : 'in Prüfung';
+    if (p.weg === 'firma') return { gefragt: 'über die Firma? Bitte antworten', zugesagt: 'über die Firma · ' + (p.firma_wer || ''),
+      besorgt: 'über die Firma besorgt · ' + (p.firma_wer || '') }[p.firma_stand] || 'über die Firma besorgen';
     const ersatz = p.entscheidung === 'ersetzen' && p.ersatz_artikel ? 'ersetzt durch ' + p.ersatz_artikel + ' · ' : '';
     if (p.weg === 'bestellen') return ersatz + (p.status || 'wird bestellt');
     if (p.weg === 'lager') return ersatz + (p.status === 'ausgegeben' ? 'ausgegeben' : 'liegt im Lager' + (p.kommentar && !ersatz ? ': ' + p.kommentar : ''));
@@ -129,6 +133,31 @@ const Anfragen = (() => {
       if (ok) { zeichnen(); T.meldung('Anfrage gestellt. Antworten erscheinen im Verlauf der Anfrage.'); if (beiAenderung) beiAenderung(); }
     }
 
+    // "Ueber Firma": Frage an das Team, dann der Haken des Schuelers, der es besorgt
+    function firmaFeld(p) {
+      if (p.firma_stand === 'gefragt') {
+        const wer = el('select', { 'aria-label': 'Wer besorgt es?' }, el('option', { value: '', text: 'Wer besorgt es?' }),
+          D.bestellung.mitglieder.map(m => el('option', { value: String(m.id), text: m.name })));
+        return el('div', { class: 'firma-frage stapel-eng' },
+          el('b', { class: 'klein-text', text: 'Kann jemand das über seine Firma besorgen?' }),
+          el('div', { class: 'zeile' }, wer,
+            el('button', { type: 'button', class: 'haupt', onclick: () => {
+              if (!wer.value) { T.meldung('Bitte auswählen, wer es besorgt.', true); wer.focus(); return; }
+              senden('/bestellung', { aktion: 'firma_antwort', position_id: p.id, ja: true, mitglied_id: Number(wer.value) }, 'Zugesagt.');
+            } }, 'Ja, besorgen wir'),
+            el('button', { type: 'button', onclick: () => senden('/bestellung', { aktion: 'firma_antwort', position_id: p.id, ja: false },
+              'Die Lehrkraft entscheidet neu.') }, 'Nein, geht nicht')));
+      }
+      if (p.firma_stand === 'zugesagt' || p.firma_stand === 'besorgt') {
+        const haken = el('input', { type: 'checkbox', checked: p.firma_stand === 'besorgt',
+          onchange: () => senden('/bestellung', { aktion: 'firma_besorgt', position_id: p.id, besorgt: haken.checked },
+            haken.checked ? 'Abgehakt.' : 'Haken zurückgenommen.') });
+        return el('label', { class: 'haken firma-haken' }, haken, el('span', {}, 'Besorgt und mitgebracht',
+          el('span', { class: 'leise klein-text', style: 'display:block', text: p.firma_wer + (p.firma_stand === 'besorgt' ? ' · ' + T.zeitText(p.firma_zeit) : '') })));
+      }
+      return null;
+    }
+
     function zeichnen() {
       if (offen) {
         Vorgang.teamDetail({ ort, basis, id: offen, beiAenderung, zurueck: () => { offen = null; laden(); } });
@@ -136,7 +165,11 @@ const Anfragen = (() => {
       }
       const b = D.bestellung;
       const sammel = b.sammel.positionen.filter(p => !p.gestrichen);
+      const fragen = b.eingereicht.flatMap(l => l.positionen).filter(p => !p.gestrichen && p.weg === 'firma' && p.firma_stand === 'gefragt');
       T.setzen(ort, el('div', { class: 'stapel' },
+        fragen.length ? el('div', { class: 'banner w' }, el('b', { text: 'Eine Frage an euch: ' }),
+          fragen.length === 1 ? 'Könnt ihr „' + fragen[0].artikel + '“ über eure Firma besorgen? Antwort unten bei der Liste.'
+            : 'Könnt ihr ' + fragen.length + ' Artikel über eure Firma besorgen? Antwort unten bei der Liste.') : null,
         el('div', { class: 'zeile' }, el('span', { class: 'etikett', text: 'Neue Anfrage' }),
           el('button', { type: 'button', onclick: () => anfrageDialog('rueckfrage') }, '+ Rückfrage'),
           el('button', { type: 'button', onclick: () => anfrageDialog('ausleihe') }, '+ Material ausleihen'),
@@ -161,7 +194,7 @@ const Anfragen = (() => {
               ' · ' + l.positionen.filter(p => !p.gestrichen).length + ' Positionen'),
             positionenTabelle(l.positionen.filter(p => !p.gestrichen), true, p => (p.entscheidung === 'ablehnen' || p.weg === 'ersatz_gesucht')
               ? el('button', { type: 'button', class: 'leicht', onclick: () => senden('/bestellung', { aktion: 'uebernehmen', position_id: p.id }, 'In die nächste Liste übernommen.') }, 'in nächste Liste')
-              : null)))) : null,
+              : p.weg === 'firma' ? firmaFeld(p) : null)))) : null,
         el('section', { class: 'karte stapel-eng' },
           el('h2', { class: 'dreieck', text: 'Anfragen' }),
           Vorgang.teamListe(D.anfragen, id => { offen = id; zeichnen(); }))));
@@ -172,13 +205,49 @@ const Anfragen = (() => {
 
   // --- Lehrkraft ---
 
-  // Kopf mit den beiden Reitern der Anfragen-Seite
+  // Kopf mit den beiden grossen Reitern der Anfragen-Seite
   function kopf(aktiv) {
-    return el('div', { class: 'werkzeug' }, el('h1', { class: 'dreieck', text: 'Anfragen' }),
-      el('span', { class: 'umschalter' },
-        el('a', { class: 'knopf' + (aktiv === 'eingang' ? ' an' : ''), href: '#anfragen' }, 'Eingang'),
-        el('a', { class: 'knopf' + (aktiv === 'fenster' ? ' an' : ''), href: '#anfragen/fenster' }, 'Einreichfenster')),
-      el('span', { class: 'rechts' }, Vorgang.glocke()));
+    const reiter = (k, ziel, symbol, text, zahl) => el('a', { href: ziel, class: aktiv === k ? 'an' : '', 'aria-current': aktiv === k ? 'page' : null },
+      T.symbol(symbol), el('span', { text }), zahl ? el('span', { class: 'reiter-zahl eingang-zahl', hidden: true }) : null);
+    return el('div', { class: 'stapel-eng' },
+      el('div', { class: 'werkzeug' }, el('h1', { class: 'dreieck', text: 'Anfragen und Bestellungen' }), el('span', { class: 'rechts' }, Vorgang.glocke())),
+      el('nav', { class: 'gross-reiter', 'aria-label': 'Anfragen' },
+        reiter('eingang', '#anfragen', 'eingang', 'Eingang', true),
+        reiter('fenster', '#anfragen/fenster', 'wagen', 'Bestellungen und Einreichfenster')));
+  }
+
+  // Statuskarte oben im Eingang: laeuft ein Einreichfenster, bis wann, fuer wen, wie viele Teams haben eingereicht
+  function fensterKarte() {
+    const ort = el('div', { class: 'fenster-karte' }, el('span', { class: 'leise', text: 'Einreichfenster …' }));
+    (async () => {
+      let b;
+      try { b = (await T.api('GET', '/api/anfragen')).bestellung; } catch (e) { ort.remove(); return; }
+      const neu = el('button', { type: 'button', onclick: async () => { if (await fensterDialog(b)) zeigen(); } }, '+ Neues Fenster');
+      const fuer = f => f.projekt ? 'Sonderfenster ' + f.projekt : f.klasse ? 'Klasse ' + f.klasse : 'alle deine Projekte';
+      const laeuft = b.fenster.filter(f => f.laeuft).sort((x, y) => x.bis.localeCompare(y.bis))[0];
+      const kommt = b.fenster.filter(f => !f.laeuft && !f.vorbei).sort((x, y) => x.von.localeCompare(y.von))[0];
+      const zuletzt = b.fenster.filter(f => f.vorbei).sort((x, y) => y.bis.localeCompare(x.bis))[0];
+      let titel, unter, sammel = null;
+      if (laeuft) {
+        const ein = laeuft.teams.filter(t => t.stand === 'eingereicht' || t.stand === 'geprueft').length;
+        titel = 'Einreichfenster läuft bis ' + stichtag(laeuft.bis) + ' Uhr';
+        unter = fuer(laeuft) + ' · ' + ein + ' von ' + laeuft.teams.length + ' Teams haben eingereicht';
+        sammel = laeuft;
+      } else if (kommt) {
+        titel = 'Nächstes Einreichfenster ' + T.kurzTag(kommt.von) + ' bis ' + stichtag(kommt.bis);
+        unter = fuer(kommt) + ' · Bis dahin sammeln die Teams.';
+      } else {
+        titel = 'Kein Einreichfenster offen';
+        unter = 'Teams sammeln trotzdem schon und reichen ein, sobald ein Fenster offen ist.';
+        sammel = zuletzt || null;
+      }
+      ort.classList.toggle('laeuft', !!laeuft);
+      T.setzen(ort, T.symbol('kalender'), el('div', {}, el('b', { text: titel }), el('span', { text: unter })),
+        el('span', { class: 'rechts' },
+          sammel ? el('a', { class: 'knopf', href: '#anfragen/sammel/' + sammel.id }, laeuft ? 'Sammelbestellung' : 'Letzte Sammelbestellung') : null,
+          el('a', { class: 'knopf leicht', href: '#anfragen/fenster' }, 'Alle Fenster'), neu));
+    })();
+    return ort;
   }
 
   async function lehrerZeigen(teil, id) {
@@ -189,7 +258,7 @@ const Anfragen = (() => {
   }
 
   async function fensterZeigen() {
-    titelSetzen('Einreichfenster');
+    titelSetzen('Bestellungen und Einreichfenster');
     const d = await T.api('GET', '/api/anfragen');
     const fensterKarte = el('section', { class: 'karte stapel-eng' },
       el('div', { class: 'zeile' }, el('h2', { class: 'dreieck', text: 'Einreichfenster für Bestelllisten' }),
@@ -283,7 +352,7 @@ const Anfragen = (() => {
               ersatz_lieferant: f.lieferant.value, ersatz_weg: f.weg.value });
             return true;
           } });
-        if (!ok) return;
+        if (!ok) { zeichnen(); return; }   // Auswahl zuruecksetzen
       }
       senden(daten);
     }
@@ -293,28 +362,70 @@ const Anfragen = (() => {
       catch (e) { T.meldung(e.message, true); }
     }
 
+    // Details je Position: was entschieden ist, beim SchulLager der Haken "ausgegeben", bei der Firma die Antwort des Teams
+    function details(p) {
+      if (p.weg === 'firma') {
+        const st = p.firma_stand || 'gefragt';
+        return el('div', {}, el('span', { class: 'firma-st ' + st, text: FIRMA[st] + (p.firma_wer && st !== 'gefragt' ? ' · ' + p.firma_wer : '') +
+          (st === 'besorgt' ? ' · ' + T.zeitText(p.firma_zeit) : '') }),
+          st === 'gefragt' ? el('span', { class: 'leise klein-text', text: ' wartet auf Antwort des Teams' }) : null);
+      }
+      if (!p.entscheidung && p.firma_stand === 'nein')
+        return el('span', { class: 'firma-st nein', text: 'über Firma nicht möglich, bitte neu entscheiden' });
+      if (p.weg === 'lager') {
+        const haken = el('input', { type: 'checkbox', checked: p.status === 'ausgegeben',
+          onchange: () => senden({ aktion: 'status', position_id: p.id, status: haken.checked ? 'ausgegeben' : null }) });
+        return el('div', { class: 'stapel-eng' }, el('span', { class: 'klein-text', text: posStatus(p, true) }),
+          el('label', { class: 'haken klein-text' }, haken, 'ausgegeben'));
+      }
+      return el('div', { class: 'pos-stand klein-text w-' + (p.weg || 'offen'), text: p.weg === 'bestellen' && p.entscheidung !== 'ersetzen'
+        ? (p.status ? 'in der Sammelbestellung' : 'kommt in die Sammelbestellung') : posStatus(p, true) });
+    }
+
     function zeichnen() {
       const pos = L.positionen.filter(p => !p.gestrichen);
+      const offen = pos.filter(p => !p.entscheidung);
+      const mitBestellung = pos.some(p => p.weg === 'bestellen');   // Spalte "Bestellstatus" nur, wenn etwas bestellt wird
+      const alle = el('select', { class: 'pos-wahl', 'aria-label': 'Entscheidung für alle offenen Positionen', disabled: !offen.length,
+        onchange: async ev => {
+          const e = ev.target.value;
+          if (!e) return;
+          for (const p of offen) {
+            try { L = (await T.api('POST', '/api/projekte/' + L.projekt_id + '/bestellung', { aktion: 'entscheiden', position_id: p.id, entscheidung: e, kommentar: '' })).liste; }
+            catch (f) { T.meldung(p.artikel + ': ' + f.message, true); }
+          }
+          zeichnen();
+        } }, el('option', { value: '', text: 'auswählen …' }), WEGE.filter(([w]) => ['bestellen', 'lager', 'firma'].includes(w)).map(([w, t]) => el('option', { value: w, text: t })));
       T.setzen(ort, el('section', { class: 'karte stapel-eng' },
         el('div', { class: 'zeile' }, el('h2', { class: 'dreieck', text: L.titel }),
           el('span', { class: 'leise', text: 'eingereicht ' + T.zeitText(L.eingereicht) }),
           el('span', { class: 'chip' + (L.geprueft ? '' : ' blau'), text: L.geprueft ? 'geprüft' : 'in Prüfung' })),
+        el('div', { class: 'zeile klein-text' }, el('span', { class: 'leise', text: 'Alle offenen Positionen:' }), alle,
+          el('span', { class: 'leise', text: offen.length === 1 ? '1 Position noch offen' : offen.length ? offen.length + ' Positionen noch offen' : 'alles entschieden' })),
         el('div', { class: 'rollbar' }, el('table', { class: 'liste pruefen' },
-          el('thead', {}, el('tr', {}, ['Artikel', 'Menge', 'Woher?', 'Details'].map(t => el('th', { text: t })))),
+          el('thead', {}, el('tr', {}, ['Artikel', 'Menge', 'Entscheidung', mitBestellung ? 'Bestellstatus' : null, 'Details'].filter(Boolean).map(t => el('th', { text: t })))),
           el('tbody', {}, pos.map(p => {
             const menge = el('input', { type: 'number', min: '1', max: '9999', class: 'menge', value: String(p.menge_genehmigt || p.menge), 'aria-label': 'Menge' });
-            const stati = p.weg === 'bestellen' ? ['', 'bestellt', 'geliefert', 'ausgegeben'] : p.weg === 'lager' ? ['', 'ausgegeben'] : null;
-            const statusWahl = stati ? el('select', { class: 'klein', 'aria-label': 'Status', onchange: ev => senden({ aktion: 'status', position_id: p.id, status: ev.target.value || null }) },
-              stati.map(s => el('option', { value: s, text: s || 'noch offen' }))) : null;
-            if (statusWahl) statusWahl.value = p.status || '';
+            const wahl = el('select', { class: 'pos-wahl' + (p.entscheidung ? '' : ' offen'), 'aria-label': 'Entscheidung für ' + p.artikel,
+              onchange: ev => { if (ev.target.value) entscheiden(p, ev.target.value, Number(menge.value)); } },
+            p.entscheidung ? null : el('option', { value: '', text: 'offen – bitte wählen' }), WEGE.map(([w, t]) => el('option', { value: w, text: t })));
+            wahl.value = p.entscheidung || '';
+            let status = null;
+            if (p.weg === 'bestellen') {
+              status = el('select', { class: 'pos-wahl', 'aria-label': 'Bestellstatus für ' + p.artikel,
+                onchange: ev => senden({ aktion: 'status', position_id: p.id, status: ev.target.value || null }) },
+              BESTELLSTATUS.map(([s, t]) => el('option', { value: s, text: t })));
+              status.value = p.status || '';
+            }
             return el('tr', {},
               el('td', {}, el('b', { text: p.artikel }), el('div', { class: 'leise klein-text', text: [p.bestellnr, p.lieferant, p.preis].filter(Boolean).join(' · ') }),
                 p.aufgabe ? el('div', { class: 'leise klein-text', text: 'Tätigkeit: ' + p.aufgabe }) : null,
                 p.begruendung ? el('div', { class: 'klein-text', text: p.begruendung }) : null),
               el('td', {}, menge, p.menge_genehmigt && p.menge_genehmigt !== p.menge ? el('div', { class: 'leise klein-text', text: 'beantragt ' + p.menge }) : null),
-              el('td', {}, el('div', { class: 'umschalter wege' }, WEGE.map(([w, t]) => el('button', { type: 'button', class: p.entscheidung === w ? 'an' : '',
-                onclick: () => entscheiden(p, w, Number(menge.value)) }, t)))),
-              el('td', {}, el('div', { class: 'pos-stand w-' + (p.weg || 'offen'), text: posStatus(p, true) }), statusWahl));
+              el('td', {}, wahl, p.entscheidung === 'ersetzen' || p.entscheidung === 'ablehnen' || p.entscheidung === 'lager'
+                ? el('button', { type: 'button', class: 'leicht klein', onclick: () => entscheiden(p, p.entscheidung, Number(menge.value)) }, 'Angaben ändern') : null),
+              mitBestellung ? el('td', {}, status) : null,
+              el('td', {}, details(p)));
           }))))));
     }
 
@@ -343,5 +454,5 @@ const Anfragen = (() => {
         : el('div', { class: 'leer', text: 'Noch keine Position zum Bestellen entschieden.' }));
   }
 
-  return { teamErzeugen, lehrerZeigen, kopf, fensterDialog };
+  return { teamErzeugen, lehrerZeigen, kopf, fensterKarte, fensterDialog };
 })();

@@ -6,7 +6,8 @@
 const Vorgang = (() => {
   const el = T.el;
   const ARTEN = { rueckfrage: 'Rückfrage', ausleihe: 'Ausleihe', abnahme: 'Abnahme', bestellung: 'Bestellliste' };
-  const STAND = { offen: 'offen', bearbeitung: 'in Bearbeitung', erledigt: 'erledigt' };
+  const ART_SYMBOL = { rueckfrage: 'frage', ausleihe: 'material', abnahme: 'abnahme', bestellung: 'liste' };
+  const STAND = { offen: 'neu', bearbeitung: 'in Bearbeitung', erledigt: 'erledigt' };   // intern heisst "neu" offen
   const SCHRITT = { neu: 'erneut angefragt', beantwortet: 'beantwortet', bereitgelegt: 'bereitgelegt', ausgegeben: 'ausgegeben',
     zurueck: 'zurückgegeben', abgelehnt: 'abgelehnt', freigegeben: 'freigegeben', nachbessern: 'nachbessern', zurueckgezogen: 'zurückgezogen' };
   const WEG = { bestellen: 'wird bestellt', lager: 'aus dem SchulLager', firma: 'über die Firma', ersetzen: 'ersetzt', ablehnen: 'abgelehnt' };
@@ -21,9 +22,12 @@ const Vorgang = (() => {
   function ereignisText(n) {
     const d = n.daten || {};
     switch (d.was) {
-      case 'stand': return n.wer_art === 'team' && d.stand === 'offen' ? 'Team hat den Vorgang wieder geöffnet'
+      case 'stand': return n.wer_art === 'team' && d.alt === 'erledigt' ? 'Team hat wieder geschrieben: ' + STAND[d.stand]
         : wer(n) + ' hat den Status auf „' + STAND[d.stand] + '“ gesetzt';
-      case 'zustaendig': return d.kuerzel ? d.kuerzel + ' hat den Vorgang übernommen' : wer(n) + ' hat den Vorgang abgegeben';
+      case 'zustaendig': return !d.kuerzel ? wer(n) + ': niemand mehr zuständig'
+        : d.von ? d.von + ' hat ' + (d.name || d.kuerzel) + ' zugewiesen' : (d.name || d.kuerzel) + ' hat den Vorgang übernommen';
+      case 'firma': return '„' + d.artikel + '“: ' + ({ zugesagt: d.name + ' besorgt es über die Firma',
+        nein: 'über die Firma nicht möglich, bitte neu entscheiden', besorgt: 'über die Firma besorgt und mitgebracht' })[d.firma];
       case 'status': return wer(n) + ': ' + (SCHRITT[d.status] || d.status);
       case 'tafel': return 'Soll in der Besprechung geklärt werden (liegt als Frage auf der Tafel)';
       case 'geklaert': return 'In der Besprechung am ' + datum(d.datum) + ' geklärt';
@@ -95,6 +99,29 @@ const Vorgang = (() => {
     return el('span', { class: 'chip vg-stand ' + v.stand, text: STAND[v.stand] });
   }
 
+  // Auswahl "Zustaendig" (Zeile im Eingang und Kopf des Vorgangs): "Ich übernehme" oben, darunter die anderen Lehrkraefte,
+  // die das Projekt betreuen. Zuweisen setzt "in Bearbeitung", "niemand" wieder "neu".
+  function zustaendigWahl(v, betreuer, danach, kurz) {
+    const ich = S.konto.id, jetzt = v.zustaendig_id != null ? v.zustaendig_id : (v.zustaendig && v.zustaendig.id);
+    const name = b => b.id === ich ? (kurz ? 'Ich' : 'Ich (' + b.name + ')') : b.name;
+    const s = el('select', { class: 'zust-wahl' + (jetzt ? ' gesetzt' : ''), 'aria-label': 'Zuständig',
+      title: 'Zuständig für diesen Vorgang', onclick: ev => ev.stopPropagation(), onkeydown: ev => ev.stopPropagation(),
+      onchange: async ev => {
+        try {
+          await T.api('POST', '/api/projekte/' + v.projekt_id + '/vorgaenge/' + v.id, { aktion: 'zuweisen', lehrkraft_id: ev.target.value ? Number(ev.target.value) : null });
+          T.meldung(ev.target.value ? (Number(ev.target.value) === ich ? 'Übernommen.' : 'Zugewiesen.') : 'Niemand mehr zuständig.');
+        } catch (e) { T.meldung(e.message, true); }
+        danach();
+      } },
+    el('option', { value: '', text: kurz ? 'niemand' : 'Zuständig: niemand' }),
+    betreuer.some(b => b.id === ich) && jetzt !== ich ? el('option', { value: String(ich), text: 'Ich übernehme' }) : null,
+    betreuer.filter(b => b.id !== ich || jetzt === ich).map(b => el('option', { value: String(b.id), text: name(b) })),
+    jetzt && !betreuer.some(b => b.id === jetzt)
+      ? el('option', { value: String(jetzt), text: (v.zustaendig && v.zustaendig.name || v.zustaendig || '?') + ' (betreut das Projekt nicht mehr)' }) : null);
+    s.value = jetzt ? String(jetzt) : '';
+    return s;
+  }
+
   function vorschau(v, rolle) {
     const l = v.letzte;
     if (!l) return v.art === 'bestellung' ? (v.positionen ? v.positionen + ' Positionen' : 'eingereicht') : 'Team: ' + (v.text || v.titel);
@@ -107,51 +134,64 @@ const Vorgang = (() => {
   async function eingang(aid, opt = {}) {
     if (!opt.ort) titelSetzen('Anfragen');
     const ziel = opt.ziel || '#anfragen';
-    const F = opt.projektId ? { filter: 'aktiv', projekt: String(opt.projektId), art: '' } : S.eingang || (S.eingang = { filter: 'aktiv', projekt: '', art: '' });
+    // Filter: Staende einzeln an/aus (beim Oeffnen neu + in Bearbeitung), "nur meine", Art als Knoepfe, Team
+    const F = opt.projektId ? { staende: ['offen', 'bearbeitung'], meine: false, projekt: String(opt.projektId), art: '' }
+      : S.eingang || (S.eingang = { staende: ['offen', 'bearbeitung'], meine: false, projekt: '', art: '' });
     const liste = el('div', { class: 'vg-liste' });
     const detail = el('div', { class: 'vg-detail' });
-    const rahmen = el('div', { class: 'eingang' + (aid ? ' mit-detail' : '') }, el('div', { class: 'vg-links' }, filterLeiste(), liste), detail);
-    let L = [];
+    const filter = el('div', { class: 'vg-filter-block' });
+    const rahmen = el('div', { class: 'eingang' + (aid ? ' mit-detail' : '') }, el('div', { class: 'vg-links' }, filter, liste), detail);
+    let L = [], Z = { offen: 0, bearbeitung: 0 }, B = {};
 
-    function filterLeiste() {
-      const wahl = (wert, optionen, name, versteckt) => {
-        const s = el('select', { class: 'klein', 'aria-label': name, hidden: !!versteckt, onchange: ev => { F[name] = ev.target.value; listeLaden(); } },
-          optionen.map(([v, t]) => el('option', { value: v, text: t })));
-        s.value = wert;
-        return s;
-      };
-      const chips = el('div', { class: 'umschalter vg-filter' }, [['aktiv', 'Aktiv'], ['offen', 'Offen'], ['bearbeitung', 'In Bearbeitung'],
-        ['meine', 'Meine'], ['erledigt', 'Erledigt'], ['alle', 'Alle']].map(([k, t]) => el('button', { type: 'button', class: F.filter === k ? 'an' : '',
-        onclick: ev => { F.filter = k; chips.querySelectorAll('button').forEach(b => b.classList.toggle('an', b === ev.currentTarget)); listeLaden(); } }, t)));
-      return el('div', { class: 'stapel-eng' }, chips,
-        el('div', { class: 'zeile' }, F.projektWahl = wahl(F.projekt, [['', 'Alle Teams']], 'projekt', opt.projektId),
-          wahl(F.art, [['', 'Alle Arten']].concat(Object.entries(ARTEN)), 'art')));
+    function filterZeichnen() {
+      const knopf = (an, inhalt, klick, titel) => el('button', { type: 'button', class: 'fk' + (an ? ' an' : ''), 'aria-pressed': an ? 'true' : 'false',
+        title: titel || null, onclick: klick }, inhalt);
+      const stand = (k, t) => knopf(F.staende.includes(k), [t, k !== 'erledigt' ? el('i', { text: String(Z[k] || 0) }) : null], () => {
+        F.staende = F.staende.includes(k) ? F.staende.filter(x => x !== k) : F.staende.concat(k);
+        listeLaden();
+      });
+      const teamWahl = el('select', { class: 'klein', 'aria-label': 'Team', hidden: !!opt.projektId,
+        onchange: ev => { F.projekt = ev.target.value; listeLaden(); } }, el('option', { value: '', text: 'Alle Teams' }));
+      const teams = [...new Map(L.map(v => [v.projekt_id, v.projekt])).entries()];
+      if (F.projekt && !teams.some(([id]) => String(id) === F.projekt)) teams.push([Number(F.projekt), 'gewähltes Team']);
+      teams.sort((a, b) => a[1].localeCompare(b[1])).forEach(([id, t]) => teamWahl.appendChild(el('option', { value: String(id), text: t })));
+      teamWahl.value = F.projekt;
+      T.setzen(filter,
+        el('div', { class: 'filter-reihe' }, el('span', { class: 'etikett', text: 'Stand' }),
+          stand('offen', 'Neu'), stand('bearbeitung', 'In Bearbeitung'), stand('erledigt', 'Erledigt'),
+          knopf(F.meine, [T.symbol('person'), 'nur meine'], () => { F.meine = !F.meine; listeLaden(); }, 'nur Vorgänge, für die du zuständig bist')),
+        el('div', { class: 'filter-reihe' }, el('span', { class: 'etikett', text: 'Art' }),
+          Object.entries(ARTEN).map(([k, t]) => knopf(F.art === k, [T.symbol(ART_SYMBOL[k]), t], () => { F.art = F.art === k ? '' : k; listeLaden(); })),
+          el('span', { class: 'rechts' }, teamWahl)));
     }
 
     async function listeLaden() {
       try {
-        const q = '?filter=' + F.filter + (F.projekt ? '&projekt=' + F.projekt : '') + (F.art ? '&art=' + F.art : '');
+        const q = '?staende=' + (F.staende.join(',') || '-') + (F.meine ? '&meine=1' : '') + (F.projekt ? '&projekt=' + F.projekt : '') +
+          (F.art ? '&art=' + F.art : '');
         const r = await T.api('GET', '/api/vorgaenge' + q);
-        L = r.vorgaenge;
+        L = r.vorgaenge; Z = r.zahlen; B = r.betreuer;
         zaehlerZeigen(r.zaehler);
+        filterZeichnen();
         listeZeichnen();
       } catch (e) { T.setzen(liste, el('div', { class: 'leer', text: e.message })); }
     }
 
     function listeZeichnen() {
-      // Teams fuer den Filter aus der Liste sammeln (einmal gefuellt bleibt die Auswahl)
-      if (F.projektWahl.options.length <= 1) {
-        const teams = [...new Map(L.map(v => [v.projekt_id, v.projekt])).entries()].sort((a, b) => a[1].localeCompare(b[1]));
-        teams.forEach(([id, t]) => F.projektWahl.appendChild(el('option', { value: String(id), text: t })));
-        F.projektWahl.value = F.projekt;
-      }
-      T.setzen(liste, L.length ? L.map(v => el('a', { class: 'vg-zeile' + (v.ungelesen ? ' neu' : '') + (v.id === aid ? ' an' : ''), href: ziel + (opt.projektId ? '/' : '/v/') + v.id },
-        el('div', { class: 'zeile' }, v.ungelesen ? el('span', { class: 'vg-punkt', title: 'ungelesen' }) : null,
-          el('span', { class: 'chip', text: ARTEN[v.art] }), el('span', { class: 'vg-titel', text: v.titel })),
-        el('div', { class: 'zeile leise klein-text' }, el('span', { text: v.projekt }), standChip(v), v.zustaendig ? el('span', { text: v.zustaendig }) : null,
-          v.ueberfaellig ? el('span', { class: 'chip rot', text: 'Rückgabe überfällig' }) : null, el('span', { class: 'rechts', text: wann(v.geaendert) })),
-        el('div', { class: 'vg-vorschau', text: vorschau(v, 'lehrkraft') })))
-        : el('div', { class: 'leer', text: F.filter === 'aktiv' ? 'Keine offenen Vorgänge.' : 'Nichts gefunden.' }));
+      const oeffnen = v => { location.hash = ziel + (opt.projektId ? '/' : '/v/') + v.id; };
+      T.setzen(liste, L.length ? L.map(v => el('div', { class: 'vg-zeile lk' + (v.ungelesen ? ' neu' : '') + (v.id === aid ? ' an' : ''), role: 'link', tabindex: '0',
+        onclick: () => oeffnen(v), onkeydown: ev => { if (ev.key === 'Enter') oeffnen(v); } },
+        el('span', { class: 'art-sym ' + v.art, title: ARTEN[v.art] }, T.symbol(ART_SYMBOL[v.art])),
+        el('div', { class: 'vg-mitte' },
+          el('div', { class: 'zeile' }, v.ungelesen ? el('span', { class: 'vg-punkt', title: 'ungelesen' }) : null,
+            el('span', { class: 'vg-titel', text: v.titel })),
+          el('div', { class: 'zeile leise klein-text' }, el('span', { text: ARTEN[v.art] + ' · ' + v.projekt }),
+            v.ueberfaellig ? el('span', { class: 'chip rot', text: 'Rückgabe überfällig' }) : null, el('span', { class: 'rechts', text: wann(v.geaendert) })),
+          el('div', { class: 'vg-vorschau', text: vorschau(v, 'lehrkraft') })),
+        el('div', { class: 'vg-rechts' }, standChip(v), zustaendigWahl(v, B[String(v.projekt_id)] || [], () => listeLaden(), true))))
+        : el('div', { class: 'leer stapel-eng' }, el('b', { text: F.staende.length ? 'Gerade nichts zu tun.' : 'Kein Stand gewählt.' }),
+          el('span', { class: 'leise klein-text', text: 'Anfragen kommen von den Teams: Rückfragen, Ausleihen, Abnahmen und eingereichte ' +
+            'Bestelllisten aus dem Reiter „Anfragen“ ihres Team-Links.' })));
     }
 
     async function detailLaden(stumm) {
@@ -220,20 +260,19 @@ const Vorgang = (() => {
       return el('div', { class: 'vg-detail-kopf stapel-eng' },
         el('div', { class: 'zeile' },
           el('a', { class: 'knopf klein vg-zurueck', href: ziel }, '‹ Liste'),
-          el('span', { class: 'chip', text: ARTEN[v.art] }), el('h2', { text: v.titel })),
+          el('span', { class: 'art-sym ' + v.art, title: ARTEN[v.art] }, T.symbol(ART_SYMBOL[v.art])), el('h2', { text: v.titel })),
         el('div', { class: 'zeile' }, el('a', { href: '#projekt/' + v.projekt_id, text: v.projekt + ' · ' + v.klasse }), standChip(v),
           v.status !== 'neu' && v.art !== 'bestellung' ? el('span', { class: 'chip', text: SCHRITT[v.status] }) : null,
-          el('span', { class: 'leise', text: v.zustaendig ? 'zuständig: ' + v.zustaendig.name : 'noch niemand zuständig' }),
+          zustaendigWahl(v, v.betreuer || [], () => { detailLaden(); listeLaden(); }),
+          v.zustaendig && v.zustaendig.ehemalig ? el('span', { class: 'warnung-text klein-text', text: v.zustaendig.name + ' betreut das Projekt nicht mehr' }) : null,
           el('span', { class: 'rechts' },
-            v.zustaendig && v.zustaendig.kuerzel === S.konto.kuerzel.toUpperCase()
-              ? el('button', { type: 'button', class: 'leicht', onclick: () => aktion({ aktion: 'abgeben' }, 'Abgegeben.') }, 'Abgeben')
-              : el('button', { type: 'button', onclick: () => aktion({ aktion: 'uebernehmen' }, 'Übernommen.') }, 'Übernehmen'),
             v.stand === 'erledigt' ? el('button', { type: 'button', onclick: () => aktion({ aktion: 'stand', stand: 'offen' }, 'Wieder geöffnet.') }, 'Wieder öffnen')
               : el('button', { type: 'button', onclick: () => aktion({ aktion: 'stand', stand: 'erledigt' }, 'Erledigt.') }, 'Erledigt'))),
         aktionen(v).length ? el('div', { class: 'zeile' }, aktionen(v)) : null);
     }
 
-    if (opt.ort) T.setzen(opt.ort, rahmen); else T.setzen(inhalt, Anfragen.kopf('eingang'), rahmen);
+    if (opt.ort) T.setzen(opt.ort, rahmen); else T.setzen(inhalt, Anfragen.kopf('eingang'), Anfragen.fensterKarte(), rahmen);
+    filterZeichnen();
     await detailLaden();   // erst lesen, dann Liste und Zaehler (sonst zaehlt der gerade geoeffnete noch mit)
     await listeLaden();
     const timer = setInterval(() => {
@@ -246,6 +285,8 @@ const Vorgang = (() => {
 
   // Zahl im Menue (ungelesen, sonst offen)
   function zaehlerZeigen(z) {
+    const reiter = document.querySelector('.gross-reiter .eingang-zahl');   // Reiter "Eingang" der Anfragen-Seite
+    if (reiter) { reiter.textContent = z.ungelesen ? String(z.ungelesen) : ''; reiter.hidden = !z.ungelesen; }
     const link = document.querySelector('nav.seite a[data-ansicht="anfragen"]');
     if (!link) return;
     let b = link.querySelector('.nav-zahl');
@@ -313,10 +354,10 @@ const Vorgang = (() => {
         return;
       }
       const an = benachrichtigungAn();
-      T.setzen(ort, el('button', { type: 'button', class: 'leicht' + (an ? ' an' : ''), 'aria-pressed': an ? 'true' : 'false',
+      T.setzen(ort, el('button', { type: 'button', class: 'glocke-knopf' + (an ? ' an' : ''), 'aria-pressed': an ? 'true' : 'false',
         title: an ? 'Neue Anfragen melden sich auch als Windows-Benachrichtigung, solange diese Seite offen ist.'
           : 'Neue Anfragen zusätzlich als Windows-Benachrichtigung melden', onclick: umschalten },
-      an ? '🔔 Benachrichtigung an' : '🔕 Benachrichtigung aus'));
+      T.symbol(an ? 'glocke' : 'glocke_aus'), an ? 'Windows-Hinweise: an' : 'Windows-Hinweise: aus'));
     }
     async function umschalten() {
       if (benachrichtigungAn()) {
@@ -338,9 +379,15 @@ const Vorgang = (() => {
     if (!liste.length) return el('div', { class: 'leise klein-text', text: 'Noch keine Anfragen.' });
     return el('div', { class: 'vg-liste' }, liste.map(v => el('button', { type: 'button', class: 'vg-zeile' + (v.ungelesen ? ' neu' : ''), onclick: () => oeffnen(v.id) },
       el('div', { class: 'zeile' }, v.ungelesen ? el('span', { class: 'vg-punkt', title: 'neue Antwort' }) : null,
-        el('span', { class: 'chip', text: ARTEN[v.art] }), el('span', { class: 'vg-titel', text: v.titel }), standChip(v),
-        v.ueberfaellig ? el('span', { class: 'chip rot', text: 'Rückgabe überfällig' }) : null),
+        el('span', { class: 'art-sym ' + v.art, title: ARTEN[v.art] }, T.symbol(ART_SYMBOL[v.art])), el('span', { class: 'vg-titel', text: v.titel }),
+        teamStand(v), v.ueberfaellig ? el('span', { class: 'chip rot', text: 'Rückgabe überfällig' }) : null),
       el('div', { class: 'vg-vorschau', text: vorschau(v, 'team') + ' · ' + wann(v.geaendert) }))));
+  }
+
+  // Fuer das Team: Stand und, sobald jemand zustaendig ist, der Name ("In Bearbeitung · Matthias Göbel")
+  function teamStand(v) {
+    const name = v.zustaendig_name || (v.zustaendig && v.zustaendig.name);
+    return el('span', { class: 'chip vg-stand ' + v.stand, text: STAND[v.stand].replace(/^./, c => c.toUpperCase()) + (name && v.stand !== 'offen' ? ' · ' + name : '') });
   }
 
   function teamDetail({ ort, basis, id, zurueck, beiAenderung }) {
@@ -356,7 +403,7 @@ const Vorgang = (() => {
       const verlaufOrt = verlauf(v, basis, 'team');
       T.setzen(ort, el('section', { class: 'karte stapel-eng vg-team' },
         el('div', { class: 'zeile' }, el('button', { type: 'button', class: 'leicht', onclick: zurueck }, '‹ Alle Anfragen'),
-          el('span', { class: 'chip', text: ARTEN[v.art] }), el('h2', { text: v.titel }), standChip(v)),
+          el('span', { class: 'art-sym ' + v.art, title: ARTEN[v.art] }, T.symbol(ART_SYMBOL[v.art])), el('h2', { text: v.titel }), teamStand(v)),
         el('div', { class: 'zeile leise klein-text' }, v.zustaendig ? 'zuständig: ' + v.zustaendig.name : 'noch niemand zuständig',
           v.stand === 'offen' && v.art !== 'bestellung' ? el('button', { type: 'button', class: 'leicht', onclick: () => senden({ aktion: 'zurueckziehen' }, 'Zurückgezogen.') }, 'Zurückziehen') : null,
           v.status === 'nachbessern' ? el('button', { type: 'button', onclick: () => senden({ aktion: 'erneut' }, 'Erneut angefragt.') }, 'Nachgebessert, erneut anfragen') : null),

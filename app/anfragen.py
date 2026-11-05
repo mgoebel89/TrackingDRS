@@ -1,11 +1,13 @@
 """Anfragen als Vorgaenge mit Gespraechsverlauf (wie ein Ticket): Rueckfrage, Material ausleihen, Abnahme/Freigabe und
 eingereichte Bestelllisten.
 
-Ein Vorgang hat einen Status (offen, in Bearbeitung, erledigt), optional eine zustaendige Lehrkraft und einen Verlauf aus
-Nachrichten (Team und Lehrkraft), internen Notizen (nur Lehrkraefte) und Ereignissen (Statuswechsel, Uebernahme,
-Sonderfenster, Pruefentscheidungen ...). Uebernimmt eine Lehrkraft oder antwortet sie, ist der Vorgang in Bearbeitung;
-wer als erste antwortet, uebernimmt ihn, wenn noch niemand zustaendig ist. Schreibt das Team in einen erledigten
-Vorgang, ist er wieder offen. Ungelesenes zaehlt je Lehrkraft und fuer das Team (Tabelle gelesen).
+Ein Vorgang hat einen Stand (offen = "neu" in der Oberflaeche, in Bearbeitung, erledigt), optional eine zustaendige
+Lehrkraft und einen Verlauf aus Nachrichten (Team und Lehrkraft), internen Notizen (nur Lehrkraefte) und Ereignissen
+(Statuswechsel, Zuweisung, Sonderfenster, Pruefentscheidungen ...). Zuweisen (an eine Lehrkraft, die das Projekt
+betreut) setzt "in Bearbeitung", Zustaendigkeit wegnehmen wieder "neu"; wer als erste antwortet, uebernimmt den
+Vorgang, wenn noch niemand zustaendig ist. Schreibt das Team in einen erledigten Vorgang, ist er wieder in Bearbeitung
+bei derselben Lehrkraft (ohne Zustaendige: neu). Ungelesenes zaehlt je Lehrkraft und fuer das Team (Tabelle gelesen);
+wer zugewiesen wird, hat den Vorgang ungelesen.
 
 Die Schritte je Art bleiben im Feld status: Ausleihe neu/bereitgelegt/ausgegeben/zurueck/abgelehnt, Abnahme
 neu/freigegeben/nachbessern; ein abschliessender Schritt setzt den Vorgang auf erledigt. Eine Rueckfrage mit "in der
@@ -101,9 +103,21 @@ def _stand(con, a, neu, wer_art, wer):
         notieren(con, a["id"], wer_art, wer, was="stand", stand=neu, alt=a["stand"])
 
 
-def _uebernehmen(con, a, konto, wer_art="lehrkraft"):
+def _uebernehmen(con, a, konto, wer_art="lehrkraft", von=None):
+    """konto wird zustaendig. von: die Lehrkraft, die zuweist (sonst uebernimmt konto selbst)."""
+    fremd = von is not None and von["id"] != konto["id"]
     con.execute("UPDATE anfrage SET zustaendig_id = ? WHERE id = ?", (konto["id"], a["id"]))
-    notieren(con, a["id"], wer_art, konto["kuerzel"], was="zustaendig", kuerzel=konto["kuerzel"].upper(), name=konto["name"])
+    notieren(con, a["id"], wer_art, (von if fremd else konto)["kuerzel"], was="zustaendig", kuerzel=konto["kuerzel"].upper(),
+             name=konto["name"], von=von["kuerzel"].upper() if fremd else None)
+    if fremd:   # fuer die Zugewiesene ungelesen
+        con.execute("DELETE FROM gelesen WHERE anfrage_id = ? AND leser = ?", (a["id"], "l%d" % konto["id"]))
+
+
+def betreuer(con, pid):
+    """Lehrkraefte, die das Projekt betreuen (fuer die Auswahl "Zustaendig")."""
+    return [{"id": z["id"], "kuerzel": z["kuerzel"].upper(), "name": z["name"]} for z in con.execute(
+        "SELECT l.id, l.kuerzel, l.name FROM lehrkraft l JOIN projekt_lehrkraft pl ON pl.lehrkraft_id = l.id "
+        "WHERE pl.projekt_id = ? AND l.gesperrt = 0 ORDER BY l.name", (pid,))]
 
 
 # --- Team ---
@@ -176,8 +190,8 @@ def nachricht(con, pid, aid, wer_art, d, konto=None):
                     _uebernehmen(con, a, konto)
                 if a["stand"] == "offen":
                     _stand(con, a, "bearbeitung", wer_art, wer)
-            elif a["stand"] == "erledigt":
-                _stand(con, a, "offen", wer_art, wer)
+            elif a["stand"] == "erledigt":   # zurueck zu derselben Lehrkraft
+                _stand(con, a, "bearbeitung" if a["zustaendig_id"] else "offen", wer_art, wer)
             db.ereignis(con, pid, wer_art, wer, "anfrage_nachricht", anfrage_id=a["id"], anfrageart=a["art"], titel=a["titel"],
                         text=text[:200])
         if lehrkraft:   # eigene Nachricht gilt als gelesen
@@ -200,9 +214,23 @@ def bearbeiten(con, pid, konto, d):
             _uebernehmen(con, a, konto)
             if a["stand"] == "offen":
                 _stand(con, a, "bearbeitung", "lehrkraft", wer)
-        elif aktion == "abgeben":
-            con.execute("UPDATE anfrage SET zustaendig_id = NULL WHERE id = ?", (a["id"],))
-            notieren(con, a["id"], "lehrkraft", wer, was="zustaendig", kuerzel=None)
+        elif aktion == "abgeben" or (aktion == "zuweisen" and d.get("lehrkraft_id") in (None, "")):
+            if a["zustaendig_id"] is not None:
+                con.execute("UPDATE anfrage SET zustaendig_id = NULL WHERE id = ?", (a["id"],))
+                notieren(con, a["id"], "lehrkraft", wer, was="zustaendig", kuerzel=None)
+            if a["stand"] == "bearbeitung":
+                _stand(con, a, "offen", "lehrkraft", wer)
+        elif aktion == "zuweisen":   # an eine Lehrkraft, die das Projekt betreut (auch an sich selbst)
+            try:
+                ziel = int(d.get("lehrkraft_id"))
+            except (TypeError, ValueError):
+                ziel = None
+            if not any(b["id"] == ziel for b in betreuer(con, pid)):
+                raise ProjektFehler("Zuweisen geht nur an Lehrkräfte, die das Projekt betreuen.")
+            if a["zustaendig_id"] != ziel:
+                _uebernehmen(con, a, con.execute("SELECT * FROM lehrkraft WHERE id = ?", (ziel,)).fetchone(), von=konto)
+            if a["stand"] == "offen":
+                _stand(con, a, "bearbeitung", "lehrkraft", wer)
         elif aktion == "stand":
             stand = d.get("stand")
             if stand not in STAENDE:
@@ -258,6 +286,8 @@ def bestellung_notieren(con, liste_id, wer_art, wer, **daten):
     notieren(con, a["id"], wer_art, wer, **daten)
     if wer_art == "lehrkraft" and a["stand"] == "offen":
         _stand(con, a, "bearbeitung", wer_art, wer)
+    elif wer_art == "team" and a["stand"] == "erledigt":   # z. B. Antwort auf die Firma-Frage
+        _stand(con, a, "bearbeitung" if a["zustaendig_id"] else "offen", wer_art, wer)
 
 
 def vorgang_notieren(con, aid, pid, wer_art, wer, **daten):
@@ -282,7 +312,7 @@ def _ungelesen(con, a, leser, kuerzel=None):
     if leser == "team":
         sql = "SELECT 1 FROM nachricht WHERE anfrage_id = ? AND id > ? AND wer_art != 'team' AND art != 'intern' LIMIT 1"
         return bool(con.execute(sql, (a["id"], bis)).fetchone())
-    if g is None and a["stand"] == "offen":
+    if g is None and (a["stand"] == "offen" or "l%s" % a["zustaendig_id"] == leser):   # neu oder mir zugewiesen
         return True
     sql = ("SELECT 1 FROM nachricht WHERE anfrage_id = ? AND id > ? AND (wer_art = 'team' OR (wer_art = 'lehrkraft' AND wer != ? "
            "AND art != 'ereignis')) LIMIT 1")
@@ -300,8 +330,10 @@ def _meine_projekte(con, konto):
                                             "WHERE pl.lehrkraft_id = ? AND p.archiviert = 0", (konto["id"],))}
 
 
-def vorgaenge_lehrkraft(con, konto, filter_="aktiv", projekt_id=None, art=None):
-    """Eingang der Lehrkraft. filter_: aktiv (offen + in Bearbeitung), offen, bearbeitung, meine, erledigt, alle."""
+def vorgaenge_lehrkraft(con, konto, filter_="aktiv", projekt_id=None, art=None, staende=None, meine=False):
+    """Eingang der Lehrkraft. staende: Liste aus offen, bearbeitung, erledigt (die Knoepfe im Eingang), dazu meine
+    (nur mir zugewiesen). Ohne staende gilt filter_: aktiv (offen + in Bearbeitung), offen, bearbeitung, meine,
+    erledigt, alle."""
     projekte = _meine_projekte(con, konto)
     if projekt_id is not None:
         projekte = {k: v for k, v in projekte.items() if k == projekt_id}
@@ -313,7 +345,16 @@ def vorgaenge_lehrkraft(con, konto, filter_="aktiv", projekt_id=None, art=None):
     if art in STATUS:
         sql += " AND art = ?"
         werte.append(art)
-    if filter_ in STAENDE:
+    if staende is not None:
+        staende = [x for x in staende if x in STAENDE]
+        sql += (" AND stand IN (%s)" % ",".join("?" * len(staende))) if staende else " AND 0"
+        werte.extend(staende)
+        if meine:
+            sql += " AND zustaendig_id = ?"
+            werte.append(konto["id"])
+        if "erledigt" in staende:
+            sql += " ORDER BY geaendert DESC LIMIT 200"
+    elif filter_ in STAENDE:
         sql += " AND stand = ?"
         werte.append(filter_)
     elif filter_ == "meine":
@@ -321,16 +362,27 @@ def vorgaenge_lehrkraft(con, konto, filter_="aktiv", projekt_id=None, art=None):
         werte.append(konto["id"])
     elif filter_ != "alle":
         sql += " AND stand != 'erledigt'"
-    if filter_ in ("erledigt", "alle"):
+    if staende is None and filter_ in ("erledigt", "alle"):
         sql += " ORDER BY geaendert DESC LIMIT 200"
+    betreut = {(z["projekt_id"], z["lehrkraft_id"]) for z in con.execute("SELECT projekt_id, lehrkraft_id FROM projekt_lehrkraft")}
     liste_ = []
     for a in con.execute(sql, werte).fetchall():
         d = _dict(a)
         p = projekte[a["projekt_id"]]
         d.update({"projekt_id": p["id"], "projekt": p["titel"], "klasse": p["klasse"], "zustaendig": kuerzel.get(a["zustaendig_id"]),
+                  "zustaendig_ehemalig": a["zustaendig_id"] is not None and (p["id"], a["zustaendig_id"]) not in betreut,
                   "ungelesen": _ungelesen(con, a, "l%d" % konto["id"], konto["kuerzel"]), "letzte": _letzte(con, a["id"], True)})
         liste_.append(d)
     return sorted(liste_, key=lambda d: (not d["ungelesen"], -_zeitwert(d["geaendert"])))   # Ungelesenes oben, dann das Neueste
+
+
+def eingang(con, konto, projekt_id=None, art=None, staende=None, meine=False):
+    """Alles fuer den Eingang: Liste, Zahlen je Stand (fuer die Knoepfe), Betreuer je Projekt (fuer "Zustaendig")."""
+    liste_ = vorgaenge_lehrkraft(con, konto, projekt_id=projekt_id, art=art, staende=staende, meine=meine)
+    aktiv = vorgaenge_lehrkraft(con, konto, projekt_id=projekt_id, art=art, staende=["offen", "bearbeitung"], meine=meine)
+    projekte = list(_meine_projekte(con, konto)) if projekt_id is None else [projekt_id]
+    return {"vorgaenge": liste_, "zahlen": {st: sum(1 for d in aktiv if d["stand"] == st) for st in ("offen", "bearbeitung")},
+            "betreuer": {str(pid): betreuer(con, pid) for pid in projekte}}
 
 
 def _zeitwert(zeit):
@@ -339,9 +391,11 @@ def _zeitwert(zeit):
 
 def vorgaenge_team(con, pid):
     liste_ = []
+    namen = {z["id"]: z["name"] for z in con.execute("SELECT id, name FROM lehrkraft")}
     for a in con.execute("SELECT * FROM anfrage WHERE projekt_id = ? ORDER BY geaendert DESC", (pid,)).fetchall():
         d = _dict(a)
-        d.update({"ungelesen": _ungelesen(con, a, "team"), "letzte": _letzte(con, a["id"], False)})
+        d.update({"ungelesen": _ungelesen(con, a, "team"), "letzte": _letzte(con, a["id"], False),
+                  "zustaendig_name": namen.get(a["zustaendig_id"])})
         liste_.append(d)
     return sorted(liste_, key=lambda d: (not d["offen"], not d["ungelesen"], -_zeitwert(d["geaendert"])))
 
@@ -355,7 +409,11 @@ def vorgang(con, pid, aid, konto=None):
     d.update({"projekt_id": pid, "projekt": p["titel"], "klasse": p["klasse"]})
     if a["zustaendig_id"]:
         z = con.execute("SELECT kuerzel, name FROM lehrkraft WHERE id = ?", (a["zustaendig_id"],)).fetchone()
-        d["zustaendig"] = {"kuerzel": z["kuerzel"].upper(), "name": z["name"]}
+        d["zustaendig"] = {"id": a["zustaendig_id"], "kuerzel": z["kuerzel"].upper(), "name": z["name"],
+                           "ehemalig": not con.execute("SELECT 1 FROM projekt_lehrkraft WHERE projekt_id = ? AND lehrkraft_id = ?",
+                                                       (pid, a["zustaendig_id"])).fetchone()}
+    if konto:
+        d["betreuer"] = betreuer(con, pid)
     sql = "SELECT * FROM nachricht WHERE anfrage_id = ?" + ("" if konto else " AND art != 'intern'") + " ORDER BY id"
     d["verlauf"] = [{"id": n["id"], "art": n["art"], "text": n["text"], "bild": n["bild"], "daten": json.loads(n["daten"]),
                      "zeit": n["zeit"], "wer_art": n["wer_art"], "wer": n["wer"]} for n in con.execute(sql, (a["id"],))]

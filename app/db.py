@@ -427,6 +427,13 @@ MIGRATIONEN = [
         'neu', eingereicht, eingereicht, CASE WHEN geprueft IS NULL THEN 'offen' ELSE 'bearbeitung' END, id
         FROM bestellliste WHERE eingereicht IS NOT NULL
     """),
+    # 10: "Ueber Firma": das Team wird gefragt, ein Schueler sagt zu und hakt "besorgt" ab (Stufe I3)
+    """
+    ALTER TABLE position ADD COLUMN firma_stand TEXT CHECK (firma_stand IN ('gefragt', 'zugesagt', 'besorgt', 'nein'));
+    ALTER TABLE position ADD COLUMN firma_mitglied_id INTEGER REFERENCES mitglied(id);
+    ALTER TABLE position ADD COLUMN firma_zeit TEXT;
+    UPDATE position SET firma_stand = 'gefragt' WHERE entscheidung = 'firma'
+    """,
 ]
 
 

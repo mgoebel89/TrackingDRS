@@ -593,6 +593,53 @@ body.bericht-seite { background: #fff; }
 .vg-antwort textarea { min-height: 70px; }
 .vg-antwort textarea.intern { background: #fffbea; border-color: #f0d870; }
 .vg-antwort .rechts { margin-left: auto; display: flex; gap: 6px; }
+/* Anfragen und Bestellungen (I3): grosse Reiter, Statuskarte Einreichfenster, Filter, Zeilen mit Art-Symbol und "Zustaendig" */
+.symbol { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.gross-reiter { display: flex; gap: 4px; border-bottom: 1px solid var(--linie); flex-wrap: wrap; }
+.gross-reiter a { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; font-weight: 600; color: var(--leise);
+  text-decoration: none; border-bottom: 3px solid transparent; margin-bottom: -1px; }
+.gross-reiter a:hover { color: var(--text); }
+.gross-reiter a.an { color: var(--blau); border-bottom-color: var(--blau); }
+.gross-reiter .symbol { width: 20px; height: 20px; }
+.gross-reiter .reiter-zahl { position: static; }
+.fenster-karte { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 10px 14px; border: 1px solid var(--linie);
+  border-radius: 12px 5px 5px 5px; background: var(--karte); }
+.fenster-karte.laeuft { background: var(--blau-hell); border-color: var(--blau-mittel); }
+.fenster-karte > .symbol { width: 26px; height: 26px; color: var(--blau); }
+.fenster-karte b { display: block; }
+.fenster-karte .rechts { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
+.vg-filter-block { display: grid; gap: 6px; }
+.filter-reihe { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+.filter-reihe .etikett { min-width: 34px; }
+.filter-reihe .rechts { margin-left: auto; }
+.fk { display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 3px 10px; border-radius: 999px; font-size: .85em;
+  border: 1px solid var(--linie-stark, #cfd4dc); background: var(--karte); color: var(--leise); font-weight: 600; }
+.fk.an { background: var(--blau-hell); border-color: var(--blau-mittel); color: var(--blau); }
+.fk i { font-style: normal; font-size: .85em; opacity: .85; }
+.fk .symbol { width: 15px; height: 15px; }
+.vg-zeile { grid-template-columns: minmax(0, 1fr); justify-content: stretch; }
+.vg-zeile.lk { grid-template-columns: 34px minmax(0, 1fr) auto; align-items: start; column-gap: 10px; }
+.vg-zeile .art-sym { width: 26px; height: 26px; border-radius: 7px; }
+.vg-zeile.lk .art-sym { width: 34px; height: 34px; border-radius: 9px; }
+.vg-mitte { display: grid; gap: 3px; min-width: 0; overflow: hidden; }
+.vg-mitte > .zeile { min-width: 0; flex-wrap: nowrap; }
+.vg-rechts { display: grid; gap: 4px; justify-items: end; }
+.art-sym { width: 34px; height: 34px; border-radius: 9px; display: inline-grid; place-items: center; flex: none; }
+.art-sym .symbol { width: 19px; height: 19px; }
+.art-sym.rueckfrage { background: #ece9fb; color: #4b3fa8; } .art-sym.bestellung { background: #e2f3ec; color: #0f6e56; }
+.art-sym.ausleihe { background: #fbefd9; color: #8a540c; } .art-sym.abnahme { background: var(--blau-hell); color: var(--blau); }
+.vg-team .art-sym, .vg-detail-kopf .art-sym { width: 30px; height: 30px; }
+select.zust-wahl { font-size: .8em; padding: 2px 6px; max-width: 170px; border-style: dashed; }
+select.zust-wahl.gesetzt { border-style: solid; }
+.glocke-knopf { display: inline-flex; align-items: center; gap: 6px; }
+.glocke-knopf.an { color: var(--blau); background: var(--blau-hell); }
+select.pos-wahl { min-width: 150px; width: auto; }
+select.pos-wahl.offen { border-color: var(--gelb, #f8b442); }
+.firma-st { display: inline-block; font-size: .8em; font-weight: 700; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--linie-stark, #cfd4dc); }
+.firma-st.gefragt { border-color: #f0c050; } .firma-st.zugesagt { background: var(--blau-hell); border-color: var(--blau-mittel); color: var(--blau); }
+.firma-st.besorgt { background: #e2f3d6; border-color: #b7dc9a; } .firma-st.nein { border-color: var(--rot); color: var(--rot); }
+.firma-frage { padding: 6px 8px; border: 1px solid #f0c050; border-radius: 8px; background: #fffbea; }
+.firma-haken { align-items: flex-start; }
 .nav-zahl { margin-left: auto; min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--knopf); font-size: .75em; text-align: center; }
 .nav-zahl.neu { background: var(--rot); color: #fff; }
 .glocke button.an { color: var(--blau); background: var(--blau-hell); }

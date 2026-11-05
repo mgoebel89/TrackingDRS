@@ -1,7 +1,12 @@
 """Bestelllisten: Das Team sammelt Positionen jederzeit und reicht die Liste einmal je Einreichfenster ein (sie wird mit
 Uhrzeit eingefroren). Die Lehrkraft entscheidet je Position, woher der Artikel kommt: bestellen, SchulLager (Lagerort als
-Text), Firma eines Schuelers (nur Vermerk), ersetzen (Ersatz eintragen oder mit Hinweis zurueck an das Team) oder
-ablehnen (mit Kommentar). Nach dem Stichtag gibt es die Sammelbestellung je Lieferant ueber alle Teams.
+Text), ueber die Firma eines Schuelers, ersetzen (Ersatz eintragen oder mit Hinweis zurueck an das Team) oder
+ablehnen (mit Kommentar). Nach dem Stichtag gibt es die Sammelbestellung je Lieferant ueber alle Teams. Den Fortschritt
+bestellter Positionen (bestellt, geliefert, ausgegeben) setzt die Lehrkraft getrennt von der Entscheidung.
+
+"Ueber Firma" fragt das Team in seiner Liste: Ja mit dem Schueler, der es besorgt (firma_stand zugesagt), der hakt
+spaeter "besorgt und mitgebracht" ab (besorgt). Nein: die Position ist wieder offen und liegt bei der Lehrkraft
+(firma_stand nein bleibt als Hinweis stehen). Mehr verfolgt das System dabei nicht.
 
 Einreichfenster legt die Lehrkraft fest: von (Datum) bis Stichtag (Datum und Uhrzeit), fuer alle eigenen Projekte, eine
 Klasse oder als Sonderfenster fuer ein einzelnes Team. Preise sind nur zur Information: keine Summen, kein Budget.
@@ -136,7 +141,7 @@ def _zeitpunkt(wert):
 
 # --- Listen und Positionen ---
 
-def _position(z, aufgaben=None):
+def _position(z, aufgaben=None, mitglieder=None):
     weg = z["entscheidung"]
     if weg == "ersetzen":
         weg = z["ersatz_weg"] if z["ersatz_artikel"] else "ersatz_gesucht"
@@ -145,7 +150,14 @@ def _position(z, aufgaben=None):
             "begruendung": z["begruendung"], "gestrichen": bool(z["gestrichen"]), "entscheidung": z["entscheidung"],
             "menge_genehmigt": z["menge_genehmigt"], "kommentar": z["kommentar"], "ersatz_artikel": z["ersatz_artikel"],
             "ersatz_bestellnr": z["ersatz_bestellnr"], "ersatz_lieferant": z["ersatz_lieferant"], "ersatz_weg": z["ersatz_weg"],
-            "weg": weg, "status": z["status"], "aus_position": z["aus_position"]}
+            "weg": weg, "status": z["status"], "aus_position": z["aus_position"],
+            "firma_stand": z["firma_stand"], "firma_mitglied_id": z["firma_mitglied_id"], "firma_zeit": z["firma_zeit"],
+            "firma_wer": (mitglieder or {}).get(z["firma_mitglied_id"])}
+
+
+def _mitglieder(con, pid):
+    return {m["id"]: ("%s %s" % (m["vorname"], m["nachname"])).strip()
+            for m in con.execute("SELECT id, vorname, nachname FROM mitglied WHERE projekt_id = ?", (pid,))}
 
 
 def _aufgaben(con, pid):
@@ -154,9 +166,11 @@ def _aufgaben(con, pid):
 
 def _liste(con, l, aufgaben):
     f = con.execute("SELECT * FROM bestellfenster WHERE id = ?", (l["fenster_id"],)).fetchone() if l["fenster_id"] else None
+    mitglieder = _mitglieder(con, l["projekt_id"])
     return {"id": l["id"], "eingereicht": l["eingereicht"], "geprueft": l["geprueft"], "geprueft_von": l["geprueft_von"],
             "fenster": _fenster(f) if f else None,
-            "positionen": [_position(z, aufgaben) for z in con.execute("SELECT * FROM position WHERE liste_id = ? ORDER BY id", (l["id"],))]}
+            "positionen": [_position(z, aufgaben, mitglieder)
+                           for z in con.execute("SELECT * FROM position WHERE liste_id = ? ORDER BY id", (l["id"],))]}
 
 
 def _sammelliste(con, pid, anlegen=False):
@@ -175,7 +189,9 @@ def team_sicht(con, pid):
             "lage": lage(con, p),
             "eingereicht": [_liste(con, l, aufgaben) for l in con.execute(
                 "SELECT * FROM bestellliste WHERE projekt_id = ? AND eingereicht IS NOT NULL ORDER BY eingereicht DESC", (pid,))],
-            "aufgaben": [{"id": i, "titel": t} for i, t in aufgaben.items()]}
+            "aufgaben": [{"id": i, "titel": t} for i, t in aufgaben.items()],
+            "mitglieder": [{"id": m["id"], "name": ("%s %s" % (m["vorname"], m["nachname"])).strip()} for m in con.execute(
+                "SELECT * FROM mitglied WHERE projekt_id = ? AND aktiv = 1 ORDER BY vorname, nachname", (pid,))]}
 
 
 def _felder(con, pid, d, alt=None):
@@ -261,6 +277,44 @@ def team_aendern(con, pid, d):
             from . import anfragen   # hier, um einen Import-Kreis zu vermeiden
             anfragen.bestellung_vorgang(con, pid, l["id"], n)   # Gespraechsverlauf zur Liste
             return {}
+        if aktion in ("firma_antwort", "firma_besorgt"):
+            z = _pos_holen(con, pid, d.get("position_id"))
+            if z["entscheidung"] != "firma":
+                raise ProjektFehler("Diese Position soll nicht über eine Firma besorgt werden.")
+            from . import anfragen
+            if aktion == "firma_antwort":
+                if z["firma_stand"] not in ("gefragt", "zugesagt"):
+                    raise ProjektFehler("Diese Frage ist schon beantwortet.")
+                if d.get("ja"):
+                    try:
+                        mid = int(d.get("mitglied_id"))
+                    except (TypeError, ValueError):
+                        mid = None
+                    m = con.execute("SELECT * FROM mitglied WHERE id = ? AND projekt_id = ? AND aktiv = 1", (mid, pid)).fetchone()
+                    if m is None:
+                        raise ProjektFehler("Bitte auswählen, wer es besorgt.")
+                    name = ("%s %s" % (m["vorname"], m["nachname"])).strip()
+                    con.execute("UPDATE position SET firma_stand = 'zugesagt', firma_mitglied_id = ?, firma_zeit = ? WHERE id = ?",
+                                (m["id"], jetzt, z["id"]))
+                    ereignis("firma_zugesagt", position_id=z["id"], artikel=z["artikel"], name=name)
+                    anfragen.bestellung_notieren(con, z["liste_id"], "team", "Team", was="firma", artikel=z["artikel"],
+                                                 firma="zugesagt", name=name)
+                else:   # geht nicht: offen zurueck an die Lehrkraft
+                    con.execute("UPDATE position SET firma_stand = 'nein', firma_mitglied_id = NULL, firma_zeit = ?, "
+                                "entscheidung = NULL WHERE id = ?", (jetzt, z["id"]))
+                    con.execute("UPDATE bestellliste SET geprueft = NULL, geprueft_von = NULL WHERE id = ?", (z["liste_id"],))
+                    ereignis("firma_nein", position_id=z["id"], artikel=z["artikel"])
+                    anfragen.bestellung_notieren(con, z["liste_id"], "team", "Team", was="firma", artikel=z["artikel"], firma="nein")
+            else:
+                if z["firma_stand"] not in ("zugesagt", "besorgt"):
+                    raise ProjektFehler("Erst zusagen, wer es besorgt.")
+                besorgt = bool(d.get("besorgt", True))
+                con.execute("UPDATE position SET firma_stand = ?, firma_zeit = ? WHERE id = ?",
+                            ("besorgt" if besorgt else "zugesagt", jetzt, z["id"]))
+                ereignis("firma_besorgt" if besorgt else "firma_nicht_besorgt", position_id=z["id"], artikel=z["artikel"])
+                anfragen.bestellung_notieren(con, z["liste_id"], "team", "Team", was="firma", artikel=z["artikel"],
+                                             firma="besorgt" if besorgt else "zugesagt")
+            return {}
         raise ProjektFehler("Unbekannte Aktion.")
 
 
@@ -289,6 +343,11 @@ def pruefen(con, pid, wer, d):
                     raise ProjektFehler("Bitte einen Ersatz eintragen oder dem Team einen Hinweis geben.")
             con.execute("UPDATE position SET entscheidung = ?, menge_genehmigt = ?, kommentar = ?, ersatz_artikel = ?, ersatz_bestellnr = ?, "
                         "ersatz_lieferant = ?, ersatz_weg = ?, status = NULL WHERE id = ?", (e, menge, kommentar) + ersatz + (z["id"],))
+            if e != "firma":
+                con.execute("UPDATE position SET firma_stand = NULL, firma_mitglied_id = NULL, firma_zeit = NULL WHERE id = ?", (z["id"],))
+            elif z["firma_stand"] not in ("zugesagt", "besorgt"):   # das Team wird in seiner Liste gefragt
+                con.execute("UPDATE position SET firma_stand = 'gefragt', firma_mitglied_id = NULL, firma_zeit = ? WHERE id = ?",
+                            (db.jetzt(), z["id"]))
             db.ereignis(con, pid, "lehrkraft", wer, "position_entschieden", position_id=z["id"], artikel=z["artikel"], entscheidung=e,
                         kommentar=kommentar, ersatz=ersatz[0])
             from . import anfragen

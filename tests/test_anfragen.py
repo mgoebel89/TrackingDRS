@@ -70,12 +70,13 @@ class Anfragen(Basis):
         self.assertFalse(self.team_liste()[aid]["ungelesen"])
         anfragen.nachricht(self.con, self.klima, aid, "team", {"text": "Welche Sicherung?"})
         self.assertTrue(self.eingang(self.gob)[aid]["ungelesen"])
-        # erledigt, dann schreibt das Team wieder: offen
+        # erledigt, dann schreibt das Team wieder: in Bearbeitung bei derselben Lehrkraft
         self.lk(aid, aktion="stand", stand="erledigt")
         self.assertNotIn(aid, self.eingang(self.gob))
         self.assertIn(aid, self.eingang(self.gob, "erledigt"))
         anfragen.nachricht(self.con, self.klima, aid, "team", {"text": "Doch noch eine Frage."})
-        self.assertEqual(self.eingang(self.gob)[aid]["stand"], "offen")
+        e = self.eingang(self.gob)[aid]
+        self.assertEqual((e["stand"], e["zustaendig"]), ("bearbeitung", "GOB"))
         was = [n["daten"].get("was") for n in anfragen.vorgang(self.con, self.klima, aid, self.gob)["verlauf"] if n["art"] == "ereignis"]
         self.assertEqual(was, ["zustaendig", "stand", "stand", "stand"])
         # uebernehmen durch Herrn Schu
@@ -83,6 +84,36 @@ class Anfragen(Basis):
         self.assertEqual(self.eingang(self.scu, "meine")[aid]["zustaendig"], "SCU")
         with self.assertRaises(projekte.ProjektFehler):   # Team kann nur Offenes zurueckziehen
             anfragen.team_aendern(self.con, self.klima, {"aktion": "zurueckziehen", "anfrage_id": aid})
+
+    def test_zuweisen_an_betreuende_lehrkraft(self):
+        aid = anfragen.anlegen(self.con, self.klima, {"art": "rueckfrage", "titel": "Welcher Sensor?"})
+        anfragen.vorgang(self.con, self.klima, aid, self.scu)   # Schu hat es schon gelesen
+        self.lk(aid, aktion="zuweisen", lehrkraft_id=self.scu["id"])
+        e = self.eingang(self.scu)[aid]
+        self.assertEqual((e["stand"], e["zustaendig"], e["ungelesen"]), ("bearbeitung", "SCU", True))   # zugewiesen: ungelesen
+        self.assertFalse(self.eingang(self.gob)[aid]["ungelesen"])
+        v = anfragen.vorgang(self.con, self.klima, aid)   # Team sieht den Namen
+        self.assertEqual(v["zustaendig"]["name"], self.scu["name"])
+        self.assertEqual(self.team_liste()[aid]["zustaendig_name"], self.scu["name"])
+        z = [n["daten"] for n in anfragen.vorgang(self.con, self.klima, aid, self.gob)["verlauf"] if n["daten"].get("was") == "zustaendig"][-1]
+        self.assertEqual((z["kuerzel"], z["von"]), ("SCU", "GOB"))
+        # nur Lehrkraefte, die das Projekt betreuen
+        with db.transaktion(self.con):
+            fremd = konten.anlegen(self.con, "fre", "Frau Fremd", "lehrkraft", "geheim123")
+        with self.assertRaises(projekte.ProjektFehler):
+            self.lk(aid, aktion="zuweisen", lehrkraft_id=fremd["id"])
+        # Zustaendigkeit wegnehmen: wieder neu
+        self.lk(aid, aktion="zuweisen", lehrkraft_id=None)
+        e = self.eingang(self.gob)[aid]
+        self.assertEqual((e["stand"], e["zustaendig"]), ("offen", None))
+        # Filter: Knoepfe je Stand und "nur meine", dazu Zahlen und Betreuer
+        self.lk(aid, aktion="zuweisen", lehrkraft_id=self.gob["id"])
+        r = anfragen.eingang(self.con, self.gob, staende=["offen"])
+        self.assertEqual(([v["id"] for v in r["vorgaenge"]], r["zahlen"]), ([], {"offen": 0, "bearbeitung": 1}))
+        r = anfragen.eingang(self.con, self.gob, staende=["offen", "bearbeitung"], meine=True)
+        self.assertEqual([v["id"] for v in r["vorgaenge"]], [aid])
+        self.assertEqual(anfragen.eingang(self.con, self.scu, staende=["bearbeitung"], meine=True)["vorgaenge"], [])
+        self.assertEqual({b["kuerzel"] for b in r["betreuer"][str(self.klima)]}, {"GOB", "SCU"})
 
     def test_zaehler_zum_melden(self):
         aid = anfragen.anlegen(self.con, self.klima, {"art": "rueckfrage", "titel": "Kabelquerschnitt?", "text": "Reichen 0,75 mm²?"})
@@ -236,6 +267,37 @@ class Bestellung(Basis):
         self.assertIn("listen_warten", [w["art"] for w in termine.warnungen(self.con, self.hub)])
         with self.assertRaises(projekte.ProjektFehler):   # fremde Lehrkraft
             bestellung.sammelbestellung(self.con, self.scu, fid)
+
+    def test_firma_frage_an_das_team(self):
+        p = self.pos(self.klima, artikel="Aluprofil", bestellnr="", lieferant="Mechanikshop")
+        q = self.pos(self.klima, artikel="Kabelbinder")
+        bestellung.fenster_anlegen(self.con, self.gob, {"von": "2026-11-02", "bis": "2026-11-05T12:00", "klasse": "BSMT 22b"})
+        bestellung.team_aendern(self.con, self.klima, {"aktion": "einreichen"})
+        lena = self.con.execute("SELECT id FROM mitglied WHERE projekt_id = ?", (self.klima,)).fetchone()[0]
+        with self.assertRaises(projekte.ProjektFehler):   # noch nicht ueber Firma
+            bestellung.team_aendern(self.con, self.klima, {"aktion": "firma_antwort", "position_id": p, "ja": True, "mitglied_id": lena})
+        self.entscheiden(self.klima, p, entscheidung="firma")
+        self.entscheiden(self.klima, q, entscheidung="firma")
+        pos = lambda: {x["id"]: x for x in bestellung.team_sicht(self.con, self.klima)["eingereicht"][0]["positionen"]}
+        self.assertEqual(pos()[p]["firma_stand"], "gefragt")
+        with self.assertRaises(projekte.ProjektFehler):   # erst zusagen
+            bestellung.team_aendern(self.con, self.klima, {"aktion": "firma_besorgt", "position_id": p})
+        with self.assertRaises(projekte.ProjektFehler):   # Ja nur mit einem Teammitglied
+            bestellung.team_aendern(self.con, self.klima, {"aktion": "firma_antwort", "position_id": p, "ja": True})
+        bestellung.team_aendern(self.con, self.klima, {"aktion": "firma_antwort", "position_id": p, "ja": True, "mitglied_id": lena})
+        self.assertEqual((pos()[p]["firma_stand"], pos()[p]["firma_wer"]), ("zugesagt", "Lena Schmitt"))
+        bestellung.team_aendern(self.con, self.klima, {"aktion": "firma_besorgt", "position_id": p, "besorgt": True})
+        self.assertEqual(pos()[p]["firma_stand"], "besorgt")
+        # Nein: offen zurueck an die Lehrkraft, Liste nicht mehr fertig geprueft, Vorgang ungelesen
+        v = [x for x in anfragen.vorgaenge_lehrkraft(self.con, self.gob, "alle") if x["art"] == "bestellung"][0]
+        anfragen.vorgang(self.con, self.klima, v["id"], self.gob)
+        bestellung.team_aendern(self.con, self.klima, {"aktion": "firma_antwort", "position_id": q, "ja": False})
+        self.assertEqual((pos()[q]["entscheidung"], pos()[q]["firma_stand"]), (None, "nein"))
+        self.assertIsNone(self.con.execute("SELECT geprueft FROM bestellliste").fetchone()[0])
+        self.assertTrue([x for x in anfragen.vorgaenge_lehrkraft(self.con, self.gob, "alle") if x["id"] == v["id"]][0]["ungelesen"])
+        # neue Entscheidung: der Firma-Vermerk verschwindet
+        self.entscheiden(self.klima, q, entscheidung="bestellen")
+        self.assertIsNone(pos()[q]["firma_stand"])
 
     def test_sonderfenster_nur_fuer_ein_team(self):
         self.pos(self.klima)
