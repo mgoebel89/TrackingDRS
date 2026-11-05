@@ -392,7 +392,7 @@ function dieserMontag() {
 async function termineZeigen() {
   titelSetzen('Termine');
   if (!S.terminVon) S.terminVon = dieserMontag();
-  const d = await T.api('GET', '/api/termine?von=' + S.terminVon + '&wochen=4');
+  const d = await T.api('GET', '/api/termine?von=' + S.terminVon + '&wochen=1');
   const regeln = d.regeln.filter(r => r.aktiv);
   const blaettern = n => { S.terminVon = n ? tageSpaeter(S.terminVon, 7 * n) : null; zeigen(); };
 
@@ -414,14 +414,14 @@ async function termineZeigen() {
           el('button', { type: 'button', class: 'leicht', onclick: () => regelBeenden(r) }, 'Beenden'))))))))
       : el('div', { class: 'leer', text: 'Noch keine Projektzeit. Lege mit „+ Projektzeit“ die erste an, z. B. dienstags in ungeraden KW.' }));
 
-  const wochenKarte = el('section', { class: 'karte' },
-    el('div', { class: 'zeile' }, el('h2', { class: 'dreieck', text: 'Projekttage' }),
+  const wochenKarte = el('section', { class: 'karte stapel-eng' },
+    el('div', { class: 'zeile' }, el('h2', { class: 'dreieck', text: 'Besprechungen ' + T.kwText(d.von) }),
+      el('span', { class: 'leise', text: T.kurzTag(d.von) + ' bis ' + T.kurzTag(tageSpaeter(d.von, 4)) }),
       el('span', { class: 'rechts' },
-        el('button', { type: 'button', title: 'frühere Wochen', 'aria-label': 'frühere Wochen', onclick: () => blaettern(-4) }, '‹'),
-        el('button', { type: 'button', onclick: () => blaettern(0) }, T.kwText(d.von) + ' bis ' + T.kwText(d.bis)),
-        el('button', { type: 'button', title: 'spätere Wochen', 'aria-label': 'spätere Wochen', onclick: () => blaettern(4) }, '›'))),
-    d.tage.length ? el('div', { class: 'tage-raster' }, d.tage.map(t => tagKarte(t)))
-      : el('div', { class: 'leer', text: regeln.length ? 'In diesen Wochen gibt es keine Projekttage.' : 'Ohne Projektzeit gibt es keine Projekttage.' }));
+        el('button', { type: 'button', title: 'Woche davor', 'aria-label': 'Woche davor', onclick: () => blaettern(-1) }, '‹'),
+        el('button', { type: 'button', onclick: () => blaettern(0) }, 'Diese Woche'),
+        el('button', { type: 'button', title: 'Woche danach', 'aria-label': 'Woche danach', onclick: () => blaettern(1) }, '›'))),
+    regeln.length ? wochenAnsicht(d) : el('div', { class: 'leer', text: 'Ohne Projektzeit gibt es keine Projekttage.' }));
 
   const ausfallKarte = el('section', { class: 'karte stapel' },
     el('h2', { class: 'dreieck', text: 'Ausfälle' }),
@@ -449,32 +449,104 @@ async function termineZeigen() {
     regelKarte, wochenKarte, el('div', { class: 'raster zwei-spalten' }, ausfallKarte, ferienKarte));
 }
 
-function tagKarte(t) {
-  const anpassbar = !t.entfaellt || t.gestrichen;
-  const kopf = el('div', { class: 'zeile' }, el('b', { text: T.kurzTag(t.datum) }), el('span', { class: 'chip blau', text: t.klasse }),
-    t.angepasst ? el('span', { class: 'chip', text: 'angepasst' }) : null,
-    anpassbar ? el('span', { class: 'rechts' }, el('button', { type: 'button', class: 'leicht', onclick: () => tagDialog(t) }, 'Tag anpassen')) : null);
-  if (t.entfaellt) return el('div', { class: 'termin-tag entfaellt' }, kopf, el('div', { class: 'leise', text: 'entfällt: ' + t.entfaellt }));
-  return el('div', { class: 'termin-tag' }, kopf,
-    el('div', { class: 'leise', text: 'Buchungsschluss ' + T.zeitpunkt(t.schluss) + (t.grund ? ' · ' + t.grund : '') }),
-    el('div', { class: 'slots' }, t.plaetze.map(p => el('div', { class: 'slot' + (p.team ? ' belegt' : '') + (p.vergangen ? ' vorbei' : '') },
-      el('span', { class: 'mono', text: p.uhrzeit }),
-      p.team ? el('a', { href: '#projekt/' + p.projekt_id, text: p.team })
-        : t.ohne_termin.length && !p.vergangen ? teamEintragen(t, p) : el('span', { class: 'leise', text: 'frei' }),
-      p.von_lehrkraft ? el('span', { class: 'leise', text: 'von Lehrkraft' }) : null))),
-    t.ohne_termin.length ? el('div', { class: 'ohne' }, 'Noch ohne Termin: ', t.ohne_termin.map(x => x.titel).join(', '))
-      : t.projekte ? null : el('div', { class: 'leise', text: 'Du betreust kein Projekt dieser Klasse.' }));
+// Wochenansicht wie in Outlook: Spalten Mo bis Fr, Uhrzeit von oben nach unten. Nur gebuchte Besprechungen stehen als
+// Kaestchen darin; das Besprechungsfenster ist blau hinterlegt, ein Klick auf eine freie Stelle traegt ein Team ein, ein
+// Klick auf ein Kaestchen oeffnet das Projekt, verschiebt oder sagt ab. "⋯" am Tageskopf passt den Tag an.
+const MIN = u => Number(u.slice(0, 2)) * 60 + Number(u.slice(3, 5));
+const UHR = m => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+const PX_JE_MIN = 1.4;
+
+function wochenAnsicht(d) {
+  const tageDerWoche = [0, 1, 2, 3, 4].map(i => tageSpaeter(d.von, i));
+  const stattfinden = d.tage.filter(t => !t.entfaellt);
+  const anfang = stattfinden.length ? Math.floor(Math.min(...stattfinden.map(t => MIN(t.fenster_von))) / 30) * 30 - 30 : 8 * 60;
+  const ende = stattfinden.length ? Math.ceil(Math.max(...stattfinden.map(t => MIN(t.fenster_bis))) / 30) * 30 + 30 : 12 * 60;
+  const hoehe = (ende - anfang) * PX_JE_MIN, y = u => (MIN(u) - anfang) * PX_JE_MIN;
+  const zeiten = [];
+  for (let m = anfang; m <= ende; m += 30) zeiten.push(el('span', { style: 'top:' + ((m - anfang) * PX_JE_MIN) + 'px', text: UHR(m) }));
+
+  const kopf = datum => {
+    const tage = d.tage.filter(t => t.datum === datum);
+    return el('div', { class: 'wg-kopf' + (tage.length ? '' : ' leer') }, el('b', { text: T.kurzTag(datum) }),
+      tage.map(t => el('span', { class: 'wg-tag-chip' }, el('span', { class: 'chip blau', text: t.klasse }),
+        t.angepasst ? el('span', { class: 'chip', text: 'angepasst' }) : null,
+        !t.entfaellt || t.gestrichen ? el('button', { type: 'button', class: 'leicht wg-mehr', title: 'Tag anpassen', 'aria-label': 'Tag ' + T.kurzTag(datum) + ' anpassen',
+          onclick: () => tagDialog(t) }, '⋯') : null)));
+  };
+
+  const spalte = datum => {
+    const tage = d.tage.filter(t => t.datum === datum);
+    const s = el('div', { class: 'wg-spalte', style: 'height:' + hoehe + 'px' });
+    if (!tage.length) { s.appendChild(el('div', { class: 'wg-hinweis', text: 'kein Projekttag' })); return s; }
+    tage.forEach(t => {
+      if (t.entfaellt) { s.classList.add('frei'); s.appendChild(el('div', { class: 'wg-hinweis', text: 'entfällt: ' + t.entfaellt })); return; }
+      s.appendChild(el('div', { class: 'wg-fenster', title: t.klasse + ' · Besprechungen ' + t.fenster_von + '–' + t.fenster_bis,
+        style: 'top:' + y(t.fenster_von) + 'px;height:' + (MIN(t.fenster_bis) - MIN(t.fenster_von)) * PX_JE_MIN + 'px' }));
+      t.plaetze.forEach(p => {
+        const lage = 'top:' + (y(p.uhrzeit) + 1) + 'px;height:' + Math.max(t.laenge * PX_JE_MIN - 2, 16) + 'px';
+        if (p.team) {
+          s.appendChild(el('button', { type: 'button', class: 'wg-termin' + (p.von_lehrkraft ? ' lk' : '') + (p.vergangen ? ' vorbei' : ''), style: lage,
+            title: p.team + ' · ' + p.uhrzeit + (p.von_lehrkraft ? ' · von Lehrkraft eingetragen' : ''),
+            onclick: () => terminDialog(d, t, p) }, el('b', { text: p.uhrzeit }), ' ', p.team));
+        } else if (!p.vergangen) {
+          s.appendChild(el('button', { type: 'button', class: 'wg-frei', style: lage, 'aria-label': 'frei ' + T.kurzTag(t.datum) + ', ' + p.uhrzeit,
+            title: p.uhrzeit + ' frei · Team eintragen', onclick: () => eintragenDialog(t, p) }, el('span', { text: p.uhrzeit + ' frei' })));
+        }
+      });
+    });
+    return s;
+  };
+
+  // Eine Warnzeile fuer die Woche: Teams ohne Termin (aus allen Projekttagen), dazu die Buchungsschluesse
+  const ohne = [...new Map(d.tage.flatMap(t => t.ohne_termin).map(x => [x.id, x])).values()];
+  const schluss = [...new Set(stattfinden.map(t => T.kurzTag(t.schluss) + ', ' + t.schluss.slice(11, 16)))];
+  return el('div', { class: 'stapel-eng' },
+    el('div', { class: 'rollbar' }, el('div', { class: 'woche-gitter' },
+      el('div', { class: 'wg-kopf ecke' }), tageDerWoche.map(kopf),
+      el('div', { class: 'wg-zeit', style: 'height:' + hoehe + 'px' }, zeiten), tageDerWoche.map(spalte))),
+    ohne.length ? el('div', { class: 'banner w' }, el('b', { text: 'Noch ohne Termin in ' + T.kwText(d.von) + ': ' }), ohne.map(x => x.titel).join(', '),
+      schluss.length ? el('span', { class: 'leise', text: ' · Buchungsschluss ' + schluss.join(' und ') }) : null)
+      : stattfinden.length ? el('div', { class: 'leise klein-text', text: 'Alle Teams haben einen Termin.' }) : null,
+    el('div', { class: 'kal-leg leise klein-text' },
+      el('span', {}, el('span', { class: 'wg-termin muster' }, 'Kästchen'), ' gebuchte Besprechung: Klick öffnet, verschiebt oder sagt ab'),
+      el('span', {}, el('span', { class: 'wg-fenster muster' }), ' Besprechungsfenster: Klick auf eine freie Zeit trägt ein Team ein'),
+      el('span', { text: '⋯ am Tageskopf: Tag anpassen oder streichen' })));
 }
 
-function teamEintragen(t, p) {
-  return el('select', { class: 'klein', 'aria-label': 'Team für ' + p.uhrzeit + ' eintragen', onchange: async ev => {
-    if (!ev.target.value) return;
-    try {
-      await T.api('POST', '/api/projekte/' + ev.target.value + '/termin', { regel_id: t.regel_id, datum: t.datum, uhrzeit: p.uhrzeit });
-      T.meldung('Eingetragen.');
-      zeigen();
-    } catch (e) { T.meldung(e.message, true); ev.target.value = ''; }
-  } }, el('option', { value: '', text: 'frei · Team eintragen' }), t.ohne_termin.map(x => el('option', { value: String(x.id), text: x.titel })));
+async function eintragenDialog(t, p) {
+  if (!t.ohne_termin.length) { T.meldung(t.projekte ? 'Alle Teams dieser Klasse haben schon einen Termin. Ein Kästchen anklicken zum Verschieben.' : 'Du betreust kein Projekt dieser Klasse.', true); return; }
+  const wahl = el('select', { required: true }, el('option', { value: '', text: 'Team wählen' }), t.ohne_termin.map(x => el('option', { value: String(x.id), text: x.titel })));
+  const ok = await T.dialog({ titel: T.kurzTag(t.datum) + ', ' + p.uhrzeit + ' · Team eintragen', knopf: 'Eintragen',
+    inhalt: el('div', { class: 'felder' }, T.feld('Team', wahl, 'Teams dieser Klasse, die in dieser Woche noch keinen Termin haben')),
+    speichern: () => T.api('POST', '/api/projekte/' + wahl.value + '/termin', { regel_id: t.regel_id, datum: t.datum, uhrzeit: p.uhrzeit }) });
+  if (ok) { T.meldung('Eingetragen.'); zeigen(); }
+}
+
+async function terminDialog(d, t, p) {
+  // freie Zeiten derselben Klasse in dieser Woche zum Verschieben
+  const frei = d.tage.filter(x => !x.entfaellt && x.klasse === t.klasse).flatMap(x => x.plaetze.filter(q => !q.team && !q.vergangen)
+    .map(q => ({ wert: x.regel_id + '|' + x.datum + '|' + q.uhrzeit, text: T.kurzTag(x.datum) + ', ' + q.uhrzeit })));
+  const ziel = el('select', {}, el('option', { value: '', text: frei.length ? 'nicht verschieben' : 'keine freie Zeit in dieser Woche' }),
+    frei.map(f => el('option', { value: f.wert, text: f.text })));
+  const r = await T.dialog({ titel: p.team + ' · ' + T.kurzTag(t.datum) + ', ' + p.uhrzeit, knopf: 'Verschieben',
+    inhalt: el('div', { class: 'felder' },
+      el('div', { class: 'zeile' }, el('a', { class: 'knopf', href: '#projekt/' + p.projekt_id }, 'Projekt öffnen'),
+        el('button', { type: 'button', class: 'warnen', onclick: async ev => {
+          ev.target.closest('dialog').querySelector('[value=nein]').click();
+          try {
+            await T.api('POST', '/api/projekte/' + p.projekt_id + '/termin', { stornieren: true, woche: t.woche });
+            T.meldung('Termin abgesagt.'); zeigen();
+          } catch (e) { T.meldung(e.message, true); }
+        } }, 'Termin absagen')),
+      p.von_lehrkraft ? el('p', { class: 'leise klein-text', text: 'Von einer Lehrkraft eingetragen.' }) : null,
+      T.feld('Verschieben auf', ziel)),
+    speichern: async () => {
+      if (!ziel.value) return null;
+      const [regel, datum, uhrzeit] = ziel.value.split('|');
+      await T.api('POST', '/api/projekte/' + p.projekt_id + '/termin', { regel_id: Number(regel), datum, uhrzeit });
+      return true;
+    } });
+  if (r) { T.meldung('Verschoben.'); zeigen(); }
 }
 
 async function regelDialog(d, r) {

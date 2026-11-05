@@ -593,6 +593,54 @@ body.bericht-seite { background: #fff; }
 .vg-antwort textarea { min-height: 70px; }
 .vg-antwort textarea.intern { background: #fffbea; border-color: #f0d870; }
 .vg-antwort .rechts { margin-left: auto; display: flex; gap: 6px; }
+/* Projekttage als Wochenansicht (I4) */
+.woche-gitter { display: grid; grid-template-columns: 52px repeat(5, minmax(150px, 1fr)); min-width: 820px; border: 1px solid var(--linie);
+  border-radius: 10px; overflow: hidden; background: var(--karte); }
+.wg-kopf { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; padding: 6px 8px; border-left: 1px solid var(--linie);
+  border-bottom: 1px solid var(--linie); min-height: 40px; }
+.wg-kopf.ecke { border-left: none; }
+.wg-kopf.leer { color: var(--leise); }
+.wg-tag-chip { display: inline-flex; gap: 3px; align-items: center; }
+.wg-mehr { min-height: 0; padding: 0 6px; line-height: 1.4; }
+.wg-zeit { position: relative; }
+.wg-zeit span { position: absolute; right: 6px; transform: translateY(-50%); font-family: var(--mono); font-size: .7rem; color: var(--leise); }
+.wg-zeit span:first-child { transform: none; }
+.wg-spalte { position: relative; border-left: 1px solid var(--linie);
+  background: repeating-linear-gradient(to bottom, transparent 0 41px, var(--linie) 41px 42px); }
+.wg-spalte.frei { background: repeating-linear-gradient(135deg, transparent 0 6px, var(--linie) 6px 8px); }
+.wg-hinweis { position: absolute; inset: 0; display: grid; place-items: center; padding: 6px; text-align: center; color: var(--leise); font-size: .8rem; }
+.wg-fenster { position: absolute; left: 0; right: 0; background: var(--blau-hell); opacity: .75; }
+.wg-termin { position: absolute; left: 4px; right: 4px; display: block; text-align: left; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  padding: 1px 6px; min-height: 0; font-size: .78rem; line-height: 1.3; font-weight: 500; color: var(--text); background: var(--karte);
+  border: 1px solid var(--blau-mittel); border-left: 3px solid var(--blau); border-radius: 0 6px 6px 0; cursor: pointer; z-index: 1; }
+.wg-termin b { font-family: var(--mono); font-size: .72rem; color: var(--blau); }
+.wg-termin.lk { border-left-color: var(--text); }
+.wg-termin.vorbei { opacity: .6; }
+.wg-frei { position: absolute; left: 4px; right: 4px; min-height: 0; padding: 0 6px; font-size: .72rem; text-align: left; color: transparent;
+  background: transparent; border: 1px dashed transparent; border-radius: 6px; cursor: pointer; }
+.wg-frei:hover, .wg-frei:focus-visible { color: var(--blau); border-color: var(--blau-mittel); background: var(--karte); }
+.wg-termin.muster { position: static; display: inline-block; }
+.wg-fenster.muster { position: static; display: inline-block; width: 16px; height: 12px; vertical-align: -2px; opacity: 1; }
+
+/* Termin buchen (Team): Banner in der Uebersicht und Fenster, am Handy von unten */
+.termin-banner { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.termin-banner .rechts { margin-left: auto; display: flex; gap: 6px; }
+dialog.blatt-dialog { width: min(460px, calc(100vw - 24px)); padding: 14px 16px 18px; border: none; border-radius: 16px;
+  box-shadow: 0 20px 50px -16px rgba(0, 0, 0, .5); }
+dialog.blatt-dialog::backdrop { background: rgba(16, 24, 40, .45); }
+.blatt-griff { width: 40px; height: 4px; border-radius: 2px; background: var(--linie); margin: 0 auto 8px; display: none; }
+.tag-wahl { display: flex; gap: 6px; flex-wrap: wrap; }
+.tag-wahl button { flex: 1; min-width: 96px; display: grid; gap: 1px; padding: 6px 8px; font-weight: 600; }
+.tag-wahl button small { font-weight: 500; color: var(--leise); font-size: .72rem; }
+.tag-wahl button.an { background: var(--blau); border-color: var(--blau); color: #fff; }
+.tag-wahl button.an small { color: #fff; }
+.frei-zeiten { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.frei-zeiten button { padding: 12px 4px; font-family: var(--mono); font-weight: 600; font-size: 1rem; color: var(--blau); border-color: var(--blau-mittel); }
+@media (max-width: 600px) {
+  dialog.blatt-dialog { margin: auto 0 0; width: 100vw; max-width: 100vw; border-radius: 18px 18px 0 0; padding-bottom: max(18px, env(safe-area-inset-bottom)); }
+  .blatt-griff { display: block; }
+}
+
 /* Anfragen und Bestellungen (I3): grosse Reiter, Statuskarte Einreichfenster, Filter, Zeilen mit Art-Symbol und "Zustaendig" */
 .symbol { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .gross-reiter { display: flex; gap: 4px; border-bottom: 1px solid var(--linie); flex-wrap: wrap; }

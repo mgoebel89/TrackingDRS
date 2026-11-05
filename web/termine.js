@@ -1,4 +1,4 @@
-// Besprechungstermine eines Projekts buchen: Team (Reiter "Termin", ueber den Link) und Lehrkraft (Projektseite).
+// Besprechungstermine eines Projekts buchen: Team (Uebersicht, Buchungsfenster "Termin buchen") und Lehrkraft (Projektseite).
 // Je Woche ein Termin. Das Team bucht und bucht um bis zum Buchungsschluss des Tages und sieht fremde Termine nur als
 // "belegt"; die Lehrkraft sieht, wer gebucht hat, und darf jederzeit aendern.
 'use strict';
@@ -79,6 +79,54 @@ const Termine = (() => {
           el('div', { class: 'plaetze' }, tag.plaetze.map(p => platzKnopf(w, tag, p))))));
     }
 
+    // Team: der eigene Termin oder "Termin buchen"; gebucht wird in einem kleinen Fenster (am Handy von unten), das
+    // erst die Projekttage der Woche und dann nur die freien Zeiten des gewaehlten Tags zeigt
+    function teamKompakt(w) {
+      const b = w.buchung;
+      const frei = t => t.plaetze.filter(p => p.buchbar);
+      const buchbar = w.tage.some(t => frei(t).length);
+      if (b) {
+        return el('div', { class: 'banner termin-banner' }, 'Euer Termin: ', el('b', { text: T.kurzTag(b.datum) + ', ' + b.uhrzeit + ' Uhr' }),
+          w.fest ? el('span', { class: 'leise', text: ' · steht fest' })
+            : [el('span', { class: 'leise', text: ' · ändern bis ' + T.zeitpunkt(w.schluss) }),
+              el('span', { class: 'rechts' }, buchbar ? el('button', { type: 'button', onclick: () => blatt(w) }, 'Ändern') : null,
+                el('button', { type: 'button', class: 'leicht', onclick: () => absagen(w) }, 'Absagen'))]);
+      }
+      return el('div', { class: 'banner w termin-banner' }, el('b', { text: 'Noch kein Termin für ' + T.kwText(w.woche) + '.' }),
+        buchbar ? el('span', { class: 'rechts' }, el('button', { type: 'button', class: 'haupt', onclick: () => blatt(w) }, 'Termin buchen'))
+          : el('span', { class: 'leise', text: ' Der Buchungsschluss ist vorbei, bitte die Lehrkraft fragen.' }));
+    }
+
+    function blatt(w) {
+      const frei = t => t.plaetze.filter(p => p.buchbar);
+      let tag = w.tage.find(t => frei(t).length) || w.tage[0];
+      const d = el('dialog', { class: 'blatt-dialog' });
+      const zu = () => { d.close(); d.remove(); };
+      const inhalt = el('div', { class: 'stapel-eng' });
+      function zeichnenBlatt() {
+        T.setzen(inhalt,
+          el('div', { class: 'etikett', text: 'Tag' }),
+          el('div', { class: 'tag-wahl' }, w.tage.map(t => el('button', { type: 'button', class: t === tag ? 'an' : '', disabled: !frei(t).length,
+            onclick: () => { tag = t; zeichnenBlatt(); } }, T.kurzTag(t.datum),
+          el('small', { text: frei(t).length ? (frei(t).length === 1 ? '1 frei' : frei(t).length + ' frei') : t.offen ? 'voll' : 'geschlossen' })))),
+          el('div', { class: 'etikett', text: 'Noch frei am ' + T.kurzTag(tag.datum) }),
+          frei(tag).length ? el('div', { class: 'frei-zeiten' }, frei(tag).map(p => el('button', { type: 'button', onclick: () => {
+            zu();
+            senden({ regel_id: tag.regel_id, datum: tag.datum, uhrzeit: p.uhrzeit }, (w.buchung ? 'Geändert: ' : 'Gebucht: ') + T.kurzTag(tag.datum) + ', ' + p.uhrzeit);
+          } }, p.uhrzeit))) : el('div', { class: 'leise', text: 'An diesem Tag ist nichts mehr frei.' }),
+          el('p', { class: 'leise klein-text', text: 'Antippen bucht. Buchen, ändern und absagen geht bis ' + T.zeitpunkt(tag.schluss) +
+            ', danach nur noch über die Lehrkraft.' }));
+      }
+      zeichnenBlatt();
+      d.append(el('div', { class: 'blatt-griff' }),
+        el('div', { class: 'zeile' }, el('h2', { class: 'dreieck', text: w.buchung ? 'Termin ändern' : 'Termin buchen' }),
+          el('span', { class: 'rechts' }, el('button', { type: 'button', class: 'leicht', 'aria-label': 'Schließen', onclick: zu }, '✕'))), inhalt);
+      d.addEventListener('cancel', ev => { ev.preventDefault(); zu(); });
+      d.addEventListener('click', ev => { if (ev.target === d) zu(); });   // Klick neben das Fenster
+      document.body.appendChild(d);
+      d.showModal();
+    }
+
     function zeichnen() {
       const d = S.daten;
       if (!d.regeln) {
@@ -89,10 +137,7 @@ const Termine = (() => {
       if (!d.wochen.length) {
         return T.setzen(ort, el('div', { class: 'leer', text: 'In den nächsten Wochen gibt es keine Projekttage (Ferien oder Projektende).' }));
       }
-      if (!lehrkraft) {   // Team: nur die aktuelle Woche, kompakt fuer die Uebersicht
-        return T.setzen(ort, el('div', { class: 'stapel' }, woche(d.wochen[0]),
-          el('p', { class: 'leise', text: 'Freien Termin antippen zum Buchen oder Umbuchen. Je Woche ein Termin.' })));
-      }
+      if (!lehrkraft) return T.setzen(ort, teamKompakt(d.wochen[0]));   // Team: aktuelle Woche, Buchen im Fenster
       T.setzen(ort, el('div', { class: 'stapel' }, d.wochen.map(woche),
         el('p', { class: 'leise', text: lehrkraft ? 'Freien Termin anklicken, um ihn für das Team einzutragen oder umzubuchen. Du darfst auch nach dem Buchungsschluss ändern.'
           : 'Freien Termin antippen zum Buchen oder Umbuchen. Je Woche ein Termin. Bis zum Termin Raster und Ampeln aktualisieren.' })));
