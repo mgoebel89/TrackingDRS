@@ -21,4 +21,15 @@ table inet trackingdrs {
 	chain weiter {
 		type filter hook forward priority filter; policy drop;
 	}
+	# Antworten auf Verbindungen, die ueber das VPN hereinkamen, gehen ueber das VPN zurueck (ip rule fwmark 0x7464 ->
+	# Tabelle 7464 -> wg0, siehe deploy/vpn.sh). So erreichen auch Geraete den Lehrerbereich, deren Heimnetz dieselben
+	# Adressen wie das Schulnetz hat. Ohne wg0 trifft das kein Paket.
+	chain vpn_merken {
+		type filter hook prerouting priority mangle; policy accept;
+		iifname "wg0" ct state new ct mark set 0x7464
+	}
+	chain vpn_zurueck {
+		type route hook output priority mangle; policy accept;
+		ct mark 0x7464 meta mark set 0x7464
+	}
 }

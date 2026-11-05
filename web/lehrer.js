@@ -881,7 +881,8 @@ function vpnFormular(e) {
       spellcheck: 'false', placeholder: '44 Zeichen, endet auf =' }),
     adresse: el('input', { required: true, value: e.adresse || '10.8.0.20', autocomplete: 'off' }),
     server_ip: el('input', { value: e.server_ip || '', placeholder: 'leer = erste Adresse im VPN-Netz (z. B. 10.8.0.1)', autocomplete: 'off' }),
-    netze: el('input', { value: (e.netze || []).join(' '), placeholder: 'leer = nur das VPN-Netz', autocomplete: 'off' }),
+    netze: el('input', { value: (e.netze || []).join(' '), placeholder: 'leer = das Netz der VPN-Adresse (/24)', autocomplete: 'off' }),
+    alle: el('input', { type: 'checkbox', checked: e.alle === undefined ? true : !!e.alle }),
     server_if: el('input', { required: true, value: e.server_if || 'wg0', maxlength: '15', autocomplete: 'off' }),
     passwort: el('input', { type: 'password', required: true, autocomplete: 'current-password' }),
     conf: el('textarea', { rows: '11', required: true, class: 'mono vpn-conf', spellcheck: 'false', autocomplete: 'off',
@@ -904,12 +905,13 @@ function vpnFormular(e) {
     el('div', { class: 'felder zwei' },
       T.feld('VPN-Adresse des Containers', f.adresse, 'frei, bei keinem [Peer] unter AllowedIPs'),
       T.feld('VPN-Adresse des Servers', f.server_ip, 'Address unter [Interface]')),
-    T.feld('Netze über das VPN', f.netze, 'z. B. 10.8.0.0/24 192.168.178.0/24 für das Heimnetz'));
+    T.feld('VPN-Netz', f.netze, 'z. B. 10.8.0.0/24. Dein Heimnetz gehört nicht hierher, dafür ist der Schalter unten.'));
   const ausDatei = el('fieldset', { class: 'felder', style: ohneRahmen },
     el('p', { class: 'leise', text: 'Eine WireGuard-Datei, die du für den Container geschrieben hast: [Interface] mit PrivateKey und ' +
       'Address, [Peer] mit dem Server. Nimm nicht die Datei deines Handys, jedes Gerät braucht eigene Schlüssel. Der private ' +
       'Schlüssel darin gehört dem Container: Er geht verschlüsselt an den Container, liegt danach nur in /etc/wireguard und wird ' +
-      'nie wieder angezeigt. „Alles über den Tunnel“ (0.0.0.0/0) und DNS übernimmt der Container nicht.' }),
+      'nie wieder angezeigt. AllowedIPs 0.0.0.0/0 heißt hier „Alle Teilnehmer meines VPN“: Der Container leitet dafür nichts um. ' +
+      'DNS übernimmt er nicht.' }),
     T.feld('Datei wählen', datei),
     T.feld('… oder den Inhalt hier einfügen', f.conf));
   const umschalter = el('div', { class: 'umschalter' });
@@ -926,14 +928,18 @@ function vpnFormular(e) {
     titel: e.adresse ? 'VPN neu einrichten' : 'VPN einrichten', knopf: 'Einrichten',
     inhalt: el('div', { class: 'felder' },
       umschalter, werte, ausDatei,
+      el('label', { class: 'haken' }, f.alle, el('span', {}, el('b', { text: 'Alle Teilnehmer meines VPN' }),
+        el('span', { class: 'leise klein-text', style: 'display:block', text: 'Jedes Gerät im VPN und in deinem Heimnetz hinter dem VPN ' +
+          'erreicht den Lehrerbereich (nur HTTPS), auch wenn das Heimnetz dieselben 192.168er-Adressen wie das Schulnetz hat. Der ' +
+          'Container selbst erreicht dein Heimnetz weiterhin nicht.' }))),
       T.feld('Schnittstelle auf dem VPS', f.server_if, 'Dateiname in /etc/wireguard ohne .conf (nur für die Befehle zum Kopieren)'),
       el('p', { class: 'warnung-text', text: 'Liegt die VPN-Adresse außerhalb von 192.168.x.x, entsteht einmalig ein neues ' +
         'Stammzertifikat. Die Seite ist dann kurz weg, und alle Geräte brauchen das neue Stammzertifikat.' }),
       T.feld('Dein Passwort zur Bestätigung', f.passwort)),
     speichern: () => T.api('POST', '/api/vpn', modus === 'datei'
-      ? { aktion: 'einrichten', conf: f.conf.value, server_if: f.server_if.value, passwort: f.passwort.value }
+      ? { aktion: 'einrichten', conf: f.conf.value, server_if: f.server_if.value, alle: f.alle.checked, passwort: f.passwort.value }
       : { aktion: 'einrichten', server: f.host.value, port: f.port.value, schluessel: f.schluessel.value, adresse: f.adresse.value,
-        server_ip: f.server_ip.value, netze: f.netze.value, server_if: f.server_if.value, passwort: f.passwort.value }),
+        server_ip: f.server_ip.value, netze: f.netze.value, server_if: f.server_if.value, alle: f.alle.checked, passwort: f.passwort.value }),
   });
 }
 
@@ -1014,6 +1020,8 @@ function vpnKarte() {
         el('dt', { text: 'Adresse' }), el('dd', {}, el('span', { class: 'mono', text: e.adresse }), e.aktiv ? [' · ',
           el('a', { href: 'https://' + e.adresse + '/', target: '_blank', rel: 'noopener', text: 'https://' + e.adresse }), ' (von zuhause)'] : null),
         el('dt', { text: 'Server' }), el('dd', { class: 'mono', text: e.server || '–' }),
+        el('dt', { text: 'Erreichbar für' }), el('dd', { text: e.alle ? 'alle Teilnehmer deines VPN, auch dein Heimnetz' :
+          'nur Geräte mit einer Adresse im VPN-Netz ' + (e.netze || []).join(', ') }),
         t ? [el('dt', { text: 'Getestet' }), el('dd', { text: T.zeitText(t.zeit) + ' · täglich automatisch' })] : null,
         t && t.ziele.length ? [el('dt', { text: 'Versucht' }), el('dd', { class: 'mono klein-text', text: t.ziele.join(', ') })] : null) : null,
       el('div', { class: 'zeile' },

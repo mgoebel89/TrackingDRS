@@ -159,7 +159,7 @@ class AusDerOberflaeche(unittest.TestCase):
         pfad = os.path.join(self.daten, "vpn", "anfrage.json")
         self.assertEqual(vpn.anfrage_lesen(pfad), {"aktion": "einrichten", "server": "203.0.113.5:51820", "schluessel": SCHLUESSEL,
                                                     "adresse": "10.8.0.20", "netze": "10.8.0.0/24", "server_ip": "10.8.0.1",
-                                                    "server_if": "wg0"})
+                                                    "server_if": "wg0", "alle": False})
         self.assertFalse(os.path.exists(pfad))   # gelesen = geloescht
         with self.assertRaises(vpn.VpnFehler):
             vpn.anfrage_lesen(pfad)
@@ -232,7 +232,7 @@ class ClientDatei(unittest.TestCase):
     def test_typische_datei(self):
         angaben, privat, psk, hinweise = vpn.conf_einlesen(CLIENT, SCHULE)
         self.assertEqual(angaben, {"server": "vpn.example.de:51820", "schluessel": SCHLUESSEL, "adresse": "10.8.0.20",
-                                   "netze": "10.8.0.0/24", "server_ip": "10.8.0.1"})
+                                   "netze": "10.8.0.0/24", "server_ip": "10.8.0.1", "alle": True})
         self.assertEqual((privat, psk), (PRIVAT, PSK))
         text = " ".join(hinweise)
         for teil in ("IPv4-Adresse 10.8.0.20", "0.0.0.0/0", "DNS"):
@@ -244,6 +244,10 @@ class ClientDatei(unittest.TestCase):
         angaben, _, psk, hinweise = vpn.conf_einlesen(datei, [("eth0", ipaddress.IPv4Network("192.168.178.0/24"))])
         self.assertEqual((angaben["netze"], psk), ("10.8.0.0/24 172.16.5.0/24", None))
         self.assertTrue(any("eth0" in h for h in hinweise))
+        # Heimnetz mit denselben Adressen wie das Schulnetz: keine Route dorthin, aber alle Absender zulassen
+        self.assertTrue(angaben["alle"])
+        ohne = datei.replace(", 192.168.178.0/24", "")
+        self.assertFalse(vpn.conf_einlesen(ohne, [("eth0", ipaddress.IPv4Network("192.168.178.0/24"))])[0]["alle"])
         # Adresse ohne Netzangabe und VPN-Netz fehlt in AllowedIPs: VPN-Netz /24 kommt dazu, das Schulnetz bleibt draussen
         angaben = vpn.conf_einlesen(datei.replace("Address = 10.8.0.20/24, fd00:8::20/64", "Address = 10.8.0.20/32")
                                     .replace("AllowedIPs = 10.8.0.0/24, ", "AllowedIPs = "), SCHULE)[0]
@@ -276,7 +280,7 @@ class ClientDatei(unittest.TestCase):
         with mock.patch("sys.stdout", new_callable=io.StringIO) as aus, mock.patch("sys.stderr", new_callable=io.StringIO) as err:
             self.assertEqual(vpn.main(["anfrage-lesen", pfad]), 0)
         self.assertEqual(aus.getvalue().strip(),
-                         "einrichten|vpn.example.de:51820|%s|10.8.0.20|10.8.0.0/24|10.8.0.1|wg1|1|1" % SCHLUESSEL)
+                         "einrichten|vpn.example.de:51820|%s|10.8.0.20|10.8.0.0/24|10.8.0.1|wg1|1|1|1" % SCHLUESSEL)
         self.assertNotIn(PRIVAT, aus.getvalue() + err.getvalue())
         self.assertIn("Hinweis:", err.getvalue())
         with open(vpn.SCHLUESSEL) as f:
@@ -289,7 +293,7 @@ class ClientDatei(unittest.TestCase):
             f.write(CLIENT.replace("PresharedKey = %s\n" % PSK, ""))
         with mock.patch("sys.stdout", new_callable=io.StringIO) as aus, mock.patch("sys.stderr", new_callable=io.StringIO):
             self.assertEqual(vpn.main(["conf-lesen", datei]), 0)
-        self.assertTrue(aus.getvalue().strip().endswith("||1"))
+        self.assertTrue(aus.getvalue().strip().endswith("||1|1"))
         self.assertFalse(os.path.exists(vpn.PSK))
 
 
@@ -366,3 +370,36 @@ class Firewall(unittest.TestCase):
                 self.assertEqual(rumpf[2], "ip saddr @container ct state established,related accept")
                 self.assertTrue(rumpf[3].startswith("ip saddr @container counter drop"))
         self.assertIn("ip daddr @container tcp dport 443 ct state new accept", zeilen)
+
+
+class AlleAbsender(unittest.TestCase):
+    """Der Lehrerbereich fuer das ganze VPN: Routen nur fuers VPN-Netz, AllowedIPs 0.0.0.0/0, Kennzeichen in wg0.conf."""
+
+    def test_formular_schalter(self):
+        d = {"aktion": "einrichten", "server": "vpn.example.de:51820", "schluessel": SCHLUESSEL, "adresse": "10.8.0.20"}
+        self.assertFalse(vpn.angaben_pruefen(d, SCHULE)["alle"])
+        self.assertTrue(vpn.angaben_pruefen(dict(d, alle=True), SCHULE)["alle"])
+        self.assertTrue(vpn.angaben_pruefen({"aktion": "einrichten", "conf": CLIENT.replace("0.0.0.0/0, ::/0", "10.8.0.0/24"),
+                                             "alle": True}, SCHULE)["alle"])
+
+    def test_konf_mit_netze_kommentar(self):
+        text = """# Server-IP = 10.0.0.1
+# Netze = 10.0.0.0/16
+# Alle-Absender = ja
+[Interface]
+Address = 10.0.0.8/32
+Table = off
+[Peer]
+AllowedIPs = 0.0.0.0/0
+"""
+        adresse, netze, server = vpn.konf_lesen(text)
+        self.assertEqual((str(adresse), [str(n) for n in netze], str(server)), ("10.0.0.8", ["10.0.0.0/16"], "10.0.0.1"))
+        self.assertTrue(vpn.alle_absender(text))
+        self.assertFalse(vpn.alle_absender(text.replace("= ja", "= nein")))
+        # Sperrtest zielt nie auf 0.0.0.0/0, auch bei alten Dateien ohne "# Netze"
+        alt = """[Interface]
+Address = 10.0.0.8/32
+[Peer]
+AllowedIPs = 0.0.0.0/0
+"""
+        self.assertEqual(vpn.konf_lesen(alt)[1], [])

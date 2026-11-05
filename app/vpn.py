@@ -9,10 +9,11 @@ Aufruf aus deploy/vpn.sh (als root, im Repo-Ordner):
     das der Lehrerbereich anzeigt (rote Warnung, wenn etwas durchkommt). Exit 0 dicht/aus, 2 offen, 1 sonst.
   python3 -m app.vpn anfrage-lesen <datei>
     Auftrag aus dem Lehrerbereich lesen, loeschen, pruefen. Ausgabe: aktion|server|schluessel|adresse|netze|server-ip|
-    server-if (bei sperrtest/aus nur die Aktion).
+    server-if|psk|aus_datei|alle (bei sperrtest/aus nur die Aktion). alle = 1: Verbindungen von jedem Absender aus dem
+    VPN annehmen (Heimnetz hinter dem VPN, auch wenn es dieselben Adressen wie das Schulnetz hat).
   python3 -m app.vpn conf-lesen <client-datei>
     Wie anfrage-lesen, aber aus einer WireGuard-Datei fuer den Container (trackingdrs vpn einrichten --conf). Legt den
-    privaten Schluessel (und PresharedKey) aus der Datei nach /etc/wireguard. Ausgabe wie oben, dazu |psk|aus_datei.
+    privaten Schluessel (und PresharedKey) aus der Datei nach /etc/wireguard. Ausgabe wie oben.
   python3 -m app.vpn info-ablegen <oeffentlicher schluessel des containers> <aktiv 0|1> [<schnittstelle auf dem server>]
                                   [<aus datei 0|1>]
     Oeffentliche Angaben fuer den Lehrerbereich nach <VPN_DIR>/einrichtung.json.
@@ -56,7 +57,9 @@ def eigene_netze():
 
 
 def pruefen(server, schluessel, adresse, netze, server_ip="", lokal=()):
-    """Gibt (adresse, [netze], server_ip) zurueck oder wirft VpnFehler mit einem Hinweis, wo die Angabe steht."""
+    """Gibt (adresse, [netze], server_ip) zurueck oder wirft VpnFehler mit einem Hinweis, wo die Angabe steht.
+    netze sind die Ziele, die der Container ueber den Tunnel erreicht (Routen). Wer ihn ueber das VPN erreichen darf,
+    regelt "alle Absender" (siehe konf_text), nicht diese Liste."""
     server = (server or "").strip()
     m = re.fullmatch(r"([A-Za-z0-9.-]+|\[[0-9A-Fa-f:]+\]):(\d{1,5})", server)
     if not m or not 0 < int(m.group(2)) < 65536:
@@ -81,14 +84,16 @@ def pruefen(server, schluessel, adresse, netze, server_ip="", lokal=()):
     if not liste:
         liste = [ipaddress.IPv4Network("%s/24" % a, strict=False)]
     if any(n.prefixlen < 8 for n in liste):
-        raise VpnFehler("Nur das VPN-Netz (und ggf. das Heimnetz) soll über den Tunnel laufen, nicht alles (0.0.0.0/0).")
+        raise VpnFehler("Nur das VPN-Netz soll über den Tunnel laufen, nicht alles (0.0.0.0/0). Damit dich alle Geräte "
+                        "im VPN erreichen, „Alle Teilnehmer meines VPN“ einschalten.")
     if not any(a in n for n in liste):
         raise VpnFehler("Die VPN-Adresse %s liegt in keinem der Netze %s." % (a, " ".join(map(str, liste))))
     for name, netz in lokal:
         for n in liste:
             if n.overlaps(netz):
                 raise VpnFehler("%s überschneidet sich mit dem Netz von %s (%s): dann wäre der Container dort nicht mehr "
-                                "erreichbar." % (n, name, netz))
+                                "erreichbar. Geräte aus diesem Netz hinter dem VPN erreichen den Container trotzdem, "
+                                "wenn „Alle Teilnehmer meines VPN“ an ist." % (n, name, netz))
     try:
         s = ipaddress.IPv4Address(server_ip.strip()) if server_ip and server_ip.strip() else next(liste[0].hosts())
     except ValueError:
@@ -102,13 +107,20 @@ def konf_lesen(text):
     """Aus wg0.conf: eigene Adresse, Netze ueber den Tunnel (AllowedIPs) und die Server-IP (Kommentar von vpn.sh)."""
     werte = {}
     for zeile in text.splitlines():
-        m = re.match(r"\s*(#\s*Server-IP|Address|AllowedIPs)\s*=\s*(.+?)\s*$", zeile)
+        m = re.match(r"\s*(#\s*Server-IP|#\s*Netze|Address|AllowedIPs)\s*=\s*(.+?)\s*$", zeile)
         if m:
             werte.setdefault(m.group(1).lstrip("# ").strip(), m.group(2))
     adresse = ipaddress.IPv4Address(werte["Address"].split("/")[0])
-    netze = [ipaddress.IPv4Network(n, strict=False) for n in werte.get("AllowedIPs", "").replace(",", " ").split()]
+    # "# Netze" (ab 0.10.1): die Routen; AllowedIPs ist bei "alle Absender" 0.0.0.0/0
+    netze = [ipaddress.IPv4Network(n, strict=False) for n in werte.get("Netze", werte.get("AllowedIPs", "")).replace(",", " ").split()]
+    netze = [n for n in netze if n.prefixlen >= 8]
     server = werte.get("Server-IP")
     return adresse, netze, ipaddress.IPv4Address(server) if server else None
+
+
+def alle_absender(text):
+    """wg0.conf von vpn.sh mit "alle Absender": AllowedIPs 0.0.0.0/0, Antworten gehen ueber den Tunnel zurueck."""
+    return bool(re.search(r"^\s*#\s*Alle-Absender\s*=\s*ja\s*$", text, re.M))
 
 
 def sperrziele(adresse, netze, server_ip):
@@ -247,8 +259,10 @@ def conf_einlesen(text, lokal=()):
     """Client-Datei fuer den Container (wie man sie fuer ein Handy schreibt) -> Angaben, privater Schluessel, PSK.
 
     Uebernommen werden [Interface] PrivateKey + Address und [Peer] PublicKey, PresharedKey, Endpoint, AllowedIPs.
-    Alles ueber den Tunnel (0.0.0.0/0, ::/0) wird auf das VPN-Netz beschraenkt, DNS/MTU/IPv6 bleiben weg.
-    Rueckgabe: ({server, schluessel, adresse, netze, server_ip}, privat, psk oder None, [hinweise])."""
+    0.0.0.0/0 (oder ein Netz, das sich mit dem Schulnetz ueberschneidet, z. B. das Heimnetz 192.168.0.0/16) heisst:
+    alle Absender aus dem VPN zulassen. Der Container leitet deshalb nichts um, Routen gibt es nur fuers VPN-Netz.
+    DNS/MTU/IPv6 bleiben weg.
+    Rueckgabe: ({server, schluessel, adresse, netze, server_ip, alle}, privat, psk oder None, [hinweise])."""
     if len(text or "") > 4000:
         raise VpnFehler("Die Datei ist zu groß für eine WireGuard-Config.")
     werte, abschnitt, peers, hinweise = {"interface": {}, "peer": {}}, None, 0, []
@@ -283,7 +297,7 @@ def conf_einlesen(text, lokal=()):
         eigen = ipaddress.IPv4Interface(v4[0] if "/" in v4[0] and not v4[0].endswith("/32") else v4[0].split("/")[0] + "/24")
     except ValueError:
         raise VpnFehler("Address unter [Interface] ist keine IPv4-Adresse.") from None
-    netze = []
+    netze, alle = [], False
     for n in pe.get("allowedips", "").split(","):
         n = n.strip()
         if not n or ":" in n:
@@ -293,11 +307,16 @@ def conf_einlesen(text, lokal=()):
         except ValueError:
             raise VpnFehler("AllowedIPs: %s ist kein Netz." % n) from None
         if netz.prefixlen < 8:
-            hinweise.append("AllowedIPs %s (alles über den Tunnel) gilt für den Container nicht, er nutzt nur das VPN-Netz." % n)
+            alle = True
+            hinweise.append("AllowedIPs %s: Alle Teilnehmer deines VPN erreichen den Container (nur HTTPS). Sein eigener "
+                            "Verkehr (Updates, Kalender) bleibt im Schulnetz." % n)
             continue
         ueberschneidung = [name for name, lnetz in lokal if netz.overlaps(lnetz)]
         if ueberschneidung:
-            hinweise.append("%s bleibt draußen: Es überschneidet sich mit dem Netz von %s." % (n, ueberschneidung[0]))
+            alle = True
+            hinweise.append("%s überschneidet sich mit dem Netz von %s: Geräte dort erreichen den Container über das VPN "
+                            "trotzdem („Alle Teilnehmer meines VPN“ ist dafür an), der Container selbst bleibt aber im "
+                            "Schulnetz." % (n, ueberschneidung[0]))
             continue
         netze.append(netz)
     if not any(eigen.ip in n for n in netze):
@@ -306,7 +325,7 @@ def conf_einlesen(text, lokal=()):
         hinweise.append("DNS wird nicht übernommen, der Container nutzt sein eigenes.")
     adresse, netze, server_ip = pruefen(pe["endpoint"], pe.get("publickey"), str(eigen.ip), " ".join(map(str, netze)), "", lokal)
     return ({"server": pe["endpoint"].strip(), "schluessel": pe["publickey"].strip(), "adresse": adresse,
-             "netze": " ".join(netze), "server_ip": server_ip}, privat, psk, hinweise)
+             "netze": " ".join(netze), "server_ip": server_ip, "alle": alle}, privat, psk, hinweise)
 
 
 def angaben_pruefen(d, lokal=()):
@@ -322,13 +341,18 @@ def angaben_pruefen(d, lokal=()):
         raise VpnFehler("Name der WireGuard-Schnittstelle auf dem Server bitte wie in /etc/wireguard, z. B. wg0.")
     if d.get("conf"):
         angaben, privat, psk, hinweise = conf_einlesen(str(d["conf"]), lokal)
-        return dict(angaben, aktion=aktion, server_if=schnitt, privat=privat, psk=psk, hinweise=hinweise)
+        return dict(angaben, aktion=aktion, server_if=schnitt, privat=privat, psk=psk, hinweise=hinweise,
+                    alle=angaben["alle"] or _ja(d.get("alle")))
     server = str(d.get("server") or "").strip()
     schluessel = str(d.get("schluessel") or "").strip()
     adresse, netze, server_ip = pruefen(server, schluessel, str(d.get("adresse") or ""), str(d.get("netze") or ""),
                                         str(d.get("server_ip") or ""), lokal)
     return {"aktion": aktion, "server": server, "schluessel": schluessel, "adresse": adresse, "netze": " ".join(netze),
-            "server_ip": server_ip, "server_if": schnitt}
+            "server_ip": server_ip, "server_if": schnitt, "alle": _ja(d.get("alle"))}
+
+
+def _ja(wert):
+    return wert in (True, 1, "1", "ja", "true")
 
 
 def schluessel_ablegen(privat, psk):
@@ -389,7 +413,8 @@ def anfordern(daten_dir, daten):
     angaben = angaben_pruefen(d, lokal)
     # Mit Client-Datei geht die Datei selbst an root (sie enthaelt den privaten Schluessel des Containers): nur fuer den
     # Webdienst lesbar und nur, bis root sie abholt.
-    auftrag = {"aktion": angaben["aktion"], "conf": d["conf"], "server_if": angaben["server_if"]} if "privat" in angaben \
+    auftrag = {"aktion": angaben["aktion"], "conf": d["conf"], "server_if": angaben["server_if"],
+               "alle": angaben["alle"]} if "privat" in angaben \
         else {k: v for k, v in angaben.items() if k != "hinweise"}
     pfad = _anfrage_pfad(daten_dir)
     os.makedirs(os.path.dirname(pfad), exist_ok=True)
@@ -451,7 +476,8 @@ def info_ablegen(container_schluessel, aktiv, server_if=None, aus_datei=None):
             "server": werte.get("Endpoint"), "server_schluessel": werte.get("PublicKey"),
             "container_schluessel": _oeffentlicher_schluessel(container_schluessel),
             "server_if": server_if or alt.get("server_if") or "wg0", "konf": konf,
-            "aus_datei": alt.get("aus_datei", False) if aus_datei is None else aus_datei, "psk": os.path.exists(PSK)}
+            "aus_datei": alt.get("aus_datei", False) if aus_datei is None else aus_datei, "psk": os.path.exists(PSK),
+            "alle": alle_absender(text)}
     _schreiben("einrichtung.json", info)
     return info
 
@@ -504,7 +530,8 @@ def main(argv):
             for h in a.get("hinweise", []):
                 print("Hinweis: %s" % h, file=sys.stderr)
             print("|".join([*(a.get(k, "") for k in ("aktion", "server", "schluessel", "adresse", "netze", "server_ip",
-                                                     "server_if")), "1" if a.get("psk") else "", "1" if a.get("privat") else ""]))
+                                                     "server_if")), "1" if a.get("psk") else "", "1" if a.get("privat") else "",
+                            "1" if a.get("alle") else ""]))
             return 0
         if argv[:1] == ["info-ablegen"] and len(argv) in (3, 4, 5):
             info_ablegen(argv[1], argv[2] == "1", argv[3] if len(argv) >= 4 and argv[3] else None,

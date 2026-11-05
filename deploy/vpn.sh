@@ -16,12 +16,16 @@
 #
 # Ohne Rueckfragen:
 #   trackingdrs vpn einrichten --server vpn.example.de:51820 --server-schluessel <44 Zeichen> --adresse 10.8.0.20 \
-#     [--netze "10.8.0.0/24 192.168.178.0/24"] [--server-ip 10.8.0.1]
+#     [--netze "10.8.0.0/24"] [--server-ip 10.8.0.1] [--alle]
+#   --alle: alle Teilnehmer des VPN (auch das Heimnetz hinter dem Router, selbst mit denselben Adressen wie das
+#           Schulnetz) erreichen den Lehrerbereich; Antworten gehen ueber den Tunnel zurueck, auf dem sie kamen.
 # Mit einer fertigen Client-Datei fuer den Container (PrivateKey, Address, Server als [Peer], ggf. PresharedKey):
 #   trackingdrs vpn einrichten --conf /root/container.conf
-#   (0.0.0.0/0 wird auf das VPN-Netz beschraenkt, DNS bleibt weg; die Datei danach loeschen)
+#   (0.0.0.0/0 heisst dort: alle Absender zulassen wie --alle; DNS bleibt weg; die Datei danach loeschen)
 #
-# Sicherheit: Nur die angegebenen Netze laufen ueber den Tunnel (kein 0.0.0.0/0), der Container leitet nichts weiter,
+# Sicherheit: Nur Verbindungen ins VPN-Netz laufen ueber den Tunnel; mit --alle nimmt WireGuard zwar Pakete jedes
+# Absenders an (AllowedIPs 0.0.0.0/0), Routen gibt es aber nur fuers VPN-Netz (Table = off) und fuer Antworten auf
+# Verbindungen, die ueber wg0 hereinkamen (Markierung 0x7464, Tabelle 7464). Der Container leitet nichts weiter,
 # und die Firewall (deploy/firewall.nft) laesst auf wg0 nur HTTPS (443) herein. Auf dem Server bekommt der Container
 # nur seine eine Adresse (AllowedIPs .../32), und vps/sperre.sh verwirft dort jede Verbindung, die er selbst aufbaut.
 set -euo pipefail
@@ -87,7 +91,7 @@ info_ablegen() {   # info_ablegen <aktiv 0|1> [<Schnittstelle auf dem VPS>] [<au
 }
 
 anfrage() {   # Auftrag aus dem Lehrerbereich: lesen (dabei geloescht und geprueft), ausfuehren, Ergebnis ablegen
-  local zeile aktion server schl adresse netze server_ip server_if psk datei beginn ergebnis=ok extra=()
+  local zeile aktion server schl adresse netze server_ip server_if psk datei alle beginn ergebnis=ok extra=()
   export TZ=Europe/Berlin
   umask 022
   install -d -o root -g root -m 755 "$STAND"
@@ -98,8 +102,9 @@ anfrage() {   # Auftrag aus dem Lehrerbereich: lesen (dabei geloescht und geprue
     lauf_schreiben "?" "$beginn" fehler
     return 1
   fi
-  IFS='|' read -r aktion server schl adresse netze server_ip server_if psk datei <<< "$zeile"
+  IFS='|' read -r aktion server schl adresse netze server_ip server_if psk datei alle <<< "$zeile"
   [ -n "$psk" ] && extra+=(--psk)
+  [ -n "$alle" ] && extra+=(--alle)
   [ -n "$datei" ] && extra+=(--aus-datei)
   lauf_schreiben "$aktion" "$beginn" ""
   {
@@ -148,7 +153,7 @@ testen() {   # testen <Server-IP>: wartet kurz auf den ersten Handshake
 }
 
 einrichten() {
-  local server="" schl="" adresse="" netze="" server_ip="" server_if="" conf="" psk="" datei=""
+  local server="" schl="" adresse="" netze="" server_ip="" server_if="" conf="" psk="" datei="" alle=""
   while [ $# -gt 0 ]; do
     case "$1" in
       --server) server=$2; shift 2 ;;
@@ -160,6 +165,7 @@ einrichten() {
       --conf) conf=$2; shift 2 ;;
       --psk) psk=1; shift ;;          # Schluessel und PSK hat anfrage-lesen schon abgelegt
       --aus-datei) datei=1; shift ;;
+      --alle) alle=1; shift ;;
       *) fehler "Unbekannte Option $1" ;;
     esac
   done
@@ -167,7 +173,9 @@ einrichten() {
   if [ -n "$conf" ]; then   # Client-Datei: Werte und Schluessel daraus (Hinweise erscheinen direkt)
     local werte
     werte=$(cd "$REPO" && python3 -m app.vpn conf-lesen "$(readlink -f "$conf")") || exit 1
-    IFS='|' read -r _ server schl adresse netze server_ip _ psk datei <<< "$werte"
+    local alle_datei
+    IFS='|' read -r _ server schl adresse netze server_ip _ psk datei alle_datei <<< "$werte"
+    [ -n "$alle_datei" ] && alle=1
     echo "==> Schluessel${psk:+ und PresharedKey} aus $conf uebernommen (die Datei kannst du jetzt loeschen)"
   fi
   if [ -z "$server" ] || [ -z "$schl" ] || [ -z "$adresse" ]; then
@@ -181,8 +189,9 @@ einrichten() {
   [ -n "$schl" ] || schl=$(frage "Oeffentlicher Schluessel des Servers" "$(aus_conf PublicKey)")
   [ -n "$adresse" ] || adresse=$(frage "VPN-Adresse dieses Containers" "${alt_adresse%/*}")
   if [ -z "$netze" ]; then
-    netze=$(aus_conf AllowedIPs | tr -d ',')
-    [ -t 0 ] && [ -z "$netze" ] && netze=$(frage "Netze ueber das VPN (VPN-Netz, ggf. Heimnetz hinter der Fritzbox)" "${adresse%.*}.0/24")
+    netze=$(aus_conf "# Netze"); [ -n "$netze" ] || netze=$(aus_conf AllowedIPs | tr -d ',')
+    [ "$netze" = "0.0.0.0/0" ] && netze=""
+    [ -t 0 ] && [ -z "$netze" ] && netze=$(frage "VPN-Netz" "${adresse%.*}.0/24")
   fi
   local erg
   erg=$(cd "$REPO" && python3 -m app.vpn pruefen "$server" "$schl" "$adresse" "$netze" "$server_ip") || exit 1
@@ -206,20 +215,31 @@ einrichten() {
     rm -f "$PSK"
   fi
 
-  echo "==> $CONF"
+  local erlaubt=${netze// /, } routen="" n alle_text=nein
+  [ -n "$alle" ] && { erlaubt="0.0.0.0/0"; alle_text=ja; }
+  for n in $netze; do routen+="PostUp = ip -4 route replace $n dev %i"$'\n'; done
+
+  echo "==> $CONF${alle:+ (alle Teilnehmer des VPN erreichen den Lehrerbereich)}"
   ( umask 077; cat > "$CONF.neu" <<EOF
-# TrackingDRS: Verbindung zum WireGuard-Server (trackingdrs vpn einrichten). Nur diese Netze laufen ueber den Tunnel.
+# TrackingDRS: Verbindung zum WireGuard-Server (trackingdrs vpn einrichten). Ueber den Tunnel laufen nur Verbindungen
+# ins VPN-Netz und Antworten auf Verbindungen, die ueber wg0 hereinkamen (Markierung in deploy/firewall.nft).
 # Der Schluessel liegt in $SCHLUESSEL und verlaesst den Container nicht.
 # Server-IP = $server_ip
+# Netze = $netze
+# Alle-Absender = $alle_text
 [Interface]
 Address = $adresse/32
+Table = off
 PostUp = wg set %i private-key $SCHLUESSEL
 $psk_zeile
+${routen}PostUp = ip -4 rule add fwmark 0x7464 lookup 7464 priority 1000 2>/dev/null || true
+PostUp = ip -4 route replace default dev %i table 7464
+PostDown = ip -4 rule del fwmark 0x7464 lookup 7464 priority 1000 2>/dev/null || true
 
 [Peer]
 PublicKey = $schl
 Endpoint = $server
-AllowedIPs = ${netze// /, }
+AllowedIPs = $erlaubt
 # hinter dem Router der Schule: Verbindung offen halten, damit der Server den Container erreicht
 PersistentKeepalive = 25
 EOF
