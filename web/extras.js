@@ -1,5 +1,5 @@
-// Extras: Fotos vom Aufbau (Team und Lehrkraft), Mindmap (Lehrkraft laedt hoch, Team sieht sie) und private
-// Lehrernotizen (nur Lehrkraefte). Lehrkraft: Karten auf der Projektseite. Team: Reiter "Fotos", Mindmap im Reiter "Projekt".
+// Extras: Mindmap (Lehrkraft laedt hoch, Team sieht sie im Reiter "Projekt") und Lehrernotizen (nur Lehrkraefte).
+// Lehrkraft: Karten im Reiter "Projekt & Team". Fotos gibt es nur noch ueber die Tafel (der Reiter "Fotos" ist entfallen).
 'use strict';
 
 const Extras = (() => {
@@ -20,35 +20,6 @@ const Extras = (() => {
     document.body.appendChild(huelle);
   }
 
-  function galerie(fotos, basis, entfernen) {
-    if (!fotos.length) return el('div', { class: 'leise klein-text', text: 'Noch keine Fotos.' });
-    return el('div', { class: 'galerie' }, fotos.map(f => el('figure', { class: 'foto' },
-      el('img', { src: basis + '/bild/' + f.name, alt: f.titel || 'Foto', loading: 'lazy', onclick: () => bildGross(basis + '/bild/' + f.name, f.titel) }),
-      el('figcaption', {}, el('b', { text: f.titel || 'Foto' }),
-        el('div', { class: 'leise klein-text', text: T.zeitText(f.erstellt) + ' · ' + (f.wer_art === 'team' ? 'Team' : f.wer.toUpperCase()) +
-          (f.aufgabe ? ' · ' + f.aufgabe : '') }),
-        entfernen && entfernen(f) ? el('button', { type: 'button', class: 'leicht', onclick: () => entfernen(f)() }, 'Entfernen') : null))));
-  }
-
-  function fotoForm(aufgaben, senden) {
-    const datei = el('input', { type: 'file', accept: 'image/*', capture: 'environment', hidden: true });
-    const titel = el('input', { maxlength: '200', placeholder: 'Was ist zu sehen? z. B. Gehäuse, 1. Druck', 'aria-label': 'Beschreibung' });
-    const aufgabe = el('select', { class: 'klein', 'aria-label': 'Tätigkeit' }, el('option', { value: '', text: 'ohne Tätigkeit' }),
-      (aufgaben || []).map(a => el('option', { value: String(a.id), text: a.titel })));
-    datei.addEventListener('change', async () => {
-      if (!datei.files.length) return;
-      try {
-        const bild = await Besprechung.verkleinern(datei.files[0]);
-        if (await senden({ bild, titel: titel.value, aufgabe_id: aufgabe.value ? Number(aufgabe.value) : null })) titel.value = '';
-      } catch (e) { T.meldung('Das Foto konnte nicht gelesen werden.', true); }
-      datei.value = '';
-    });
-    return el('div', { class: 'stapel-eng' },
-      el('div', { class: 'neu-eintrag' }, titel, aufgaben ? aufgabe : null,
-        el('button', { type: 'button', class: 'haupt', onclick: () => datei.click() }, '📷 Foto hochladen'), datei),
-      el('div', { class: 'leise klein-text', text: 'Aufbau fotografieren, keine Personen.' }));
-  }
-
   function mindmapAnsicht(m, basis) {
     if (!m) return el('div', { class: 'leise klein-text', text: 'Noch keine Mindmap hinterlegt.' });
     const url = basis + '/bild/' + m.name;
@@ -61,9 +32,9 @@ const Extras = (() => {
 
   // --- Lehrkraft: Karten auf der Projektseite ---
 
-  function lehrerKarten(pid, archiviert, aufgaben) {
+  function lehrerKarten(pid, archiviert) {
     const basis = '/api/projekte/' + pid;
-    const mindmapOrt = el('div'), fotoOrt = el('div'), notizOrt = el('div');
+    const mindmapOrt = el('div'), notizOrt = el('div');
     let D = null;
 
     async function senden(pfad, daten, meldung) {
@@ -81,8 +52,6 @@ const Extras = (() => {
       T.setzen(mindmapOrt, mindmapAnsicht(D.mindmap, basis), archiviert ? null : el('div', { class: 'zeile' },
         el('button', { type: 'button', onclick: () => datei.click() }, D.mindmap ? 'Neue Mindmap hochladen' : 'Mindmap hochladen'), datei,
         el('span', { class: 'leise klein-text', text: 'Bild (PNG, JPEG) oder PDF bis 8 MB. Das Team sieht sie im Reiter „Projekt“.' })));
-      T.setzen(fotoOrt, archiviert ? null : fotoForm(aufgaben, d => senden('/fotos', d, 'Foto gespeichert.')),
-        galerie(D.fotos, basis, archiviert ? null : f => () => senden('/fotos/' + f.id + '/verwerfen', {}, 'Foto entfernt.')));
       const neu = el('textarea', { rows: '3', maxlength: '10000', placeholder: 'Beobachtung, Absprache, Gespräch …', 'aria-label': 'Neue Notiz' });
       T.setzen(notizOrt,
         el('p', { class: 'leise klein-text', text: 'Nur für Lehrkräfte dieses Projekts. Das Team sieht sie nie, sie stehen auch nicht im Verlauf.' }),
@@ -107,35 +76,15 @@ const Extras = (() => {
 
     (async () => {
       try { D = await T.api('GET', basis + '/extras'); zeichnen(); }
-      catch (e) { T.setzen(fotoOrt, el('div', { class: 'leer', text: e.message })); }
+      catch (e) { T.setzen(mindmapOrt, el('div', { class: 'leer', text: e.message })); }
     })();
 
     return [
       el('section', { class: 'karte stapel-eng' }, el('h2', { class: 'dreieck', text: 'Mindmap' }), mindmapOrt),
-      el('section', { class: 'karte stapel-eng' }, el('h2', { class: 'dreieck', text: 'Fotos' }), fotoOrt),
       el('section', { class: 'karte stapel-eng notizkarte' }, el('h2', { class: 'dreieck', text: 'Lehrernotizen' }), notizOrt)];
   }
 
   // --- Team ---
-
-  function teamFotos({ ort, basis, aufgaben }) {
-    let D = null;
-    async function senden(pfad, daten, meldung) {
-      try { D = await T.api('POST', basis + pfad, daten); zeichnen(); T.meldung(meldung); return true; }
-      catch (e) { T.meldung(e.message, true); return false; }
-    }
-    function zeichnen() {
-      T.setzen(ort, el('div', { class: 'stapel' },
-        el('section', { class: 'karte stapel-eng' }, el('h2', { class: 'dreieck', text: 'Foto hochladen' }),
-          fotoForm(aufgaben, d => senden('/fotos', d, 'Foto gespeichert.'))),
-        el('section', { class: 'karte stapel-eng' }, el('h2', { class: 'dreieck', text: 'Fotos' }),
-          galerie(D.fotos, basis, f => f.wer_art === 'team' ? () => senden('/fotos/' + f.id + '/verwerfen', {}, 'Foto entfernt.') : null))));
-    }
-    (async () => {
-      try { D = await T.api('GET', basis + '/extras'); zeichnen(); }
-      catch (e) { T.setzen(ort, el('div', { class: 'leer', text: e.message })); }
-    })();
-  }
 
   async function teamMindmap(basis) {
     try {
@@ -144,5 +93,5 @@ const Extras = (() => {
     } catch (e) { return null; }
   }
 
-  return { lehrerKarten, teamFotos, teamMindmap, dateiLesen };
+  return { lehrerKarten, teamMindmap, dateiLesen };
 })();

@@ -172,7 +172,7 @@ async function neuesProjekt() {
 // Projektseite mit Reitern wie in der Team-Ansicht: #projekt/<id>[/<reiter>[/<vorgang>]]
 const P_REITER = [['uebersicht', 'Übersicht', 'Start', 'start'], ['sheet', 'Tracking-Sheet', 'Sheet', 'sheet'],
   ['besprechung', 'Besprechung', 'Bespr.', 'bespr'], ['anfragen', 'Anfragen', 'Anfr.', 'anfr'],
-  ['fotos', 'Fotos & Notizen', 'Fotos', 'fotos'], ['projekt', 'Projekt & Team', 'Projekt', 'projekt']];
+  ['projekt', 'Projekt & Team', 'Projekt', 'projekt']];
 
 async function projektZeigen(id, reiter, unter) {
   const [{ projekt: p }] = await Promise.all([T.api('GET', '/api/projekte/' + id), lehrkraefte()]);
@@ -208,10 +208,8 @@ async function projektZeigen(id, reiter, unter) {
     await Besprechung.lehrerZeigen(p.id, ort);
   } else if (wahl === 'anfragen') {
     await Vorgang.eingang(unter ? Number(unter) : null, { projektId: p.id, ort, ziel: '#projekt/' + p.id + '/anfragen' });
-  } else if (wahl === 'fotos') {
-    T.setzen(ort, Extras.lehrerKarten(p.id, p.archiviert, p.phasen.flatMap(ph => ph.aufgaben).filter(a => !a.verworfen).map(a => ({ id: a.id, titel: a.titel }))));
   } else if (wahl === 'projekt') {
-    T.setzen(ort, projektVerwaltung(p));
+    T.setzen(ort, projektVerwaltung(p), Extras.lehrerKarten(p.id, p.archiviert));
   } else {
     projektUebersicht(p, ort, warnungenZeigen, warnungenLaden);
   }

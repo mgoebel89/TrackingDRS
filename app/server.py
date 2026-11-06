@@ -855,7 +855,7 @@ def api_sammelbestellung_csv(h, con, daten, fid):
               extra=[("Content-Disposition", 'attachment; filename="%s"' % name)])
 
 
-# --- Extras: Fotos, Mindmap, Lehrernotizen, Vorlagen, Export, Archiv, Sicherung ---
+# --- Extras: Mindmap, Lehrernotizen, (Fotos nur noch lesen: Reiter "Fotos" ist mit J2 entfallen), Vorlagen, Export, Archiv, Sicherung ---
 
 def _extras(con, pid, lehrkraft):
     d = {"fotos": extras.fotos(con, pid), "mindmap": extras.mindmap(con, pid)}
@@ -866,18 +866,6 @@ def _extras(con, pid, lehrkraft):
 
 def api_extras(h, con, daten, pid):
     _k, pid = _projekt(h, con, pid)
-    h.antwort(200, _extras(con, pid, True))
-
-
-def api_foto(h, con, daten, pid):
-    k, pid = _projekt(h, con, pid)
-    extras.foto_neu(con, pid, _daten_dir(h), "lehrkraft", k["kuerzel"], daten)
-    h.antwort(200, _extras(con, pid, True))
-
-
-def api_foto_weg(h, con, daten, pid, fid):
-    k, pid = _projekt(h, con, pid)
-    extras.foto_verwerfen(con, pid, "lehrkraft", k["kuerzel"], _ganzzahl(fid))
     h.antwort(200, _extras(con, pid, True))
 
 
@@ -986,17 +974,6 @@ def api_sicherung(h, con, daten):
 def api_team_extras(h, con, daten, token):
     h.antwort(200, _extras(con, _team_projekt(con, token), False))
 
-
-def api_team_foto(h, con, daten, token):
-    pid = _team_projekt(con, token)
-    extras.foto_neu(con, pid, _daten_dir(h), "team", "Team", daten)
-    h.antwort(200, _extras(con, pid, False))
-
-
-def api_team_foto_weg(h, con, daten, token, fid):
-    pid = _team_projekt(con, token)
-    extras.foto_verwerfen(con, pid, "team", "Team", _ganzzahl(fid))
-    h.antwort(200, _extras(con, pid, False))
 
 
 # --- Termine ---
@@ -1117,8 +1094,6 @@ ROUTEN = [(m, re.compile(p), f) for m, p, f in [
     ("GET", r"/api/projekte/(\d+)/termine", api_projekt_termine),
     ("POST", r"/api/projekte/(\d+)/anfragen", api_anfrage_bearbeiten),
     ("GET", r"/api/projekte/(\d+)/extras", api_extras),
-    ("POST", r"/api/projekte/(\d+)/fotos", api_foto),
-    ("POST", r"/api/projekte/(\d+)/fotos/(\d+)/verwerfen", api_foto_weg),
     ("POST", r"/api/projekte/(\d+)/mindmap", api_mindmap),
     ("POST", r"/api/projekte/(\d+)/notizen", api_notiz),
     ("POST", r"/api/projekte/(\d+)/notizen/(\d+)", api_notiz_aendern),
@@ -1175,8 +1150,6 @@ ROUTEN = [(m, re.compile(p), f) for m, p, f in [
     ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/mitglieder", api_team_mitglieder),
     ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/mitglieder/(\d+)", api_team_mitglied),
     ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/extras", api_team_extras),
-    ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/fotos", api_team_foto),
-    ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/fotos/(\d+)/verwerfen", api_team_foto_weg),
     ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/anfragen", api_team_anfragen_aendern),
     ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/vorgaenge/(\d+)", api_team_vorgang),
     ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/vorgaenge/(\d+)", api_team_vorgang_aendern),

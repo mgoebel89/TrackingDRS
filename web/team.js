@@ -11,7 +11,7 @@ const inhalt = document.getElementById('inhalt');
 const token = location.pathname.split('/')[2] || '';
 const basis = '/api/t/' + encodeURIComponent(token);
 const REITER = [['uebersicht', 'Übersicht', 'Start', 'start'], ['sheet', 'Tracking-Sheet', 'Sheet', 'sheet'],
-  ['besprechung', 'Besprechung', 'Bespr.', 'bespr'], ['anfragen', 'Anfragen', 'Anfr.', 'anfr'], ['fotos', 'Fotos', 'Fotos', 'fotos'],
+  ['besprechung', 'Besprechung', 'Bespr.', 'bespr'], ['anfragen', 'Anfragen', 'Anfr.', 'anfr'],
   ['projekt', 'Projekt', 'Projekt', 'projekt']];
 const U = { sheet: null, entfallen: [] };   // was "Demnaechst" braucht
 let projekt = null;
@@ -170,12 +170,6 @@ function zeigen() {
     const seite = projektSeite(projekt);
     T.setzen(bereich, seite);
     Extras.teamMindmap(basis).then(k => { if (k && bereich.contains(seite[0])) bereich.insertBefore(k, bereich.firstChild); });
-    return;
-  }
-  if (wahl === 'fotos') {
-    const ort = el('div');
-    T.setzen(bereich, ort);
-    Extras.teamFotos({ ort, basis, aufgaben: projekt.phasen.flatMap(ph => ph.aufgaben).filter(a => !a.verworfen).map(a => ({ id: a.id, titel: a.titel })) });
     return;
   }
   if (wahl === 'uebersicht') { uebersicht(); return; }
