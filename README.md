@@ -20,7 +20,8 @@ Besprechung werden daraus berechnet.
 | E | Anfragen (Rückfrage, auch über die Tafel; Material ausleihen; Abnahme mit Foto) mit Status und Verlauf; Bestellliste: sammeln, im Einreichfenster einreichen (auch Sonderfenster), Prüfung je Position (bestellen, SchulLager, Firma, ersetzen, ablehnen), Status bis ausgegeben, Sammelbestellung je Lieferant als CSV und Druckansicht | fertig |
 | E+ | Anfragen als Vorgänge mit Gesprächsverlauf: Nachrichten von Team und Lehrkraft, interne Notizen, Ereignisse; Status offen / in Bearbeitung / erledigt, Übernehmen, Ungelesen-Zähler; Eingang für Lehrkräfte; Bestelllisten als Vorgang | fertig |
 | F | Fotos vom Aufbau (Team und Lehrkraft), Mindmap als Bild oder PDF, private Lehrernotizen, eigene Projektvorlagen, Excel-Export (.xlsx) im Sheet-Layout, Projektbericht als Druckansicht (PDF) mit Tafeln, Archiv nach Schuljahr, endgültig löschen, ZIP-Sicherung | fertig |
-| G | WireGuard-Anbindung (Zugriff von zuhause), Probelauf | geplant |
+| G | WireGuard-Anbindung (Zugriff von zuhause): Einrichtung im Lehrerbereich (Werte oder Client-Datei), Sperre auf dem VPS, täglicher Sperrtest; Probelauf | gebaut, Probelauf offen |
+| I | Überarbeitung nach dem ersten Test (Konzept Fassung 13): „Tätigkeit“ statt „Aufgabe“; Lehrerbereich für alle Teilnehmer des VPN (auch Heimnetz mit 192.168er-Adressen); Anfragen mit großen Reitern, Statuskarte zum Einreichfenster, drei Ständen, zuständiger Lehrkraft und Bestellprüfung per Auswahlliste mit Firma-Frage ans Team; Projekttage als Wochenansicht, Termin buchen im Fenster; Tafel mit neuer Werkzeugleiste, Textmarker, haftenden Pfeilen, Stickern, Rahmen (als Ergebnis mit Bild, wandern mit) und Wiederholen; PDF und PNG nach der Besprechung | fertig (0.10.6) |
 | H | optional: Anbindung an SchulLager | geplant |
 
 ## Installation (Proxmox VE)
