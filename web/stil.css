@@ -891,3 +891,32 @@ button.haupt.rot { background: var(--rot); border-color: var(--rot); }
   background: #fff8ea; font-size: .9rem; }
 .chip.gelb { background: #fff3dc; border-color: var(--gelb); color: #8a5a00; }
 @media (max-width: 760px) { .ob-zeile { grid-template-columns: 22px minmax(0, 1fr) auto; } .ob-zeile > .leise { display: none; } }
+
+/* Lehrernotizen als Zeitstrahl (J5) */
+.n-werkzeug { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
+.n-werkzeug .fk i { font-style: normal; font-family: var(--mono); font-size: .72rem; }
+.n-werkzeug .rechts { margin-left: auto; }
+.n-such { width: 220px; max-width: 100%; }
+.n-strahl { position: relative; display: grid; gap: 8px; padding-left: 24px; }
+.n-strahl::before { content: ''; position: absolute; left: 8px; top: 6px; bottom: 6px; width: 2px; background: var(--linie-stark); border-radius: 1px; }
+.n-tag { position: relative; font-size: .74rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--leise); margin-top: 8px; }
+.n-tag::before { content: ''; position: absolute; left: -21px; top: 3px; width: 10px; height: 10px; border-radius: 50%; background: var(--bg); border: 2px solid var(--leise); }
+.n-karte { position: relative; background: var(--karte); border: 1px solid var(--linie); border-left: 4px solid var(--blau-mittel);
+  border-radius: 12px 5px 5px 5px; padding: 10px 14px; display: grid; gap: 4px; }
+.n-karte::before { content: ''; position: absolute; left: -21px; top: 16px; width: 9px; height: 9px; border-radius: 50%; background: var(--blau-mittel); }
+.n-karte.dringend { border-left-color: var(--rot); }
+.n-karte.dringend::before { background: var(--rot); }
+.n-karte.bespr { border-left-style: dashed; border-left-color: var(--linie-stark); }
+.n-kopf { display: flex; align-items: center; gap: 8px; }
+.n-kopf h3 { margin: 0; font-size: 1.02rem; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.n-dringend { font-size: .66rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #fff; background: var(--rot); border-radius: 4px; padding: 1px 7px; }
+.n-erweitern { border-radius: 999px; border-color: var(--blau-mittel); color: var(--blau); padding: 3px 12px; font-size: .8rem; white-space: nowrap; }
+.n-meta { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; color: var(--leise); font-size: .8rem; }
+.n-meta .chip { font-size: .72rem; }
+.n-neu { color: var(--rot); font-weight: 600; }
+.n-voll { border-top: 1px solid var(--linie); padding-top: 8px; margin-top: 4px; display: grid; gap: 8px; }
+.n-segment { display: inline-flex; border: 1.5px solid var(--linie-stark); border-radius: 9px; overflow: hidden; width: max-content; }
+.n-segment button { border: none; border-radius: 0; background: var(--karte); color: var(--leise); padding: 6px 16px; }
+.n-segment button.an { background: var(--blau); color: #fff; }
+.n-segment button.an.rot { background: var(--rot); }
+@media (max-width: 760px) { .n-werkzeug .rechts { margin-left: 0; width: 100%; } .n-such { width: 100%; } }

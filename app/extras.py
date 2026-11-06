@@ -122,31 +122,32 @@ def mindmap_setzen(con, pid, daten_dir, wer, d):
 
 # --- Lehrernotizen (nur Lehrkraefte; kein Ereignis, der Text steht nirgends sonst) ---
 
+# Seit Stufe J5 stehen sie im gemeinsamen Zeitstrahl (app/notizen.py); hier nur noch die Sicht je Projekt (Bericht)
+# und die einfachen Aufrufe von frueher.
+
 def notizen(con, pid):
-    liste = [{"id": n["id"], "text": n["text"], "erstellt": n["erstellt"], "geaendert": n["geaendert"], "wer": n["wer"], "art": "notiz"}
-             for n in con.execute("SELECT * FROM notiz WHERE projekt_id = ? AND verworfen = 0 ORDER BY erstellt DESC, id DESC", (pid,))]
-    for b in con.execute("SELECT woche, notizen, abgeschlossen FROM besprechung WHERE projekt_id = ? AND notizen != '' ORDER BY woche DESC", (pid,)):
-        liste.append({"id": None, "text": b["notizen"], "erstellt": b["abgeschlossen"] or b["woche"] + "T00:00:00", "wer": "",
-                      "art": "besprechung", "woche": b["woche"]})
-    liste.sort(key=lambda n: n["erstellt"], reverse=True)
-    return liste
+    from . import notizen as zeitstrahl
+    return zeitstrahl.fuer_projekt(con, pid)
 
 
 def notiz_neu(con, pid, wer, text):
+    from . import notizen as zeitstrahl
     text = _text(text, 10000, "einen Text", pflicht=True)
+    k = con.execute("SELECT id FROM lehrkraft WHERE kuerzel = ?", (wer,)).fetchone()
     with db.transaktion(con):
-        return con.execute("INSERT INTO notiz (projekt_id, text, erstellt, wer) VALUES (?, ?, ?, ?)", (pid, text, db.jetzt(), wer)).lastrowid
+        return con.execute("INSERT INTO lehrernotiz (ueberschrift, text, projekt_id, lehrkraft_id, wer, erstellt) VALUES (?, ?, ?, ?, ?, ?)",
+                           (zeitstrahl.ueberschrift_aus(text), text, pid, k[0] if k else None, wer, db.jetzt())).lastrowid
 
 
 def notiz_aendern(con, pid, wer, nid, d):
-    n = con.execute("SELECT * FROM notiz WHERE id = ? AND projekt_id = ? AND verworfen = 0", (nid, pid)).fetchone()
+    n = con.execute("SELECT * FROM lehrernotiz WHERE id = ? AND projekt_id = ? AND verworfen = 0", (nid, pid)).fetchone()
     if n is None:
         raise ProjektFehler("Diese Notiz gibt es nicht.")
     with db.transaktion(con):
         if d.get("verworfen"):
-            con.execute("UPDATE notiz SET verworfen = 1 WHERE id = ?", (nid,))
+            con.execute("UPDATE lehrernotiz SET verworfen = 1 WHERE id = ?", (nid,))
         else:
-            con.execute("UPDATE notiz SET text = ?, geaendert = ? WHERE id = ?",
+            con.execute("UPDATE lehrernotiz SET text = ?, geaendert = ? WHERE id = ?",
                         (_text(d.get("text"), 10000, "einen Text", pflicht=True), db.jetzt(), nid))
 
 

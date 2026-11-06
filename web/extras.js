@@ -52,26 +52,12 @@ const Extras = (() => {
       T.setzen(mindmapOrt, mindmapAnsicht(D.mindmap, basis), archiviert ? null : el('div', { class: 'zeile' },
         el('button', { type: 'button', onclick: () => datei.click() }, D.mindmap ? 'Neue Mindmap hochladen' : 'Mindmap hochladen'), datei,
         el('span', { class: 'leise klein-text', text: 'Bild (PNG, JPEG) oder PDF bis 8 MB. Das Team sieht sie im Reiter „Projekt“.' })));
-      const neu = el('textarea', { rows: '3', maxlength: '10000', placeholder: 'Beobachtung, Absprache, Gespräch …', 'aria-label': 'Neue Notiz' });
+      const eigene = D.notizen.filter(n => n.art === 'notiz').length;
       T.setzen(notizOrt,
-        el('p', { class: 'leise klein-text', text: 'Nur für Lehrkräfte dieses Projekts. Das Team sieht sie nie, sie stehen auch nicht im Verlauf.' }),
-        el('div', { class: 'stapel-eng' }, neu, el('div', {}, el('button', { type: 'button', onclick: async () => {
-          if (neu.value.trim() && await senden('/notizen', { text: neu.value }, 'Notiz gespeichert.')) neu.value = '';
-        } }, 'Notiz speichern'))),
-        D.notizen.length ? el('div', { class: 'notizen' }, D.notizen.map(n => el('div', { class: 'notiz' + (n.art === 'besprechung' ? ' aus-bespr' : '') },
-          el('div', { class: 'zeile leise klein-text' }, n.art === 'besprechung' ? 'Besprechung ' + T.kwText(n.woche) : T.zeitText(n.erstellt) + ' · ' + n.wer.toUpperCase(),
-            n.geaendert ? ' · geändert ' + T.zeitText(n.geaendert) : '',
-            n.id ? el('span', { class: 'rechts' },
-              el('button', { type: 'button', class: 'leicht', onclick: () => notizBearbeiten(n) }, 'Bearbeiten'),
-              el('button', { type: 'button', class: 'leicht', onclick: () => senden('/notizen/' + n.id, { verworfen: true }, 'Notiz entfernt.') }, 'Entfernen')) : null),
-          el('div', { class: 'vortext', text: n.text })))) : null);
-    }
-
-    async function notizBearbeiten(n) {
-      const feld = el('textarea', { rows: '6', maxlength: '10000', value: n.text, required: true });
-      const ok = await T.dialog({ titel: 'Notiz bearbeiten', inhalt: el('div', { class: 'felder' }, feld),
-        speichern: async () => { D = await T.api('POST', basis + '/notizen/' + n.id, { text: feld.value }); return true; } });
-      if (ok) zeichnen();
+        el('p', { class: 'leise klein-text', text: 'Lehrernotizen stehen im gemeinsamen Zeitstrahl unter „Notizen“. Alle Lehrkräfte sehen sie, das Team nie.' }),
+        el('div', { class: 'zeile' }, el('a', { class: 'knopf', href: '#notizen/projekt/' + pid },
+          eigene ? 'Notizen zu diesem Projekt (' + eigene + ')' : 'Notizen zu diesem Projekt'),
+          el('span', { class: 'leise klein-text', text: 'Neue Notiz dort mit „+ Neue Notiz“, das Projekt ist schon gewählt.' })));
     }
 
     (async () => {

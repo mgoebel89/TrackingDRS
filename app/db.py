@@ -459,6 +459,30 @@ MIGRATIONEN = [
         zurueckgezogen INTEGER NOT NULL DEFAULT 0);
     CREATE INDEX hilfe_offen ON hilfe (projekt_id, erledigt, zurueckgezogen)
     """,
+    # 14: Lehrernotizen als gemeinsamer Zeitstrahl (Stufe J5): Ueberschrift, Dringlichkeit, Projekt freiwillig. Die
+    # bisherigen Notizen je Projekt werden uebernommen (Ueberschrift = erste Zeile); die alte Tabelle bleibt unangetastet.
+    """
+    CREATE TABLE lehrernotiz (
+        id INTEGER PRIMARY KEY,
+        ueberschrift TEXT NOT NULL,
+        text TEXT NOT NULL DEFAULT '',
+        dringend INTEGER NOT NULL DEFAULT 0,
+        projekt_id INTEGER REFERENCES projekt(id) ON DELETE CASCADE,
+        lehrkraft_id INTEGER REFERENCES lehrkraft(id),
+        wer TEXT NOT NULL,
+        erstellt TEXT NOT NULL,
+        geaendert TEXT,
+        verworfen INTEGER NOT NULL DEFAULT 0);
+    CREATE INDEX lehrernotiz_zeit ON lehrernotiz (erstellt);
+    CREATE TABLE lehrernotiz_gelesen (
+        notiz_id INTEGER NOT NULL REFERENCES lehrernotiz(id) ON DELETE CASCADE,
+        lehrkraft_id INTEGER NOT NULL REFERENCES lehrkraft(id) ON DELETE CASCADE,
+        PRIMARY KEY (notiz_id, lehrkraft_id));
+    INSERT INTO lehrernotiz (ueberschrift, text, dringend, projekt_id, lehrkraft_id, wer, erstellt, geaendert, verworfen)
+        SELECT CASE WHEN length(z) > 80 THEN substr(z, 1, 77) || ' …' WHEN z = '' THEN 'Notiz' ELSE z END,
+               text, 0, projekt_id, (SELECT id FROM lehrkraft WHERE kuerzel = n.wer), wer, erstellt, geaendert, verworfen
+        FROM (SELECT *, trim(substr(trim(text), 1, instr(trim(text) || char(10), char(10)) - 1)) AS z FROM notiz) n
+    """,
 ]
 
 

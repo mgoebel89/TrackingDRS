@@ -53,6 +53,7 @@ async function start() {
   zeigen();
   Vorgang.beobachten();
   Hilfe.lehrerBeobachten();
+  Notizen.beobachten();
 }
 
 async function zeigen() {
@@ -67,6 +68,7 @@ async function zeigen() {
     else if (ansicht === 'aktivitaeten') await Cockpit.aktivitaetenZeigen();
     else if (ansicht === 'anfragen') await Anfragen.lehrerZeigen(id, id2);
     else if (ansicht === 'bestellung') await Anfragen.bestellungZeigen(id, id2);
+    else if (ansicht === 'notizen') await Notizen.zeigen(id === 'projekt' ? Number(id2) : null);
     else if (ansicht === 'projekte') await projekteZeigen(false);
     else if (ansicht === 'archiv') await projekteZeigen(true);
     else if (ansicht === 'termine') await termineZeigen();

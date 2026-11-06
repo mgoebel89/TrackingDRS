@@ -23,7 +23,7 @@ import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import (VERSION, anfragen, besprechung, bestellung, cockpit, db, einstellungen, export, extras, hilfe, kalender, konten, pdf,
+from . import (VERSION, anfragen, besprechung, bestellung, cockpit, db, einstellungen, export, extras, hilfe, kalender, konten, notizen, pdf,
                projekte, sheet, tafel, termine, updates, vpn)
 
 BASIS = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -735,6 +735,26 @@ def api_team_hilfe_aendern(h, con, daten, token):
     h.antwort(200, {"hilfe": hilfe.team_aendern(con, _team_projekt(con, token), daten)})
 
 
+def api_notizen(h, con, daten):
+    h.antwort(200, notizen.liste(con, h.konto(con)))
+
+
+def api_notizen_zaehler(h, con, daten):
+    h.antwort(200, notizen.zaehler(con, h.konto(con)))
+
+
+def api_notiz_neu(h, con, daten):
+    k = h.konto(con)
+    notizen.anlegen(con, k, daten)
+    h.antwort(200, notizen.liste(con, k))
+
+
+def api_notiz_zeitstrahl(h, con, daten, nid):
+    k = h.konto(con)
+    notizen.aendern(con, k, _ganzzahl(nid), daten)
+    h.antwort(200, notizen.liste(con, k) if daten.get("aktion") != "gelesen" else notizen.zaehler(con, k))
+
+
 def api_hilfe(h, con, daten):
     h.antwort(200, {"reihe": hilfe.reihe(con, h.konto(con))})
 
@@ -1155,6 +1175,10 @@ ROUTEN = [(m, re.compile(p), f) for m, p, f in [
     ("GET", r"/api/vorgaenge", api_vorgaenge),
     ("GET", r"/api/vorgaenge/zaehler", api_vorgaenge_zaehler),
     ("GET", r"/api/hilfe", api_hilfe),
+    ("GET", r"/api/notizen", api_notizen),
+    ("GET", r"/api/notizen/zaehler", api_notizen_zaehler),
+    ("POST", r"/api/notizen", api_notiz_neu),
+    ("POST", r"/api/notizen/(\d+)", api_notiz_zeitstrahl),
     ("POST", r"/api/hilfe/(\d+)", api_hilfe_aendern),
     ("GET", r"/api/vorgaenge/(\d+)", api_vorgang_direkt),
     ("POST", r"/api/vorgaenge/(\d+)", api_vorgang_direkt_aendern),
