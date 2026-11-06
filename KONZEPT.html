@@ -555,6 +555,171 @@ svg.sym.duenn, svg.wz-sym { stroke-width:1.8; }
 .nach-knoepfe { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
 .nach-knoepfe .k { padding:6px 12px; font-size:.82rem; }
 
+
+/* Neu in Fassung 14 */
+.j-nr { font-family:var(--f-mono); font-size:.74rem; font-weight:600; color:var(--blau); margin-right:6px; }
+.j-bild { position:relative; height:610px; border-radius:0 0 16px 16px; overflow:hidden; background:var(--bg); }
+.j-bild.pc { height:auto; min-height:460px; border-radius:0 0 8px 8px; }
+.j-scroll { position:absolute; inset:0; overflow-y:auto; padding:10px; display:grid; gap:10px; align-content:start; }
+.j-bild.pc .j-scroll { position:static; }
+.j-karte { background:var(--karte); border:1px solid var(--linie); border-radius:12px 5px 5px 5px; padding:10px 12px; display:grid; gap:6px; font-size:.82rem; }
+.j-karte h4 { margin:0; font-family:var(--f-titel); font-size:.98rem; display:flex; align-items:center; gap:6px; }
+.j-karte h4 .rechts { margin-left:auto; font-family:var(--f-text); font-size:.72rem; font-weight:600; color:var(--leise); }
+.j-termin { display:flex; align-items:center; gap:10px; }
+.j-termin .sym { width:26px; height:26px; color:var(--blau); }
+.j-termin b { display:block; font-family:var(--f-titel); font-size:1.05rem; }
+.j-fortschritt { display:flex; gap:6px; flex-wrap:wrap; }
+.j-fortschritt span { font-size:.68rem; font-weight:700; border-radius:999px; padding:1px 8px; border:1px solid var(--linie-stark); color:var(--leise); }
+.j-fortschritt span.ok { background:var(--gruen); border-color:var(--gruen); color:#1d2433; }
+.j-kacheln { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.j-kachel { font:inherit; text-align:left; cursor:pointer; background:var(--karte); border:1px solid var(--linie); border-radius:14px 6px 6px 6px; padding:12px; display:grid; gap:6px; color:var(--text); transition:border-color .15s, box-shadow .15s, transform .15s; }
+.j-kachel:hover { border-color:var(--blau-mittel); box-shadow:0 4px 14px -8px rgba(0,99,156,.45); transform:translateY(-1px); }
+.j-kachel:focus-visible { outline:2px solid var(--blau); outline-offset:2px; }
+.j-kachel .ic { width:38px; height:38px; border-radius:11px; display:grid; place-items:center; background:var(--blau-hell); color:var(--blau); }
+.j-kachel .ic .sym { width:21px; height:21px; vertical-align:0; }
+.j-kachel.gelb .ic { background:color-mix(in srgb, var(--gelb) 28%, transparent); color:#a86a00; }
+.j-kachel.gruen .ic { background:color-mix(in srgb, var(--gruen) 26%, transparent); color:#5f6d00; }
+.j-kachel.rot .ic { background:color-mix(in srgb, var(--rot) 14%, transparent); color:var(--rot); }
+.j-kachel b { font-family:var(--f-titel); font-size:.98rem; line-height:1.15; }
+.j-kachel small { color:var(--leise); font-size:.7rem; line-height:1.3; }
+.j-zeile { display:flex; align-items:center; gap:8px; padding:5px 0; border-top:1px solid var(--linie); font-size:.8rem; }
+.j-zeile:first-of-type { border-top:none; }
+.j-zeile .txt { flex:1; min-width:0; }
+.j-zeile .sym { width:15px; height:15px; color:var(--leise); }
+.j-leer { color:var(--leise); font-size:.76rem; }
+.j-mini-knopf { font:inherit; font-size:.72rem; font-weight:600; border:none; background:transparent; color:var(--blau); cursor:pointer; padding:2px 4px; }
+.j-ueber { position:absolute; inset:0; background:rgba(16,24,40,.5); display:grid; align-content:end; padding:8px; z-index:4; }
+.j-ueber[hidden] { display:none; }
+.j-ueber .blatt { max-height:100%; overflow-y:auto; animation:j-hoch .22s ease-out; }
+.j-pruef .j-foto { height:90px; }
+@keyframes j-hoch { from { transform:translateY(30px); opacity:0; } to { transform:none; opacity:1; } }
+.j-punkte { display:flex; gap:5px; align-items:center; font-size:.7rem; color:var(--leise); }
+.j-punkte i { width:22px; height:5px; border-radius:3px; background:var(--linie-stark); }
+.j-punkte i.an { background:var(--blau); }
+.j-frage { font-family:var(--f-titel); font-size:1.15rem; line-height:1.2; }
+.j-hilfe-text { color:var(--leise); font-size:.76rem; }
+.j-wahl { display:grid; gap:8px; }
+.j-wahl button { font:inherit; text-align:left; cursor:pointer; display:grid; grid-template-columns:36px 1fr; gap:2px 10px; align-items:center; border:1.5px solid var(--linie-stark); background:var(--karte); color:var(--text); border-radius:12px; padding:10px; }
+.j-wahl button .sym { grid-row:span 2; width:24px; height:24px; color:var(--blau); justify-self:center; }
+.j-wahl button b { font-size:.92rem; }
+.j-wahl button small { color:var(--leise); font-size:.72rem; }
+.j-wahl button.an { border-color:var(--blau); background:var(--blau-hell); }
+.j-eingabe { font:inherit; font-size:.88rem; width:100%; border:1.5px solid var(--linie-stark); border-radius:10px; padding:9px 10px; background:var(--karte); color:var(--text); resize:vertical; }
+.j-eingabe:focus { outline:none; border-color:var(--blau); }
+.j-schnell { display:flex; gap:6px; flex-wrap:wrap; }
+.j-schnell button { font:inherit; font-size:.74rem; font-weight:600; border:1px solid var(--blau-mittel); color:var(--blau); background:var(--karte); border-radius:999px; padding:3px 10px; cursor:pointer; }
+.j-pruef { background:var(--knopf); border-radius:10px; padding:10px; display:grid; gap:6px; font-size:.82rem; }
+.j-pruef .etikett { font-size:.62rem; }
+.j-postit { justify-self:center; width:150px; min-height:110px; padding:12px; font-family:'Caveat',cursive; font-size:1.35rem; line-height:1.1; color:#1d2433; box-shadow:0 6px 14px -8px rgba(0,0,0,.5); transform:rotate(-2deg); background:#ffe58a; }
+.j-postit.frage { background:#bfe1f6; }
+.j-kamera { border:2px dashed var(--blau-mittel); border-radius:12px; display:grid; place-items:center; gap:6px; padding:22px 10px; color:var(--blau); font-weight:600; font-size:.84rem; cursor:pointer; background:var(--blau-hell); }
+.j-kamera .sym { width:34px; height:34px; }
+.j-foto { height:120px; border-radius:10px; background:linear-gradient(135deg, #8aa4b8, #c9d6df 45%, #6e8597); position:relative; overflow:hidden; }
+.j-foto::after { content:''; position:absolute; left:30%; top:30%; width:40%; height:45%; border:3px solid #2b3a47; border-radius:4px; background:rgba(255,255,255,.25); }
+.j-navi { display:flex; gap:8px; }
+.j-navi button { font:inherit; font-size:.86rem; font-weight:600; border-radius:10px; padding:9px 14px; cursor:pointer; border:1px solid var(--linie-stark); background:var(--karte); color:var(--text); }
+.j-navi button.haupt { flex:1; background:var(--blau); border-color:var(--blau); color:#fff; }
+.j-navi button.rot { flex:1; background:var(--rot); border-color:var(--rot); color:#fff; }
+.j-navi button:disabled { opacity:.45; cursor:not-allowed; }
+.j-toast { position:absolute; left:50%; bottom:14px; transform:translateX(-50%); background:var(--text); color:var(--bg); font-size:.76rem; font-weight:600; border-radius:999px; padding:6px 14px; z-index:6; white-space:nowrap; animation:j-hoch .2s ease-out; }
+.j-reiterpaar { display:grid; gap:6px; font-size:.78rem; }
+.j-reiterpaar .reiter span.weg { text-decoration:line-through; color:var(--rot); background:transparent; }
+.j-reiterpaar .reiter span.neu { background:var(--blau); color:#fff; }
+/* Hilfe */
+.j-hilfe-mini { display:inline-flex; align-items:center; gap:5px; background:var(--rot); color:#fff; border-radius:999px; padding:3px 11px; font-size:.76rem; font-weight:700; }
+.j-hilfe-mini .sym { width:15px; height:15px; }
+.j-fab { position:absolute; right:14px; bottom:14px; z-index:3; font:inherit; cursor:pointer; display:flex; align-items:center; gap:8px; border:none; border-radius:999px; padding:12px 18px; background:var(--rot); color:#fff; font-weight:700; font-size:.92rem; box-shadow:0 8px 20px -8px rgba(212,0,94,.7); }
+.j-fab .sym { width:20px; height:20px; }
+.j-fab.wartet { background:var(--karte); color:var(--rot); border:2px solid var(--rot); padding:9px 14px; text-align:left; }
+.j-fab.wartet small { display:block; font-weight:600; font-size:.68rem; color:var(--leise); }
+.j-fab.kommt { border-color:var(--gruen); color:#5f6d00; }
+.j-namen { display:flex; flex-wrap:wrap; gap:6px; }
+.j-namen button { font:inherit; font-size:.8rem; font-weight:600; border:1.5px solid var(--linie-stark); background:var(--karte); color:var(--text); border-radius:999px; padding:5px 12px; cursor:pointer; }
+.j-namen button.an { border-color:var(--rot); color:var(--rot); background:color-mix(in srgb, var(--rot) 8%, var(--karte)); }
+.j-reihe { border:1.5px solid var(--rot); border-radius:12px 5px 5px 5px; background:var(--karte); padding:10px 12px; display:grid; gap:6px; font-size:.82rem; }
+.j-reihe h4 { margin:0; font-family:var(--f-titel); font-size:1rem; display:flex; align-items:center; gap:8px; color:var(--rot); }
+.j-reihe h4 .zahl { margin:0; }
+.j-reihe .hz { display:grid; grid-template-columns:24px 1fr auto; gap:8px; align-items:center; padding:6px 0; border-top:1px solid var(--linie); }
+.j-reihe .hz:first-of-type { border-top:none; }
+.j-reihe .nr { width:22px; height:22px; border-radius:50%; display:grid; place-items:center; background:var(--rot); color:#fff; font-weight:700; font-size:.72rem; }
+.j-reihe .hz .unter { display:block; color:var(--leise); font-size:.72rem; }
+.j-reihe .hz .knoepfe { display:flex; gap:5px; }
+.j-reihe button { font:inherit; font-size:.74rem; font-weight:600; border:1px solid var(--linie-stark); background:var(--karte); color:var(--text); border-radius:6px; padding:3px 9px; cursor:pointer; }
+.j-reihe button.an { background:var(--gruen); border-color:var(--gruen); color:#1d2433; }
+.j-reihe.leer { border-color:var(--linie); }
+.j-reihe.leer h4 { color:var(--leise); }
+/* Lehrernotizen */
+.j-werkzeuge { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.j-werkzeuge .j-such { font:inherit; font-size:.8rem; border:1px solid var(--linie-stark); border-radius:7px; padding:4px 9px; background:var(--karte); color:var(--text); width:190px; }
+.j-werkzeuge select { font:inherit; font-size:.78rem; font-weight:600; border:1px solid var(--linie-stark); border-radius:999px; padding:3px 8px; background:var(--karte); color:var(--leise); }
+.j-werkzeuge .fk { cursor:pointer; }
+.j-k { font:inherit; display:inline-flex; align-items:center; gap:5px; border:1px solid var(--linie-stark); background:var(--karte); border-radius:7px; padding:5px 11px; font-size:.8rem; font-weight:600; color:var(--text); cursor:pointer; }
+.j-k.haupt { background:var(--blau); border-color:var(--blau); color:#fff; }
+.j-k:disabled { opacity:.45; cursor:not-allowed; }
+.j-k .sym { width:15px; height:15px; }
+.j-strahl { position:relative; display:grid; gap:8px; padding-left:22px; }
+.j-strahl::before { content:''; position:absolute; left:7px; top:6px; bottom:6px; width:2px; background:var(--linie-stark); border-radius:1px; }
+.j-tag { position:relative; font-size:.7rem; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--leise); margin-top:6px; }
+.j-tag::before { content:''; position:absolute; left:-19px; top:4px; width:10px; height:10px; border-radius:50%; background:var(--bg); border:2px solid var(--leise); }
+.j-notiz { position:relative; background:var(--karte); border:1px solid var(--linie); border-left:4px solid var(--blau-mittel); border-radius:10px 5px 5px 5px; padding:8px 12px; display:grid; gap:4px; font-size:.82rem; }
+.j-notiz::before { content:''; position:absolute; left:-19px; top:14px; width:8px; height:8px; border-radius:50%; background:var(--blau-mittel); }
+.j-notiz.dringend { border-left-color:var(--rot); }
+.j-notiz.dringend::before { background:var(--rot); }
+.j-notiz.bespr { border-left-color:var(--linie-stark); border-left-style:dashed; }
+.j-notiz-kopf { display:flex; align-items:center; gap:8px; }
+.j-notiz-kopf b { font-family:var(--f-titel); font-size:.98rem; flex:1; min-width:0; }
+.j-dr { font-size:.62rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#fff; background:var(--rot); border-radius:4px; padding:1px 6px; }
+.j-meta { color:var(--leise); font-size:.72rem; display:flex; gap:4px 10px; flex-wrap:wrap; align-items:center; }
+.j-meta .chip { font-size:.66rem; padding:0 7px; }
+.j-voll { border-top:1px solid var(--linie); padding-top:6px; white-space:pre-line; line-height:1.45; }
+.j-voll .j-meta { margin-top:6px; }
+.j-erw { font:inherit; font-size:.74rem; font-weight:600; color:var(--blau); background:transparent; border:1px solid var(--blau-mittel); border-radius:999px; padding:2px 10px; cursor:pointer; white-space:nowrap; }
+.j-dialog { position:absolute; inset:0; background:rgba(16,24,40,.45); display:grid; place-items:center; z-index:5; padding:12px; }
+.j-dialog[hidden] { display:none; }
+.j-dialog-box { width:min(460px, 100%); background:var(--karte); border-radius:16px 6px 6px 6px; padding:16px; display:grid; gap:10px; box-shadow:0 18px 40px -16px rgba(0,0,0,.55); animation:j-hoch .2s ease-out; font-size:.84rem; }
+.j-dialog-box h4 { margin:0; font-family:var(--f-titel); font-size:1.15rem; }
+.j-dialog-box label { font-size:.72rem; font-weight:700; color:var(--leise); text-transform:uppercase; letter-spacing:.06em; display:grid; gap:4px; }
+.j-dialog-box select { font:inherit; font-size:.84rem; border:1.5px solid var(--linie-stark); border-radius:8px; padding:6px 8px; background:var(--karte); color:var(--text); text-transform:none; letter-spacing:0; font-weight:500; }
+.j-segment { display:inline-flex; border:1.5px solid var(--linie-stark); border-radius:9px; overflow:hidden; width:max-content; }
+.j-segment button { font:inherit; font-size:.82rem; font-weight:600; border:none; background:var(--karte); color:var(--leise); padding:6px 16px; cursor:pointer; }
+.j-segment button.an { background:var(--blau); color:#fff; }
+.j-segment button.an.rot { background:var(--rot); }
+.j-dialog-knoepfe { display:flex; justify-content:flex-end; gap:8px; }
+/* Oberpunkte */
+.j-ob-raster { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1fr); gap:10px; align-items:start; }
+.j-ob-zeile { display:grid; grid-template-columns:18px 22px minmax(0,1fr) 92px auto; gap:8px; align-items:center; padding:6px 0; border-top:1px solid var(--linie); }
+.j-ob-zeile:first-child { border-top:none; }
+.j-ob-zeile .griff { color:var(--leise); cursor:grab; }
+.j-ob-zeile .griff .sym { width:16px; height:16px; }
+.j-ob-zeile .n { font-family:var(--f-mono); font-size:.74rem; color:var(--leise); text-align:right; }
+.j-ob-zeile input { font:inherit; font-size:.86rem; font-weight:600; border:1px solid transparent; border-radius:6px; padding:4px 7px; background:var(--knopf); color:var(--text); min-width:0; }
+.j-ob-zeile input:focus { outline:none; border-color:var(--blau); background:var(--karte); }
+.j-ob-zeile .anz { font-size:.72rem; color:var(--leise); }
+.j-ob-zeile .knoepfe { display:flex; gap:2px; }
+.j-ob-zeile .knoepfe button { font:inherit; width:28px; height:28px; border:none; background:transparent; border-radius:6px; cursor:pointer; color:var(--leise); display:grid; place-items:center; }
+.j-ob-zeile .knoepfe button:hover:not(:disabled) { background:var(--knopf); color:var(--text); }
+.j-ob-zeile .knoepfe button:disabled { opacity:.3; cursor:default; }
+.j-ob-zeile .knoepfe .sym { width:16px; height:16px; vertical-align:0; }
+.j-ob-weg { grid-column:1 / -1; background:color-mix(in srgb, var(--gelb) 16%, var(--karte)); border:1px solid var(--gelb); border-radius:9px; padding:8px 10px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; font-size:.8rem; }
+.j-ob-weg select { font:inherit; font-size:.8rem; border:1px solid var(--linie-stark); border-radius:7px; padding:3px 6px; background:var(--karte); color:var(--text); }
+.j-std { font-size:.68rem; font-weight:700; border-radius:999px; padding:1px 9px; background:var(--gruen); color:#1d2433; }
+.j-std.anders { background:var(--gelb); }
+.j-sheet-vor { background:var(--karte); border:1px solid var(--linie); border-radius:10px 4px 4px 4px; overflow:hidden; font-size:.74rem; }
+.j-sheet-vor div { padding:4px 10px; border-top:1px solid var(--linie); display:flex; justify-content:space-between; gap:8px; }
+.j-sheet-vor div.ph { background:var(--blau); color:#fff; font-weight:700; letter-spacing:.05em; border-top:none; }
+.j-sheet-vor div.ta { color:var(--leise); }
+/* Wieder oeffnen */
+.j-verlauf { display:grid; gap:6px; }
+.j-msg { border-radius:12px; padding:7px 10px; font-size:.8rem; max-width:86%; }
+.j-msg.team { background:var(--blau-hell); justify-self:end; border-bottom-right-radius:3px; }
+.j-msg.lk { background:var(--karte); border:1px solid var(--linie); border-bottom-left-radius:3px; }
+.j-msg small { display:block; color:var(--leise); font-size:.66rem; margin-top:2px; }
+.j-ereignis { justify-self:center; font-size:.7rem; color:var(--leise); background:var(--knopf); border-radius:999px; padding:2px 10px; text-align:center; }
+.j-ereignis.neu { color:var(--blau); background:var(--blau-hell); font-weight:600; }
+.j-wieder { display:grid; gap:6px; background:var(--karte); border:1px dashed var(--blau-mittel); border-radius:12px 5px 5px 5px; padding:10px; text-align:center; font-size:.78rem; color:var(--leise); }
+.j-wieder button { justify-self:center; }
+@media (prefers-reduced-motion: reduce) { .j-ueber .blatt, .j-toast, .j-dialog-box { animation:none; } .j-kachel { transition:none; } }
+
 @media (max-width:640px) {
   .cockpit { grid-template-columns:1fr; }
   .geraet.tablet { min-width:0; }
@@ -566,7 +731,7 @@ svg.sym.duenn, svg.wz-sym { stroke-width:1.8; }
 <header class="kopf">
   <div class="kopf-innen">
     <div class="marke"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M0 10 L10 0 L10 10 Z"/></svg>TrackingDRS</div>
-    <div class="kopf-meta"><span class="status">Überarbeitung zur Abstimmung</span><span>Fassung 13 · Stand 05.11.2026</span><span>in Betrieb: Version 0.9.8</span><span>Projektarbeit Mechatronik, DRS Neuwied</span></div>
+    <div class="kopf-meta"><span class="status">Überarbeitung zur Abstimmung</span><span>Fassung 14 · Stand 06.11.2026</span><span>in Betrieb: Version 0.12.0</span><span>Projektarbeit Mechatronik, DRS Neuwied</span></div>
   </div>
 </header>
 
@@ -614,6 +779,17 @@ svg.sym.duenn, svg.wz-sym { stroke-width:1.8; }
     <g id="i-bild"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.09-3.09a2 2 0 0 0-2.82 0L6 21"/></g>
     <g id="i-links"><path d="m15 18-6-6 6-6"/></g>
     <g id="i-rechts"><path d="m9 18 6-6-6-6"/></g>
+    <g id="i-hilfe"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/><circle cx="12" cy="12" r="4"/></g>
+    <g id="i-notiz"><path d="M2 6h4"/><path d="M2 10h4"/><path d="M2 14h4"/><path d="M2 18h4"/><rect width="16" height="20" x="4" y="2" rx="2"/><path d="M9.5 8h5"/><path d="M9.5 12H16"/><path d="M9.5 16H14"/></g>
+    <g id="i-griff"><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></g>
+    <g id="i-hoch"><path d="m18 15-6-6-6 6"/></g>
+    <g id="i-runter"><path d="m6 9 6 6 6-6"/></g>
+    <g id="i-plus"><path d="M5 12h14"/><path d="M12 5v14"/></g>
+    <g id="i-kamera"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></g>
+    <g id="i-wieder"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></g>
+    <g id="i-suche"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></g>
+    <g id="i-ebenen"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></g>
+    <g id="i-muell"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></g>
   </defs>
 </svg>
 
@@ -628,14 +804,327 @@ svg.sym.duenn, svg.wz-sym { stroke-width:1.8; }
 
 <section id="neu">
   <h2><span class="nr">NEU</span>Was diese Überarbeitung ändert</h2>
-  <p>Die Stufen A bis F laufen seit Ende Oktober im Testcontainer. Nach dem ersten Ausprobieren ändern sich sechs Dinge. Die betroffenen Abschnitte und Skizzen unten sind angepasst und mit <span class="neu-marke">neu</span> gekennzeichnet. Gebaut wird das als Stufe I.</p>
+  <p>Fassung 13 ist gebaut und läuft als Version 0.10.6. Beim Ausprobieren sind sieben Punkte aufgefallen. Die Voransichten darunter lassen sich anklicken und ausprobieren. Gebaut wird das als Stufe J, erst nach deiner Freigabe.</p>
   <div class="raster">
-    <a class="karte neu-karte" href="#s-raster"><div class="etikett">Begriff</div><b>Tätigkeiten statt Aufgaben</b><p>Im Tracking-Sheet und überall, wo man es sieht oder herunterlädt: Oberfläche, Warnungen, Excel, PDF, Tafel. Intern bleibt der Name <code>aufgabe</code>. Die Aufträge aus der Besprechung bleiben Aufträge.</p></a>
-    <a class="karte neu-karte" href="#s-anfragen"><div class="etikett">Anfragen</div><b>Eingang aufgeräumt, zuständige Lehrkraft</b><p>Große Reiter, das Einreichfenster als Statuskarte oben, drei Stände (neu, in Bearbeitung, erledigt). Eine betreuende Lehrkraft lässt sich mit zwei Klicks zuweisen, das Team sieht den Namen.</p></a>
-    <a class="karte neu-karte" href="#s-termine"><div class="etikett">Projekttage</div><b>Wochenansicht und Buchungsfenster</b><p>Die Lehrkraft sieht nur gebuchte Termine als Kästchen in einer Wochenansicht wie in Outlook. Im Alltag reicht der Cockpit-Kalender. Das Team bucht über ein kleines Fenster, das nur freie Zeiten zeigt.</p></a>
-    <a class="karte neu-karte" href="#s-tafel"><div class="etikett">Tafel</div><b>Neue Werkzeugleiste</b><p>Schlanke Symbole ohne Rahmen, unten. Neu: Textmarker, Pfeile, die an Post-its und Rahmen haften, Sticker, Rahmen um Skizzen und Post-its. Ein Rahmen kann Auftrag, Absprache oder Meilenstein werden.</p></a>
-    <a class="karte neu-karte" href="#s-tafel"><div class="etikett">Nach der Besprechung</div><b>PDF und PNG zum Herunterladen</b><p>Team und Lehrkraft laden die eingefrorene Tafel samt Ergebnis als PDF und die Tafel als Bild. Einzelne Rahmen gibt es auch als Bild.</p></a>
-    <a class="karte neu-karte" href="#s-vpn"><div class="etikett">VPN</div><b>Aus dem ganzen VPN erreichbar</b><p>Jedes Gerät in deinem VPN und in deinem Heimnetz erreicht den Lehrerbereich, auch wenn dein Heimnetz dieselben 192.168er-Adressen nutzt wie das Schulnetz. Die Sperre ins Heimnetz bleibt.</p></a>
+    <a class="karte neu-karte" href="#j1"><div class="etikett">J1 · Bestellung</div><b>Eigener Reiter, keine Anfrage beim Einreichen</b><p>Bestelllisten stehen im Reiter „Bestellung“, beim Team und bei den Lehrkräften. Einreichen legt keine Anfrage mehr an. Die Frist hast du gesetzt, danach schaust du selbst hinein.</p></a>
+    <a class="karte neu-karte" href="#j2"><div class="etikett">J2 · Fotos</div><b>Reiter „Fotos“ entfällt</b><p>Ersatzlos, beim Team und auf der Projektseite. „Foto an die Tafel“ in der Besprechung bleibt. Schon hochgeladene Fotos bleiben im Bericht erhalten.</p></a>
+    <a class="karte neu-karte" href="#j3"><div class="etikett">J3 · Besprechung</div><b>Vier Knöpfe statt vier Formulare</b><p>Klare Knöpfe mit Symbol. Jeder startet ein Fenster, das die Schüler Schritt für Schritt führt. Auf der Seite steht nur noch, was schon da ist.</p></a>
+    <a class="karte neu-karte" href="#j4"><div class="etikett">J4 · Hilfe</div><b>„Wir brauchen Hilfe“</b><p>Ein roter Knopf je Team wie im Lernbüro MT. Die betreuenden Lehrkräfte sehen live eine Hilfe-Reihe nach Eingang, das Team seine Nummer.</p></a>
+    <a class="karte neu-karte" href="#j5"><div class="etikett">J5 · Lehrernotizen</div><b>Gemeinsamer Zeitstrahl</b><p>Eigener Menüpunkt, nur für Lehrkräfte. Neueste Notiz oben, kompakte Karte mit Überschrift, „Erweitern“ zeigt alles. Dringlichkeit Normal oder Dringend.</p></a>
+    <a class="karte neu-karte" href="#j6"><div class="etikett">J6 · Oberpunkte</div><b>Phasen je Projekt anpassbar</b><p>Die vollständige Handlung bleibt Standard. Umbenennen, hinzufügen, umsortieren, entfernen. Tätigkeiten wandern beim Entfernen in einen anderen Oberpunkt.</p></a>
+    <a class="karte neu-karte" href="#j7"><div class="etikett">J7 · Anfragen</div><b>Team kann wieder öffnen</b><p>In einer erledigten Anfrage steht „Wieder öffnen“. Der Grund ist Pflicht. Die Anfrage geht an die zuletzt zuständige Lehrkraft zurück.</p></a>
+  </div>
+  <p class="vorher"><b>Fassung 13</b> (Tätigkeiten, VPN für alle, Anfragen mit Zuständigkeit, Wochenansicht der Projekttage, neue Tafel mit Rahmen, PDF und PNG) ist als Stufe I gebaut, siehe Bauplan.</p>
+</section>
+
+<section id="voransichten">
+  <h2><span class="nr">J</span>Voransichten der Überarbeitung<span class="neu-marke">neu</span></h2>
+  <p class="leise">Alle Ansichten sind Entwürfe mit Beispieldaten. Was sich anklicken lässt, verhält sich ungefähr so wie später in TrackingDRS. Gespeichert wird hier nichts.</p>
+  <div class="skizzen">
+
+    <!-- J1 Bestellung -->
+    <div class="skizze breit" id="j1">
+      <div class="skizze-titel"><h3><span class="j-nr">J1</span>Reiter „Bestellung“ beim Team<span class="neu-marke">neu</span></h3><span class="leise">PC, Team-Ansicht · Sammeln, Einreichen und die geprüften Listen an einem Ort</span></div>
+      <div class="rahmen"><div class="geraet pc">
+        <div class="app-kopf"><b>Projektarbeit MT</b><span>Team Klimaanlage</span>
+          <span class="reiter" style="margin-left:12px"><span>Übersicht</span><span>Tracking-Sheet</span><span>Besprechung</span><span>Anfragen</span><span class="an">Bestellung<i class="zahl">1</i></span><span>Projekt</span></span>
+          <span class="rechts"><span class="j-hilfe-mini"><svg class="sym" viewBox="0 0 24 24"><use href="#i-hilfe"/></svg>Wir brauchen Hilfe</span></span></div>
+        <div class="app-flaeche anf">
+          <div class="anf-liste">
+            <div class="anf-z an"><span><span class="typ">Bestellliste</span><b>Nächste Liste</b></span><span class="st sammeln">sammeln</span><span class="unter">3 Positionen · Einreichen bis Do 12.11., 12:00</span></div>
+            <div class="anf-z"><span><span class="typ">Bestellliste</span><b>Liste KW 44</b></span><span class="st arbeit">geprüft</span><span class="unter"><b style="color:var(--rot)">1 Frage an euch:</b> Aluprofil über eure Firma?</span></div>
+            <div class="anf-z"><span><span class="typ">Bestellliste</span><b>Liste KW 42</b></span><span class="st fertig">abgeschlossen</span><span class="unter">4 Positionen · alles ausgegeben</span></div>
+          </div>
+          <div class="tk" style="gap:10px;align-content:start">
+            <div class="tk-kopf"><span class="typ">Bestellliste</span><b>Nächste Liste</b><span class="st sammeln" style="margin-left:auto">sammeln</span></div>
+            <div class="banner">Das Einreichfenster läuft bis <b>Do 12.11., 12:00 Uhr</b>. Mit „Liste einreichen“ geht die Liste an eure Lehrkraft. Eine Anfrage braucht ihr dafür nicht.</div>
+            <div class="tabelle-rahmen">
+              <table class="pos">
+                <thead><tr><th>Artikel</th><th>Bestellnr.</th><th>Menge</th><th>Preis</th><th>Lieferant</th><th>Tätigkeit</th></tr></thead>
+                <tbody>
+                  <tr><td>Axiallüfter 80×80 mm, 24 V, Kugellager</td><td class="mono">FAN 8025-24</td><td><span class="menge">2</span></td><td class="wer">8,90 €</td><td>Elektronikversand</td><td>Lüfter auslegen (BW)</td></tr>
+                  <tr><td>Lüfterschutzgitter 80 mm</td><td class="mono">GRILL 80</td><td><span class="menge">2</span></td><td class="wer">0,95 €</td><td>Elektronikversand</td><td>Lüfter auslegen (BW)</td></tr>
+                  <tr><td>Temperatursensor DS18B20, wasserdicht</td><td class="mono">DS18B20-WP</td><td><span class="menge">1</span></td><td class="wer"></td><td>Elektronikversand</td><td>Steuerung programmieren (MK)</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="eingabe">+ Position hinzufügen</div>
+            <div class="hinweis-zeile"><span class="k haupt">Liste einreichen</span><span class="leise">Danach steht die Liste auf „eingereicht“. Ändern geht bis zum Ende des Fensters.</span></div>
+          </div>
+        </div>
+      </div></div>
+      <p class="vorher"><b>Bisher:</b> Bestelllisten im Reiter „Anfragen“. Jedes Einreichen legte eine Anfrage „Liste KW 46“ im Eingang der Lehrkraft an.</p>
+    </div>
+
+    <div class="raster-2" style="align-items:start">
+      <div class="skizze">
+        <div class="skizze-titel"><h3><span class="j-nr">J1</span>„Bestellung“ bei den Lehrkräften<span class="neu-marke">neu</span></h3><span class="leise">PC, eigener Menüpunkt</span></div>
+        <div class="rahmen"><div class="geraet" style="min-width:560px">
+          <div class="app-kopf"><b>Projektarbeit MT</b>
+            <span class="reiter" style="margin-left:6px"><span>Cockpit</span><span>Projekte</span><span>Anfragen</span><span class="an">Bestellung</span><span>Notizen</span><span>Termine</span></span></div>
+          <div class="app-flaeche">
+            <div class="fenster-karte"><svg class="sym" viewBox="0 0 24 24"><use href="#i-kalender"/></svg>
+              <div><b>Einreichfenster bis Do 12.11., 12:00</b>2 von 4 Teams haben eingereicht</div>
+              <span class="rechts"><span class="k">Sammelbestellung</span></span></div>
+            <div class="tabelle-rahmen">
+              <table class="pos">
+                <thead><tr><th>Team</th><th>Liste</th><th>Stand</th><th></th></tr></thead>
+                <tbody>
+                  <tr><td><b>Klimaanlage</b></td><td>5 Positionen</td><td><span class="st neu">eingereicht Mi 10:14</span></td><td><span class="k haupt">Prüfen</span></td></tr>
+                  <tr><td><b>Hubtisch</b></td><td>3 Positionen</td><td><span class="st neu">eingereicht Di 15:40</span></td><td><span class="k haupt">Prüfen</span></td></tr>
+                  <tr><td><b>Solar-Tracker</b></td><td>2 Positionen</td><td><span class="st sammeln">sammelt noch</span></td><td></td></tr>
+                  <tr><td><b>Förderband</b></td><td class="leise">leer</td><td class="leise">noch nichts</td><td></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="leise" style="font-size:.74rem">Darunter die geprüften Listen und die Einreichfenster. Die Prüfansicht je Liste bleibt wie in Fassung 13.</div>
+          </div>
+        </div></div>
+      </div>
+      <div class="karte"><h3>Was sich bei Bestellungen ändert</h3>
+        <ul class="liste">
+          <li><b>Eigener Reiter beim Team</b> zwischen „Anfragen“ und „Projekt“: nächste Liste sammeln, einreichen, geprüfte Listen mit deinen Entscheidungen, die Firma-Frage und der Haken „besorgt“.</li>
+          <li><b>Einreichen ohne Anfrage:</b> Die Liste wechselt auf „eingereicht“. Es gibt keinen Vorgang, keinen Zähler und keinen Windows-Hinweis. Du schaust nach deiner Frist hinein.</li>
+          <li><b>Bei dir</b> wird aus dem großen Reiter „Bestellungen und Einreichfenster“ ein eigener Menüpunkt „Bestellung“. „Anfragen“ enthält nur noch Rückfrage, Ausleihe und Abnahme.</li>
+          <li><b>Auf der Projektseite</b> kommt der Reiter „Bestellung“ mit den Listen dieses Teams dazu.</li>
+          <li><b>Das Team merkt</b> sich ändernde Listen an einer roten Zahl am Reiter: wenn du geprüft hast oder eine Firma-Frage wartet.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- J2 Fotos -->
+    <div class="raster-2" id="j2" style="align-items:start">
+      <div class="karte j-reiterpaar"><h3><span class="j-nr">J2</span>Reiter „Fotos“ entfällt<span class="neu-marke">neu</span></h3>
+        <div class="etikett">Team</div>
+        <div class="reiter"><span>Übersicht</span><span>Tracking-Sheet</span><span>Besprechung</span><span>Anfragen</span><span class="neu">Bestellung</span><span class="weg">Fotos</span><span>Projekt</span></div>
+        <div class="etikett" style="margin-top:6px">Projektseite der Lehrkraft</div>
+        <div class="reiter"><span>Übersicht</span><span>Tracking-Sheet</span><span>Besprechung</span><span>Anfragen</span><span class="neu">Bestellung</span><span class="weg">Fotos &amp; Notizen</span><span>Projekt &amp; Team</span></div>
+      </div>
+      <div class="karte"><h3>Was mit Fotos, Mindmap und Notizen passiert</h3>
+        <ul class="liste">
+          <li><b>Foto an die Tafel</b> bleibt als Knopf in der Besprechung (J3). Diese Fotos landen wie bisher auf der Tafel und damit im Protokoll.</li>
+          <li><b>Schon hochgeladene Fotos</b> bleiben in der Datenbank und erscheinen weiter im Bericht und in der Sicherung. Neue kommen nur noch über die Tafel dazu.</li>
+          <li><b>Die Mindmap</b> zieht auf der Projektseite in „Projekt &amp; Team“. Das Team sieht sie wie bisher im Reiter „Projekt“.</li>
+          <li><b>Die Lehrernotizen</b> wandern in den gemeinsamen Zeitstrahl (J5).</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- J3 Besprechung -->
+    <div class="raster-2" id="j3" style="align-items:start">
+      <div class="skizze">
+        <div class="skizze-titel"><h3><span class="j-nr">J3</span>Besprechung beim Team<span class="neu-marke">neu</span></h3><span class="leise">Handy · zum Ausprobieren: Knopf antippen und durchklicken</span></div>
+        <div class="rahmen"><div class="geraet handy" style="padding:12px 10px 10px">
+          <div class="app-kopf"><b>Klimaanlage</b><span class="rechts"><span class="k">Besprechung</span></span></div>
+          <div class="j-bild" id="j3-bild">
+            <div class="j-scroll">
+              <div class="j-karte"><div class="j-termin"><svg class="sym" viewBox="0 0 24 24"><use href="#i-kalender"/></svg><div><span class="leise" style="font-size:.7rem">Nächste Besprechung</span><b>Di 10.11., 10:30 Uhr</b></div></div>
+                <div class="j-fortschritt" id="j3-fort"><span data-f="stand">Stand eingetragen</span><span data-f="frage">Themen notiert</span></div></div>
+              <div class="j-kacheln">
+                <button type="button" class="j-kachel" data-ablauf="stand"><span class="ic"><svg class="sym" viewBox="0 0 24 24"><use href="#i-stift"/></svg></span><b>Stand eintragen</b><small>Was habt ihr geschafft, was hakt?</small></button>
+                <button type="button" class="j-kachel gruen" data-ablauf="frage"><span class="ic"><svg class="sym" viewBox="0 0 24 24"><use href="#i-frage"/></svg></span><b>Frage oder Thema</b><small>für die Besprechung notieren</small></button>
+                <button type="button" class="j-kachel gelb" data-ablauf="idee"><span class="ic"><svg class="sym" viewBox="0 0 24 24"><use href="#i-idee"/></svg></span><b>Post-it an die Tafel</b><small>Idee oder Frage, kurz und knapp</small></button>
+                <button type="button" class="j-kachel rot" data-ablauf="foto"><span class="ic"><svg class="sym" viewBox="0 0 24 24"><use href="#i-kamera"/></svg></span><b>Foto an die Tafel</b><small>Aufbau zeigen, keine Personen</small></button>
+              </div>
+              <div class="j-karte"><h4>Euer Stand<span class="rechts" id="j3-stand-zeit"></span></h4><div id="j3-stand" class="j-leer">Noch nicht eingetragen.</div></div>
+              <div class="j-karte"><h4>Für die Besprechung<span class="rechts" id="j3-fragen-n">1</span></h4><div id="j3-fragen">
+                <div class="j-zeile"><span class="chip">Frage</span><span class="txt">Dürfen wir 24 V nehmen?</span><svg class="sym" viewBox="0 0 24 24" aria-label="zurückziehen"><use href="#i-zu"/></svg></div></div></div>
+              <div class="j-karte"><h4>An die Tafel geschickt</h4><div id="j3-tafel" class="j-leer">Noch nichts. Post-its landen in der nächsten Besprechung bei den Ideen.</div></div>
+              <div class="j-karte"><h4>Aufträge<span class="rechts">1 offen</span></h4>
+                <div class="j-zeile"><input type="checkbox" aria-label="erledigt"><span class="txt">Lüfterdatenblatt prüfen <span class="chip">BW</span></span><span class="leise" style="font-size:.7rem">bis 11.11.</span></div></div>
+              <div class="j-karte"><h4>Protokolle</h4>
+                <div class="j-zeile"><svg class="sym" viewBox="0 0 24 24"><use href="#i-laden"/></svg><span class="txt">Besprechung Di 03.11.</span><span class="k">PDF</span><span class="k">Bild</span></div></div>
+            </div>
+            <div class="j-ueber" id="j3-ueber" hidden><div class="blatt" role="dialog" aria-modal="true" aria-labelledby="j3-titel">
+              <div class="blatt-griff"></div>
+              <div class="blatt-kopf"><b id="j3-titel"></b><button type="button" class="j-mini-knopf" id="j3-zu" aria-label="Schließen" style="margin-left:auto;color:var(--leise)"><svg class="sym" viewBox="0 0 24 24"><use href="#i-zu"/></svg></button></div>
+              <div class="j-punkte" id="j3-punkte"></div>
+              <div id="j3-inhalt" style="display:grid;gap:10px"></div>
+              <div class="j-navi"><button type="button" id="j3-zurueck">Zurück</button><button type="button" class="haupt" id="j3-weiter">Weiter</button></div>
+            </div></div>
+          </div>
+        </div></div>
+      </div>
+      <div class="karte"><h3>So führt die Besprechungsseite</h3>
+        <ul class="liste">
+          <li><b>Oben der Termin</b> und zwei Marken, die grün werden: „Stand eingetragen“ und „Themen notiert“. Die Schüler sehen, ob sie vorbereitet sind.</li>
+          <li><b>Vier Knöpfe mit Symbol</b> statt vier offener Formulare. Jeder öffnet ein Fenster von unten mit höchstens drei Schritten: eine Frage je Schritt, große Auswahlknöpfe, ein Beispiel, am Ende „Passt das so?“.</li>
+          <li><b>Stand eintragen</b> fragt getrennt „Was habt ihr geschafft?“ und „Was hakt?“. Daraus wird der Stand für die Kurzzusammenfassung. Für „Was hakt?“ gibt es die Schnellwahl „Nichts, läuft“.</li>
+          <li><b>Frage oder Thema</b> erklärt den Unterschied an je einem Beispiel. <b>Post-it</b> zeigt vor dem Senden, wie der Zettel auf der Tafel aussieht.</li>
+          <li><b>Darunter steht nur, was schon da ist:</b> euer Stand, die notierten Themen (zurückziehen mit ✕), was an die Tafel ging, Aufträge zum Abhaken, Protokolle mit PDF und Bild.</li>
+          <li><b>Am PC</b> stehen die vier Knöpfe nebeneinander in einer Reihe, das Fenster öffnet sich in der Mitte.</li>
+          <li><b>Die Lehreransicht</b> der Besprechung bleibt wie sie ist.</li>
+        </ul>
+        <p class="vorher" style="margin-top:12px"><b>Bisher:</b> vier Karten untereinander, jede mit Textfeld, Auswahlliste und eigenem Knopf („Speichern“, „Hinzufügen“, „Senden“, „Foto“).</p>
+      </div>
+    </div>
+
+    <!-- J4 Hilfe -->
+    <div class="raster-2" id="j4" style="align-items:start">
+      <div class="skizze">
+        <div class="skizze-titel"><h3><span class="j-nr">J4</span>„Wir brauchen Hilfe“<span class="neu-marke">neu</span></h3><span class="leise">Team, Handy · roter Knopf auf jedem Reiter</span></div>
+        <div class="rahmen"><div class="geraet handy" style="padding:12px 10px 10px">
+          <div class="app-kopf"><b>Klimaanlage</b><span class="rechts"><span class="k">Tracking-Sheet</span></span></div>
+          <div class="j-bild" id="j4-bild" style="height:470px">
+            <div class="j-scroll" style="opacity:.55">
+              <div class="hz-z"><div><b>Lüfter auslegen</b><span class="leise">BW · Ende KW 46</span></div><span class="st arbeit">y</span></div>
+              <div class="hz-z"><div><b>Gehäuse konstruieren</b><span class="leise">TB · Ende KW 48</span></div><span class="st fertig">g</span></div>
+              <div class="hz-z"><div><b>Steuerung programmieren</b><span class="leise">MK · Ende KW 49</span></div></div>
+              <div class="hz-z"><div><b>Elektrik verdrahten</b><span class="leise">BW · Ende KW 50</span></div></div>
+            </div>
+            <button type="button" class="j-fab" id="j4-fab"><svg class="sym" viewBox="0 0 24 24"><use href="#i-hilfe"/></svg><span id="j4-fab-text">Wir brauchen Hilfe</span></button>
+            <div class="j-ueber" id="j4-ueber" hidden><div class="blatt" role="dialog" aria-modal="true" aria-labelledby="j4-titel">
+              <div class="blatt-griff"></div>
+              <div class="blatt-kopf"><b id="j4-titel">Hilfe rufen</b><button type="button" class="j-mini-knopf" id="j4-zu" aria-label="Schließen" style="margin-left:auto;color:var(--leise)"><svg class="sym" viewBox="0 0 24 24"><use href="#i-zu"/></svg></button></div>
+              <div class="j-frage">Wer braucht Hilfe?</div>
+              <div class="j-hilfe-text">Freiwillig. Die Lehrkraft sieht dann, zu wem sie kommen soll.</div>
+              <div class="j-namen" id="j4-namen"><button type="button">Ben Weber</button><button type="button">Tim Becker</button><button type="button">Mia Krause</button><button type="button">ganzes Team</button></div>
+              <div class="j-navi"><button type="button" class="rot" id="j4-rufen">Hilfe rufen</button></div>
+            </div></div>
+          </div>
+        </div></div>
+      </div>
+      <div class="skizze">
+        <div class="skizze-titel"><h3><span class="j-nr">J4</span>Hilfe-Reihe im Cockpit<span class="neu-marke">neu</span></h3><span class="leise">PC, betreuende Lehrkräfte · ganz oben, live</span></div>
+        <div class="rahmen"><div class="geraet" style="min-width:440px">
+          <div class="app-kopf"><b>Projektarbeit MT</b><span class="reiter" style="margin-left:6px"><span class="an">Cockpit<i class="zahl" id="j4-badge">1</i></span><span>Projekte</span><span>Kalender</span></span></div>
+          <div class="app-flaeche">
+            <div class="j-reihe" id="j4-reihe"></div>
+            <div class="tk" style="opacity:.5"><div class="tk-kopf"><span class="zeit">10:30</span><b>Klimaanlage</b><span class="k">Tafel öffnen</span></div><span class="leise">Besprechung · Stand eingetragen · 2 Themen</span></div>
+          </div>
+        </div></div>
+        <div class="karte" style="margin-top:10px"><h3>So läuft eine Hilfe-Meldung</h3>
+          <ul class="liste">
+            <li><b>Team:</b> Knopf antippen, auf Wunsch einen Namen wählen, „Hilfe rufen“. Danach zeigt der Knopf „Ihr seid Nr. 2“ und lässt sich zurückziehen.</li>
+            <li><b>Du:</b> Die Reihe erscheint oben im Cockpit, nach Eingang sortiert, mit roter Zahl am Menüpunkt und auf Wunsch mit Windows-Hinweis. Es sehen sie nur die Lehrkräfte, die das Projekt betreuen.</li>
+            <li><b>„Ich komme“</b> zeigt dem Team deinen Namen. <b>„Erledigt“</b> nimmt die Meldung für alle heraus.</li>
+            <li><b>Kein Text, kein Chat.</b> Der Knopf heißt nur „bitte kommt vorbei“. Für Fragen mit Text bleiben die Anfragen.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- J5 Lehrernotizen -->
+    <div class="skizze breit" id="j5">
+      <div class="skizze-titel"><h3><span class="j-nr">J5</span>Lehrernotizen als Zeitstrahl<span class="neu-marke">neu</span></h3><span class="leise">PC, nur Lehrkräfte · zum Ausprobieren: „Erweitern“, Filter, „Neue Notiz“</span></div>
+      <div class="rahmen"><div class="geraet pc">
+        <div class="app-kopf"><b>Projektarbeit MT</b><span class="leise">Fr 06.11.2026 · KW 45</span>
+          <span class="reiter" style="margin-left:12px"><span>Cockpit</span><span>Projekte</span><span>Kalender</span><span>Aktivitäten</span><span>Anfragen</span><span>Bestellung</span><span class="an">Notizen<i class="zahl" id="j5-badge">1</i></span><span>Termine</span><span>Archiv</span></span></div>
+        <div class="j-bild pc" id="j5-bild">
+          <div class="j-scroll" style="gap:12px">
+            <div class="j-werkzeuge">
+              <button type="button" class="j-k haupt" id="j5-neu"><svg class="sym" viewBox="0 0 24 24"><use href="#i-plus"/></svg>Neue Notiz</button>
+              <span class="fk an" data-f="alle" role="button" tabindex="0">Alle</span>
+              <span class="fk" data-f="dringend" role="button" tabindex="0">Nur dringende <i id="j5-n-dr"></i></span>
+              <select id="j5-projekt" aria-label="Projekt"><option value="">Alle Projekte</option><option>Klimaanlage</option><option>Hubtisch</option><option>Solar-Tracker</option><option value="-">ohne Projekt</option></select>
+              <span style="margin-left:auto;display:flex;align-items:center;gap:6px"><svg class="sym" viewBox="0 0 24 24" style="color:var(--leise)"><use href="#i-suche"/></svg><input class="j-such" id="j5-such" placeholder="Suchen …" aria-label="Notizen durchsuchen"></span>
+            </div>
+            <div class="j-strahl" id="j5-strahl"></div>
+          </div>
+          <div class="j-dialog" id="j5-dialog" hidden><div class="j-dialog-box" role="dialog" aria-modal="true" aria-labelledby="j5-d-titel">
+            <h4 id="j5-d-titel">Neue Notiz</h4>
+            <label>Überschrift<input class="j-eingabe" id="j5-ue" maxlength="120" placeholder="z. B. Klimaanlage: Lüfter erst nach Freigabe bestellen"></label>
+            <label>Text<textarea class="j-eingabe" id="j5-text" rows="4" placeholder="Was die anderen wissen sollten …"></textarea></label>
+            <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:end">
+              <label>Dringlichkeit<span class="j-segment" id="j5-dr"><button type="button" class="an" data-v="0">Normal</button><button type="button" data-v="1">Dringend</button></span></label>
+              <label>Projekt<select id="j5-d-projekt"><option value="">kein Projekt</option><option>Klimaanlage</option><option>Hubtisch</option><option>Solar-Tracker</option></select></label>
+            </div>
+            <div class="j-dialog-knoepfe"><button type="button" class="j-k" id="j5-abbr">Abbrechen</button><button type="button" class="j-k haupt" id="j5-speichern" disabled>Speichern</button></div>
+          </div></div>
+        </div>
+      </div></div>
+      <div class="raster-2">
+        <div class="karte"><h3>Aufbau</h3>
+          <ul class="liste">
+            <li><b>Eigener Menüpunkt „Notizen“</b>, nur im Lehrerbereich. Das Team sieht davon nichts, auch nicht im Bericht, außer du wählst dort „mit Lehrernotizen“.</li>
+            <li><b>Zeitstrahl:</b> neueste Notiz oben, gruppiert nach Tag. Jede Karte zeigt nur die Überschrift, wer sie geschrieben hat, wann und für welches Projekt.</li>
+            <li><b>„Erweitern“</b> klappt den vollen Text auf. Wer die Notiz geschrieben hat, kann sie dort bearbeiten oder verwerfen, mit Vermerk „geändert“.</li>
+            <li><b>Dringlichkeit:</b> Normal oder Dringend. Dringende Karten haben einen roten Rand und die Marke „Dringend“.</li>
+          </ul>
+        </div>
+        <div class="karte"><h3>Für alle Lehrkräfte</h3>
+          <ul class="liste">
+            <li><b>Eine Sammlung:</b> Jede Lehrkraft sieht alle Notizen. Eine Notiz kann zu einem Projekt gehören, danach lässt sich filtern. Notizen ohne Projekt gelten für alle, z. B. Raumänderungen.</li>
+            <li><b>Rote Zahl am Menüpunkt</b> für dringende Notizen, die du noch nicht aufgeklappt hast. Auf Wunsch auch als Windows-Hinweis, mit demselben Schalter wie bei den Anfragen.</li>
+            <li><b>Übernahme:</b> Die bisherigen Notizen aus „Fotos &amp; Notizen“ kommen mit Projekt in den Zeitstrahl. Als Überschrift dient die erste Zeile.</li>
+            <li><b>Besprechungsnotizen</b> aus der Lehreransicht erscheinen als gestrichelte Karte „Notizen zur Besprechung …“. Bearbeitet werden sie weiter in der Besprechung.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- J6 Oberpunkte -->
+    <div class="skizze breit" id="j6">
+      <div class="skizze-titel"><h3><span class="j-nr">J6</span>Oberpunkte des Tracking-Sheets<span class="neu-marke">neu</span></h3><span class="leise">PC, Lehrkraft, Projektseite „Projekt &amp; Team“ · zum Ausprobieren: umbenennen, verschieben, entfernen, hinzufügen</span></div>
+      <div class="rahmen"><div class="geraet pc">
+        <div class="app-kopf"><b>Projektarbeit MT</b><span>Klimaanlage · BSMT 22b</span>
+          <span class="reiter" style="margin-left:12px"><span>Übersicht</span><span>Tracking-Sheet</span><span>Besprechung</span><span>Anfragen</span><span>Bestellung</span><span class="an">Projekt &amp; Team</span></span></div>
+        <div class="app-flaeche">
+          <div class="j-ob-raster">
+            <div class="j-karte" style="gap:8px">
+              <h4><svg class="sym" viewBox="0 0 24 24" style="color:var(--blau)"><use href="#i-ebenen"/></svg>Oberpunkte<span class="j-std" id="j6-std">Standard: vollständige Handlung</span></h4>
+              <div id="j6-liste"></div>
+              <div class="j-werkzeuge">
+                <button type="button" class="j-k" id="j6-plus"><svg class="sym" viewBox="0 0 24 24"><use href="#i-plus"/></svg>Oberpunkt</button>
+                <button type="button" class="j-k" id="j6-reset" disabled><svg class="sym" viewBox="0 0 24 24"><use href="#i-wieder"/></svg>Vollständige Handlung wiederherstellen</button>
+                <button type="button" class="j-k" id="j6-vorlage" style="margin-left:auto">Als Vorlage speichern</button>
+              </div>
+            </div>
+            <div class="j-karte"><h4>So sieht es im Sheet aus</h4><div class="j-sheet-vor" id="j6-vor"></div>
+              <div class="leise" style="font-size:.72rem">Änderungen gelten sofort für Team, Excel und PDF. Der Verlauf vermerkt sie, z. B. „Oberpunkt Entscheiden → Konzept wählen“.</div></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="karte"><h3>Regeln</h3>
+        <ul class="liste">
+          <li><b>Standard bleibt die vollständige Handlung.</b> Solange du nichts änderst, sieht jedes Projekt sie wie bisher. Die Marke oben zeigt „Standard“ oder „angepasst“.</li>
+          <li><b>Nur Lehrkräfte</b> ändern die Oberpunkte, auf der Projektseite oder schon beim Anlegen über die Vorlage. Das Team sieht die neuen Namen sofort.</li>
+          <li><b>Entfernen mit Tätigkeiten:</b> TrackingDRS fragt, in welchen Oberpunkt sie wandern. Nichts geht verloren. Leere Oberpunkte gehen mit einem Klick.</li>
+          <li><b>Als Vorlage speichern</b> legt die Aufteilung samt Vorgabe-Tätigkeiten als eigene Vorlage für neue Projekte ab. Das gibt es schon, es steht jetzt hier.</li>
+          <li><b>Versionen und Vergleich</b> zeigen immer die aktuellen Namen. Ein Oberpunkt braucht mindestens einen Eintrag, ein Projekt mindestens einen Oberpunkt.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- J7 Wieder oeffnen -->
+    <div class="raster-2" id="j7" style="align-items:start">
+      <div class="skizze">
+        <div class="skizze-titel"><h3><span class="j-nr">J7</span>Anfrage wieder öffnen<span class="neu-marke">neu</span></h3><span class="leise">Team, Handy · zum Ausprobieren: „Wieder öffnen“</span></div>
+        <div class="rahmen"><div class="geraet handy" style="padding:12px 10px 10px">
+          <div class="app-kopf"><b>Klimaanlage</b><span class="rechts"><span class="k">Anfragen</span></span></div>
+          <div class="j-bild" id="j7-bild" style="height:520px">
+            <div class="j-scroll">
+              <div class="j-karte"><div style="display:flex;gap:8px;align-items:start"><div style="flex:1"><span class="typ" style="font-size:.66rem;color:var(--leise);font-weight:700;text-transform:uppercase;letter-spacing:.06em">Rückfrage</span><h4>Dürfen wir 24 V nehmen?</h4></div><span class="st fertig" id="j7-st">erledigt</span></div>
+                <div class="j-meta" id="j7-zust">Matthias Göbel</div></div>
+              <div class="j-verlauf" id="j7-verlauf">
+                <div class="j-msg team">Dürfen wir für die Lüfter 24 V nehmen oder nur 12 V?<small>Team · Mo 02.11., 14:10</small></div>
+                <div class="j-msg lk">Ja, 24 V über das Labornetzteil. Bitte mit Sicherung.<small>Matthias Göbel · Di 03.11., 08:20</small></div>
+                <div class="j-ereignis">erledigt · Matthias Göbel · Di 03.11.</div>
+              </div>
+              <div class="j-wieder" id="j7-wieder">Ist noch etwas offen?<button type="button" class="j-k haupt" id="j7-knopf"><svg class="sym" viewBox="0 0 24 24"><use href="#i-wieder"/></svg>Wieder öffnen</button></div>
+              <button type="button" class="j-mini-knopf" id="j7-reset" hidden style="justify-self:center">Beispiel zurücksetzen</button>
+            </div>
+            <div class="j-ueber" id="j7-ueber" hidden><div class="blatt" role="dialog" aria-modal="true" aria-labelledby="j7-titel">
+              <div class="blatt-griff"></div>
+              <div class="blatt-kopf"><b id="j7-titel">Anfrage wieder öffnen</b><button type="button" class="j-mini-knopf" id="j7-zu" aria-label="Schließen" style="margin-left:auto;color:var(--leise)"><svg class="sym" viewBox="0 0 24 24"><use href="#i-zu"/></svg></button></div>
+              <div class="j-frage">Was ist noch offen?</div>
+              <div class="j-hilfe-text">Ein Satz reicht. Er geht als Nachricht an Matthias Göbel.</div>
+              <textarea class="j-eingabe" id="j7-grund" rows="3" maxlength="500" placeholder="z. B. Welche Sicherung sollen wir nehmen?"></textarea>
+              <div class="j-navi"><button type="button" class="haupt" id="j7-ok" disabled>Wieder öffnen</button></div>
+            </div></div>
+          </div>
+        </div></div>
+      </div>
+      <div class="karte"><h3>Was beim Wiederöffnen passiert</h3>
+        <ul class="liste">
+          <li><b>Der Knopf</b> steht in jeder erledigten Anfrage des Teams, unter dem Verlauf. Abgelehnte Ausleihen und Abnahmen zählen ebenfalls als erledigt.</li>
+          <li><b>Der Grund ist Pflicht.</b> Er steht als Nachricht des Teams im Verlauf, davor das Ereignis „vom Team wieder geöffnet“.</li>
+          <li><b>Zurück an dieselbe Lehrkraft:</b> Die Anfrage steht wieder auf „in Bearbeitung“ bei der zuletzt zuständigen Lehrkraft, mit rotem Punkt als ungelesen. Betreut diese das Projekt nicht mehr, steht sie auf „neu“ ohne Zuständigkeit.</li>
+          <li><b>Wie bisher</b> öffnet auch eine einfache Nachricht ins erledigte Gespräch die Anfrage wieder. Der Knopf macht das nur sichtbar.</li>
+        </ul>
+      </div>
+    </div>
+
   </div>
 </section>
 
@@ -694,13 +1183,14 @@ svg.sym.duenn, svg.wz-sym { stroke-width:1.8; }
       </ul></div>
     <div class="karte"><h3>Rund um die Besprechung</h3>
       <ul class="liste">
-        <li><b>Termin buchen</b> <span class="neu-marke">neu</span> über „Termin buchen“ in der Übersicht: Ein kleines Fenster zeigt die Projekttage der Woche und für den gewählten Tag nur die noch freien Zeiten. Ein Tipp bucht, einer je Woche. Ändern und Absagen gehen bis zum Buchungsschluss, den du festlegst. Termine anderer Teams erscheinen gar nicht.</li>
-        <li><b>Vorbereitung:</b> kurzer Stand und Themen für die Besprechung.</li>
-        <li><b>Anfragen stellen:</b> Rückfrage, Material ausleihen oder Abnahme. Bestellungen sammelt das Team in einer Bestellliste und reicht sie im Einreichfenster ein. Den Stand und die zuständige Lehrkraft sieht das Team jederzeit, z. B. „In Bearbeitung · Matthias Göbel“. Rückfragen mit „in der Besprechung klären“ landen auf der Tafel.</li>
+        <li><b>Termin buchen</b> über „Termin buchen“ in der Übersicht: Ein kleines Fenster zeigt die Projekttage der Woche und für den gewählten Tag nur die noch freien Zeiten. Ein Tipp bucht, einer je Woche. Ändern und Absagen gehen bis zum Buchungsschluss, den du festlegst. Termine anderer Teams erscheinen gar nicht.</li>
+        <li><b>Vorbereitung</b> <span class="neu-marke">neu</span> über vier Knöpfe mit geführten Fenstern: Stand eintragen, Frage oder Thema, Post-it an die Tafel, Foto an die Tafel.</li>
+        <li><b>Anfragen stellen:</b> Rückfrage, Material ausleihen oder Abnahme. Erledigte Anfragen kann das Team mit Begründung wieder öffnen. <span class="neu-marke">neu</span></li>
+        <li><b>Bestellung</b> <span class="neu-marke">neu</span> im eigenen Reiter: Das Team sammelt in einer Bestellliste und reicht sie im Einreichfenster ein, ohne eine Anfrage anzulegen. Den Stand und die zuständige Lehrkraft sieht das Team jederzeit, z. B. „In Bearbeitung · Matthias Göbel“. Rückfragen mit „in der Besprechung klären“ landen auf der Tafel.</li>
         <li><b>Arbeitsaufträge abhaken.</b> Abhaken reicht, der Zeitpunkt wird gespeichert.</li>
-        <li><b>Fotos</b> vom Aufbau per Handy hochladen, mit Datum. Hinweis beim Upload: „Aufbau fotografieren, keine Personen“.</li>
+        <li><b>„Wir brauchen Hilfe“</b> <span class="neu-marke">neu</span> als roter Knopf auf jedem Reiter. Das Team sieht seine Nummer in der Reihe. Der Reiter „Fotos“ entfällt.</li>
         <li><b>Live an die Tafel:</b> Während der Besprechung schickt das Team Post-its und Fotos vom eigenen Laptop oder Handy direkt auf die Tafel.</li>
-        <li>Abgeschlossene Tafeln und die Mindmap ansehen. <span class="neu-marke">neu</span> Jede abgeschlossene Besprechung als PDF (Tafel und Ergebnis) und die Tafel als Bild herunterladen.</li>
+        <li>Abgeschlossene Tafeln und die Mindmap ansehen. Jede abgeschlossene Besprechung als PDF (Tafel und Ergebnis) und die Tafel als Bild herunterladen.</li>
       </ul></div>
   </div>
 </section>
@@ -710,7 +1200,7 @@ svg.sym.duenn, svg.wz-sym { stroke-width:1.8; }
   <div class="raster-2">
     <div class="karte"><h3>Cockpit (Startseite)</h3><p>Drei Bausteine. Links der Handlungsbedarf (heute, jetzt erledigen, im Blick behalten), rechts die nächsten zwei Wochen mit deinem Dienstkalender und den gebuchten Besprechungen, darunter je Team eine Projektkarte. Dazu gibt es einen eigenen Reiter „Kalender“ für Monat und Halbjahr. Für die Besprechungstermine reicht dir dieser Kalender. Die Wochenansicht der Projekttage brauchst du nur zum Eintragen, Verschieben und Anpassen.</p></div>
     <div class="karte"><h3>Besprechungstafel (Smartboard)</h3><p>Die Kurzzusammenfassung liegt als Post-its auf der Tafel und wird abgearbeitet. Stift, Textmarker, Pfeile, Sticker, Rahmen und neue Post-its gehen überall. Post-its und Rahmen in „Aufträge“, „Absprachen“ oder „Meilensteine“ werden zu Einträgen. „Abschließen“ friert die Tafel mit Uhrzeit ein, danach gibt es sie als PDF und Bild. Auf deinem Monitor läuft parallel die Lehreransicht mit Zusammenfassung und Notizen.</p></div>
-    <div class="karte"><h3>Projektseite</h3><p>Raster mit Versionen und Vergleich (Basisplan oder Stand zu einem Buchungsschluss), Verlauf aller Änderungen (filterbar), Protokolle, Aufträge, Fotos, Mindmap und Lehrernotizen. Lehrernotizen sind nur für Lehrkräfte sichtbar und erscheinen nie auf der Tafel.</p></div>
+    <div class="karte"><h3>Projektseite</h3><p>Raster mit Versionen und Vergleich (Basisplan oder Stand zu einem Buchungsschluss), Verlauf aller Änderungen (filterbar), Protokolle, Aufträge, Bestellung und Mindmap. Unter „Projekt &amp; Team“ legst du die Oberpunkte des Sheets fest. <span class="neu-marke">neu</span> Lehrernotizen stehen im gemeinsamen Zeitstrahl „Notizen“, nur für Lehrkräfte, nie auf der Tafel.</p></div>
     <div class="karte"><h3>Verwaltung</h3><p>Projektzeiten, Ausfälle und Einreichfenster für Bestellungen festlegen, Projekte und Teams anlegen, Team-Link erneuern, Vorlagen speichern, Excel-Export im Sheet-Layout, PDF-Export, Archiv, Komplett-Sicherung als ZIP. Lehrkräfte verwaltet ein Admin.</p></div>
   </div>
 
@@ -753,17 +1243,17 @@ svg.sym.duenn, svg.wz-sym { stroke-width:1.8; }
 </section>
 
 <section id="s-anfragen">
-  <h2><span class="nr">05</span>Anfragen<span class="neu-marke">neu</span></h2>
+  <h2><span class="nr">05</span>Anfragen</h2>
   <p>Das Team stellt Anfragen an die Lehrkräfte des Projekts und sieht jederzeit, wer sie bearbeitet und wie weit sie sind. Jede Anfrage ist ein Vorgang mit Gesprächsverlauf. Jeder Statuswechsel steht mit Uhrzeit und Kürzel der Lehrkraft im Verlauf. Neue Anfragen aller Teams siehst du im Cockpit und im Eingang.</p>
   <div class="raster-2">
-    <div class="karte"><h3>Drei Stände<span class="neu-marke">neu</span></h3>
+    <div class="karte"><h3>Drei Stände</h3>
       <ul class="liste">
         <li><b>Neu:</b> Noch niemand ist zuständig.</li>
         <li><b>In Bearbeitung:</b> Eine Lehrkraft ist zuständig. Zuweisen setzt diesen Stand von selbst, Zuständigkeit wegnehmen setzt wieder „Neu“.</li>
         <li><b>Erledigt:</b> abgeschlossen. Schreibt das Team danach noch etwas, geht der Vorgang auf „In Bearbeitung“ bei derselben Lehrkraft zurück.</li>
         <li><b>Filter im Eingang:</b> Neu, In Bearbeitung und Erledigt lassen sich einzeln an- und abschalten, beim Öffnen sind die ersten beiden an. Dazu kommen „nur meine“ und die Art als Knöpfe mit Symbol.</li>
       </ul></div>
-    <div class="karte"><h3>Zuständige Lehrkraft<span class="neu-marke">neu</span></h3>
+    <div class="karte"><h3>Zuständige Lehrkraft</h3>
       <ul class="liste">
         <li><b>Zwei Klicks:</b> Jede Zeile im Eingang und der Kopf eines Vorgangs haben ein Feld „Zuständig“. Es öffnet eine kurze Liste mit „Ich übernehme“ oben und darunter den anderen Lehrkräften, <b>die das Projekt betreuen</b>.</li>
         <li>Wer zugewiesen wird, bekommt den Vorgang als ungelesen: rote Zahl, Zahl im Tab, Einblendung. Keine E-Mail.</li>
@@ -808,7 +1298,7 @@ svg.sym.duenn, svg.wz-sym { stroke-width:1.8; }
       <tbody>
         <tr><td><b>Bestellen</b></td><td>Kommt nach dem Stichtag in die Sammelbestellung je Lieferant. Den Fortschritt (wird bestellt, bestellt, geliefert, ausgegeben) setzt du in der eigenen Spalte „Bestellstatus“, die nur bei bestellten Positionen erscheint.</td><td class="wer">wird bestellt → bestellt → geliefert → ausgegeben</td></tr>
         <tr><td><b>SchulLager</b></td><td>Du verknüpfst die Position mit dem Eintrag im SchulLager (Ort, Bestand). Ohne SchulLager-Anbindung trägst du den Lagerort als Text ein.</td><td class="wer">liegt im Lager → ausgegeben</td></tr>
-        <tr><td><b>über Firma</b> <span class="neu-marke">neu</span></td><td>Das Team wird in seiner Liste gefragt, ob es den Artikel über eine Firma besorgen kann. Ja: Ein Schüler aus der Teamliste sagt zu und hakt später „besorgt und mitgebracht“ ab. Nein: Die Position geht offen an dich zurück.</td><td class="wer">Frage → zugesagt (Name) → besorgt</td></tr>
+        <tr><td><b>über Firma</b></td><td>Das Team wird in seiner Liste gefragt, ob es den Artikel über eine Firma besorgen kann. Ja: Ein Schüler aus der Teamliste sagt zu und hakt später „besorgt und mitgebracht“ ab. Nein: Die Position geht offen an dich zurück.</td><td class="wer">Frage → zugesagt (Name) → besorgt</td></tr>
         <tr><td><b>Ersetzen</b></td><td>Entweder trägst du den Ersatz direkt ein (Artikel, Bestellnummer, Lieferant) und entscheidest dann bestellen oder SchulLager. Oder du gibst die Position mit Hinweis zurück, und das Team schlägt in der nächsten Liste einen Ersatz vor.</td><td class="wer">ersetzt durch … / Ersatz gesucht</td></tr>
         <tr><td><b>Ablehnen</b></td><td>Mit kurzem Kommentar. Das Team kann die Position in die nächste Liste übernehmen.</td><td class="wer">abgelehnt</td></tr>
       </tbody>
@@ -929,7 +1419,7 @@ svg.sym.duenn, svg.wz-sym { stroke-width:1.8; }
     </div>
 
     <div class="skizze breit" id="s-raster">
-      <div class="skizze-titel"><h3>Tracking-Sheet im Browser<span class="neu-marke">neu</span></h3><span class="leise">PC, Team-Ansicht · zum Ausprobieren: Zelle anklicken und b, e, g, y oder r tippen · über mehrere Wochen ziehen plant b · Kürzel anklicken wählt den Verantwortlichen</span></div>
+      <div class="skizze-titel"><h3>Tracking-Sheet im Browser</h3><span class="leise">PC, Team-Ansicht · zum Ausprobieren: Zelle anklicken und b, e, g, y oder r tippen · über mehrere Wochen ziehen plant b · Kürzel anklicken wählt den Verantwortlichen</span></div>
       <div class="rahmen"><div class="geraet pc" id="pc-raster">
         <div class="app-kopf"><b>Projektarbeit MT</b><span>Team Klimaanlage</span>
           <span class="reiter" style="margin-left:12px"><span>Übersicht</span><span class="an">Tracking-Sheet</span><span>Besprechung</span><span>Anfragen<i class="zahl">1</i></span><span>Fotos</span><span>Projekt</span></span>
@@ -1000,7 +1490,7 @@ svg.sym.duenn, svg.wz-sym { stroke-width:1.8; }
     </div>
 
     <div class="skizze breit" id="s-termine">
-      <div class="skizze-titel"><h3>Projekttage als Wochenansicht<span class="neu-marke">neu</span></h3><span class="leise">PC, Lehrkraft, Reiter „Termine &amp; Fenster“ · nur gebuchte Termine, Kästchen wie in Outlook</span></div>
+      <div class="skizze-titel"><h3>Projekttage als Wochenansicht</h3><span class="leise">PC, Lehrkraft, Reiter „Termine &amp; Fenster“ · nur gebuchte Termine, Kästchen wie in Outlook</span></div>
       <div class="rahmen"><div class="geraet pc">
         <div class="app-kopf"><b>Projektarbeit MT</b><span class="leise">Termine &amp; Fenster</span>
           <span class="reiter" style="margin-left:12px"><span class="an">Projekttage</span><span>Projektzeiten &amp; Ausfälle</span><span>Einreichfenster</span></span>
@@ -1039,7 +1529,7 @@ svg.sym.duenn, svg.wz-sym { stroke-width:1.8; }
 
     <div class="raster-2" style="align-items:start">
       <div class="skizze">
-        <div class="skizze-titel"><h3>Termin buchen<span class="neu-marke">neu</span></h3><span class="leise">Team, Handy · Fenster über der Übersicht</span></div>
+        <div class="skizze-titel"><h3>Termin buchen</h3><span class="leise">Team, Handy · Fenster über der Übersicht</span></div>
         <div class="rahmen"><div class="geraet handy">
           <div class="app-kopf"><b>Klimaanlage</b><span class="rechts"><span class="k">KW 46</span></span></div>
           <div class="overlay-flaeche">
@@ -1073,7 +1563,7 @@ svg.sym.duenn, svg.wz-sym { stroke-width:1.8; }
     </div>
 
     <div class="skizze breit">
-      <div class="skizze-titel"><h3>Anfragen</h3><span class="leise">PC, Team-Ansicht · das Team sieht bei jeder Anfrage Stand und zuständige Lehrkraft</span></div>
+      <div class="skizze-titel"><h3>Anfragen</h3><span class="leise">PC, Team-Ansicht · Stand Fassung 13 · ab Fassung 14 stehen die Bestelllisten im Reiter „Bestellung“ (J1), der Reiter „Fotos“ entfällt (J2)</span></div>
       <div class="rahmen"><div class="geraet pc">
         <div class="app-kopf"><b>Projektarbeit MT</b><span>Team Klimaanlage</span>
           <span class="reiter" style="margin-left:12px"><span>Übersicht</span><span>Tracking-Sheet</span><span>Besprechung</span><span class="an">Anfragen</span><span>Fotos</span><span>Projekt</span></span>
@@ -1108,7 +1598,7 @@ svg.sym.duenn, svg.wz-sym { stroke-width:1.8; }
     </div>
 
     <div class="skizze breit">
-      <div class="skizze-titel"><h3>Anfragen und Bestellungen: Eingang<span class="neu-marke">neu</span></h3><span class="leise">PC, Lehrkraft · große Reiter, Einreichfenster sofort sichtbar, zuständige Lehrkraft direkt in der Zeile</span></div>
+      <div class="skizze-titel"><h3>Anfragen und Bestellungen: Eingang</h3><span class="leise">PC, Lehrkraft · Stand Fassung 13 · ab Fassung 14 wird „Bestellungen und Einreichfenster“ zum Menüpunkt „Bestellung“ (J1), Bestelllisten erscheinen nicht mehr im Eingang</span></div>
       <div class="rahmen"><div class="geraet pc">
         <div class="app-kopf"><b>Projektarbeit MT</b><span class="leise">Do 05.11.2026 · KW 45</span>
           <span class="reiter" style="margin-left:12px"><span>Cockpit</span><span>Kalender</span><span>Projekte</span><span class="an">Anfragen<i class="zahl">3</i></span><span>Aktivitäten</span><span>Termine &amp; Fenster</span></span>
@@ -1141,7 +1631,7 @@ svg.sym.duenn, svg.wz-sym { stroke-width:1.8; }
     </div>
 
     <div class="skizze breit">
-      <div class="skizze-titel"><h3>Bestelllisten prüfen<span class="neu-marke">neu</span></h3><span class="leise">PC, Lehrkraft · Reiter „Bestellungen und Einreichfenster“ während eines Fensters</span></div>
+      <div class="skizze-titel"><h3>Bestelllisten prüfen</h3><span class="leise">PC, Lehrkraft · Reiter „Bestellungen und Einreichfenster“ während eines Fensters</span></div>
       <div class="rahmen"><div class="geraet pc">
         <div class="app-kopf"><b>Projektarbeit MT</b><span class="leise">Do 12.11.2026 · KW 46</span>
           <span class="reiter" style="margin-left:12px"><span>Cockpit</span><span>Kalender</span><span>Projekte</span><span class="an">Anfragen<i class="zahl">4</i></span><span>Aktivitäten</span><span>Termine &amp; Fenster</span></span>
@@ -1184,7 +1674,7 @@ svg.sym.duenn, svg.wz-sym { stroke-width:1.8; }
 
     <div class="raster-2" style="align-items:start">
       <div class="skizze">
-        <div class="skizze-titel"><h3>Geprüfte Liste beim Team<span class="neu-marke">neu</span></h3><span class="leise">Team, Handy · Reiter „Anfragen“, Liste KW 46</span></div>
+        <div class="skizze-titel"><h3>Geprüfte Liste beim Team</h3><span class="leise">Team, Handy · Reiter „Anfragen“, Liste KW 46</span></div>
         <div class="rahmen"><div class="geraet handy">
           <div class="app-kopf"><b>Klimaanlage</b><span class="rechts"><span class="k">Liste KW 46</span></span></div>
           <div class="app-flaeche">
@@ -1202,7 +1692,7 @@ svg.sym.duenn, svg.wz-sym { stroke-width:1.8; }
           </div>
         </div></div>
       </div>
-      <div class="karte"><h3>„Über Firma“: das Team wird gefragt<span class="neu-marke">neu</span></h3>
+      <div class="karte"><h3>„Über Firma“: das Team wird gefragt</h3>
         <div class="ablauf" style="margin:8px 0 12px">
           <div class="schritt lk"><div class="wer-t">Lehrkraft</div><b>über Firma</b><span>in der Auswahlliste der Position</span></div>
           <div class="schritt"><div class="wer-t">Team</div><b>Frage beantworten</b><span>Ja mit Namen oder Nein</span></div>
@@ -1219,7 +1709,7 @@ svg.sym.duenn, svg.wz-sym { stroke-width:1.8; }
     </div>
 
     <div class="skizze" id="s-tafel">
-      <div class="skizze-titel"><h3>Besprechungstafel<span class="neu-marke">neu</span></h3><span class="leise">Smartboard an deinem PC, Klimaanlage · Di 03.11., 08:45 · zum Ausprobieren: Post-its ziehen, mit dem Stift zeichnen, neue Post-its setzen</span></div>
+      <div class="skizze-titel"><h3>Besprechungstafel</h3><span class="leise">Smartboard an deinem PC, Klimaanlage · Di 03.11., 08:45 · zum Ausprobieren: Post-its ziehen, mit dem Stift zeichnen, neue Post-its setzen</span></div>
       <div class="rahmen"><div class="board">
         <div class="board-kopf">
           <b>Klimaanlage</b><span>Di 03.11. · 08:45</span><span class="ampel a-y"></span>
@@ -1302,7 +1792,7 @@ svg.sym.duenn, svg.wz-sym { stroke-width:1.8; }
         <span><i class="pi-m blau"></i>Auftrag</span><span><i class="pi-m orange"></i>Problem</span><span><i class="pi-m pink"></i>Frage</span><span><i class="pi-m grau"></i>Änderung im Raster</span><span><i class="pi-m gelb"></i>Idee</span><span><i class="pi-m gruen"></i>Absprache</span><span><i class="pi-m weiss"></i>Foto</span><span>zum Ausprobieren: Werkzeug unten wählen, Stift, Textmarker und Sticker klappen dabei ihre Auswahl auf, ein zweiter Tipp schließt sie · den Rahmen „Lüfter im Gehäuse“ verschieben, der Inhalt geht mit, der Pfeil haftet</span>
       </div>
       <div class="raster-2">
-        <div class="karte"><h3>Die Werkzeugleiste<span class="neu-marke">neu</span></h3>
+        <div class="karte"><h3>Die Werkzeugleiste</h3>
           <ul class="liste">
             <li><b>Unten in der Mitte</b>, schwebend über der Tafel. Nur Symbole ohne Knopfrahmen, groß genug für den Finger (44 px). Das aktive Werkzeug ist blau gefüllt.</li>
             <li><b>Zeichnen:</b> Auswählen, Stift, Textmarker (breit und halbdurchsichtig), Pfeil, Radierer. Farben und Strichstärke klappen über Stift und Textmarker auf und schließen sich beim Zeichnen.</li>
@@ -1311,7 +1801,7 @@ svg.sym.duenn, svg.wz-sym { stroke-width:1.8; }
             <li>Die Symbole sind freie Linien-Symbole (Lucide, ISC-Lizenz) und liegen als SVG-Dateien im Repo. Sie funktionieren deshalb auch ohne Internet.</li>
           </ul>
           <p class="vorher" style="margin-top:12px"><b>Bisher:</b> Schriftzeichen ✥ ✎ ⌫ ▢ ↶ in Kästchen, fünf Farben und drei Strichstärken immer sichtbar.</p></div>
-        <div class="karte"><h3>Rahmen, Pfeile, Sticker<span class="neu-marke">neu</span></h3>
+        <div class="karte"><h3>Rahmen, Pfeile, Sticker</h3>
           <ul class="liste">
             <li><b>Rahmen</b> um eine Skizze ziehen: Alles, was ganz darin liegt, gehört dazu, also Striche, Textmarker, Sticker und Post-its. Ein Strich, der im Rahmen beginnt, gehört ebenfalls dazu. Mit dem Auswählen-Werkzeug lassen sich Striche auch nachträglich per Rechteck markieren und „In Rahmen fassen“.</li>
             <li>Ein Rahmen hat einen <b>Titel</b> und verhält sich wie ein Post-it: verschieben, vergrößern, löschen. Der Inhalt geht mit.</li>
@@ -1327,7 +1817,7 @@ svg.sym.duenn, svg.wz-sym { stroke-width:1.8; }
             <li><b>Rechts „Ergebnis“:</b> Ein Post-it oder Rahmen in „Aufträge“ wird beim Abschließen ein Arbeitsauftrag (Frist wählen), in „Absprachen“ eine Absprache, in „Meilensteine“ ein Meilenstein im Raster.</li>
             <li><b>Abschließen</b> friert die Tafel mit Uhrzeit ins Protokoll ein.</li>
           </ul></div>
-        <div class="karte"><h3>Nach dem Abschließen: PDF und Bild<span class="neu-marke">neu</span></h3>
+        <div class="karte"><h3>Nach dem Abschließen: PDF und Bild</h3>
           <p>Bei jeder abgeschlossenen Besprechung, im Reiter „Besprechung“ des Teams, in der Team-Übersicht unter „Letzte Besprechung“ und auf deiner Projektseite:</p>
           <div class="nach-knoepfe" style="margin:10px 0">
             <span class="k haupt"><svg class="sym" viewBox="0 0 24 24"><use href="#i-laden"/></svg>PDF herunterladen</span>
@@ -1354,7 +1844,7 @@ svg.sym.duenn, svg.wz-sym { stroke-width:1.8; }
 </section>
 
 <section id="s-vpn">
-  <h2><span class="nr">07</span>Erreichbarkeit: Schulnetz und VPN<span class="neu-marke">neu</span></h2>
+  <h2><span class="nr">07</span>Erreichbarkeit: Schulnetz und VPN</h2>
   <p>Im Schulnetz ist der Container immer über seine normale Adresse erreichbar. Zusätzlich baut er selbst eine WireGuard-Verbindung zu deinem gemieteten Server auf. Darüber ist von zuhause <b>nur dieser Container</b> erreichbar.</p>
   <div class="banner w" style="font-size:.95rem"><b>Harte Anforderung:</b> Aus dem Schulnetz darf niemand in dein Heimnetz gelangen, auch nicht über einen übernommenen Container. Deshalb sitzt die Sperre auf dem Server, nicht im Container.</div>
   <div class="karte netz" style="overflow-x:auto">
@@ -1416,7 +1906,7 @@ svg.sym.duenn, svg.wz-sym { stroke-width:1.8; }
         <li>Das HTTPS-Zertifikat gilt für die Schul-IP <i>und</i> die VPN-IP, mit eigener CA wie bei der Roboter-Simulation. Kommt die erste VPN-Adresse dazu, entsteht einmalig ein neues Stammzertifikat. Deshalb erst das VPN einrichten, dann das Zertifikat auf deine Geräte verteilen.</li>
       </ul></div>
   </div>
-  <div class="karte"><h3>Aus dem ganzen VPN erreichbar<span class="neu-marke">neu</span></h3>
+  <div class="karte"><h3>Aus dem ganzen VPN erreichbar</h3>
     <p>Du willst den Lehrerbereich von jedem Gerät erreichen: von Teilnehmern deines VPN und von Geräten in deinem Heimnetz, das wie das Schulnetz <code>192.168.0.0/16</code> nutzt.</p>
     <div class="raster-2" style="margin-top:10px">
       <ul class="liste">
@@ -1506,15 +1996,16 @@ svg.sym.duenn, svg.wz-sym { stroke-width:1.8; }
     <div class="stufe"><span class="s">E</span><div><b>Anfragen <span class="chip">gebaut</span></b><p>Rückfrage, Ausleihe, Abnahme mit Status, Antwortverlauf und Warnungen. Bestelllisten mit Einreichfenstern, Sonderfenstern und Prüfung je Position. Sammelbestellung je Lieferant als Excel/PDF.</p></div></div>
     <div class="stufe"><span class="s">F</span><div><b>Extras <span class="chip">gebaut</span></b><p>Fotos, Mindmap, Lehrernotizen, Vorlagen speichern, Excel-Export, PDF-Export, Archiv, ZIP-Sicherung.</p></div></div>
     <div class="stufe"><span class="s">G</span><div><b>VPN &amp; Probelauf</b> <span class="chip">teilweise</span><p>Gebaut: Einrichtung im Lehrerbereich (Werte oder Client-Datei), Sperrregeln für den Server, täglicher Sperrtest. Offen: echter Lauf mit deiner Client-Datei, Test von zuhause, Probelauf mit einer Klasse.</p></div></div>
-    <div class="stufe" style="border-color:var(--blau-mittel)"><span class="s">I</span><div><b>Überarbeitung nach dem ersten Test</b> <span class="neu-marke">neu</span><p>Vorschlag für die Reihenfolge, jeder Schritt einzeln im Testcontainer und auf GitHub:</p>
+    <div class="stufe"><span class="s">I</span><div><b>Überarbeitung nach dem ersten Test <span class="chip">gebaut</span></b><p>Fassung 13, Versionen 0.10.0 bis 0.10.6: Tätigkeiten, VPN aus dem ganzen VPN, Anfragen mit drei Ständen und Zuständigkeit, Bestellprüfung mit Auswahllisten und Firma-Frage, Wochenansicht der Projekttage mit Buchungsfenster, neue Tafel-Leiste mit Textmarker, Pfeilen, Stickern und Rahmen, PDF und PNG nach der Besprechung.</p></div></div>
+    <div class="stufe" style="border-color:var(--blau-mittel)"><span class="s">J</span><div><b>Zweite Überarbeitung <span class="chip">gebaut</span></b> <span class="neu-marke">neu</span><p>Gebaut am 06.11. als Versionen 0.11.0 bis 0.12.0 in dieser Reihenfolge. Standard der Oberpunkte ist die Aufteilung der mitgelieferten Vorlage (Informieren, Planen, Realisieren, Kontrollieren); die Voransicht J6 zeigt nur ein Beispiel.</p>
       <ol class="schritte" style="margin-top:6px">
-        <li><b>I1 Tätigkeiten:</b> alle sichtbaren Texte, Meldungen, Excel, Bericht, Vorlagen. Klein, gut als Einstieg.</li>
-        <li><b>I2 VPN aus dem ganzen VPN:</b> Eingang von jedem Absender, Rückweg entlang der Verbindung, 0.0.0.0/0 im Import, Schalter im Formular. Danach der echte Lauf mit deiner Client-Datei und der Test von zuhause.</li>
-        <li><b>I3 Anfragen:</b> Reiter, Statuskarte zum Einreichfenster, Entscheidung je Bestellposition als Auswahlliste, eigene Spalte Bestellstatus, Firma-Frage ans Team mit Zusage und Haken, drei Stände mit Filtern, Zuständig-Feld mit „Ich übernehme“, Name für das Team, beschrifteter Hinweis-Schalter.</li>
-        <li><b>I4 Projekttage:</b> Wochenansicht für die Lehrkraft, Buchungsfenster für das Team, Ändern und Absagen.</li>
-        <li><b>I5 Tafel-Werkzeuge:</b> neue Leiste mit Symbolen, Textmarker, Pfeile mit Haften, Sticker, Wiederholen.</li>
-        <li><b>I6 Rahmen:</b> Rahmen anlegen und befüllen, verschieben, Titel, als Auftrag, Absprache oder Meilenstein mit Bild, Mitwandern auf die nächste Tafel.</li>
-        <li><b>I7 PDF und PNG:</b> Tafel und Ergebnis als PDF, Tafel und einzelne Rahmen als Bild, Knöpfe für Team und Lehrkraft.</li>
+        <li><b>J2 Fotos-Reiter raus:</b> Reiter beim Team und auf der Projektseite entfernen, Mindmap nach „Projekt &amp; Team“. Klein, gut als Einstieg.</li>
+        <li><b>J1 Bestellung:</b> eigener Reiter beim Team und auf der Projektseite, Menüpunkt „Bestellung“ für Lehrkräfte, Einreichen ohne Anfrage. Die bisherigen Bestell-Anfragen ziehen samt Verlauf in die Listen um.</li>
+        <li><b>J7 Wieder öffnen:</b> Knopf und Fenster beim Team, Pflichtgrund, Rückgabe an die zuletzt zuständige Lehrkraft.</li>
+        <li><b>J3 Besprechung:</b> neue Team-Seite mit Termin, vier Knöpfen und geführten Fenstern, am Handy von unten, am PC in der Mitte.</li>
+        <li><b>J4 Hilfe:</b> roter Knopf auf jedem Team-Reiter, Hilfe-Reihe im Cockpit, „Ich komme“ und „Erledigt“, rote Zahl und Windows-Hinweis.</li>
+        <li><b>J6 Oberpunkte:</b> umbenennen, hinzufügen, umsortieren, entfernen mit Verschieben der Tätigkeiten, Standard wiederherstellen, als Vorlage speichern.</li>
+        <li><b>J5 Lehrernotizen:</b> neue Tabelle mit Überschrift, Dringlichkeit und Projekt, Menüpunkt „Notizen“ mit Zeitstrahl, Filter und Suche, Übernahme der bisherigen Notizen.</li>
       </ol></div></div>
     <div class="stufe"><span class="s">H</span><div><b>Optional: SchulLager</b><p>Bestellungen als Beschaffung übergeben, Ausleihen aus dem Bestand, Status zurückholen. Kann jederzeit nachgerüstet werden.</p></div></div>
   </div>
@@ -1524,10 +2015,13 @@ svg.sym.duenn, svg.wz-sym { stroke-width:1.8; }
 <section>
   <h2><span class="nr">11</span>Offene Punkte</h2>
     <div class="karte">
-    <p>Die Punkte vom 27.10. sind entschieden. Aus der Überarbeitung bleiben zwei kleine Punkte. Bis du anders entscheidest, gilt jeweils mein Vorschlag.</p>
+    <p>Deine Antworten vom 06.11. sind eingearbeitet. Ein paar kleine Punkte bleiben. Bis du anders entscheidest, gilt jeweils mein Vorschlag.</p>
     <ol class="offen" style="margin-top:10px">
-      <li><b>Name der zuständigen Lehrkraft beim Team:</b> voller Name oder Kürzel?<span class="vorschlag"><b>Vorschlag:</b> voller Name aus dem Konto, z. B. „Matthias Göbel“. Mit Kürzeln können Schüler oft wenig anfangen.</span></li>
-      <li><b>Bauweise der PDF:</b> Die Tafel als Vektorgrafik (scharf in jeder Größe, Text durchsuchbar) oder als eingebettetes Bild?<span class="vorschlag"><b>Vorschlag:</b> Seite 2 (Ergebnis) als echter Text, die Tafel auf Seite 1 als hochaufgelöstes Bild. Das ist robust und sieht genauso aus wie auf dem Board.</span></li>
+      <li><b>Hilfe-Knopf außerhalb der Projektzeit:</b> Soll das Team ihn immer drücken können?<span class="vorschlag"><b>Vorschlag:</b> Nur an Projekttagen von Beginn bis Ende der Projektzeit. Sonst steht dort „Heute ist kein Projekttag, stellt eine Rückfrage“. Offene Meldungen verfallen am Ende des Tages.</span></li>
+      <li><b>„Ich komme“:</b> Brauchst du diesen Zwischenschritt?<span class="vorschlag"><b>Vorschlag:</b> Ja. Das Team sieht dann, wer kommt, und eine zweite Lehrkraft geht nicht auch noch hin.</span></li>
+      <li><b>Wer darf Notizen ändern?</b><span class="vorschlag"><b>Vorschlag:</b> Nur wer sie geschrieben hat, mit Vermerk „geändert“. Verwerfen statt löschen, wie überall in TrackingDRS.</span></li>
+      <li><b>Hinweis an das Team bei Bestellungen:</b> Ganz ohne Anfrage fehlt dem Team die Meldung, dass geprüft ist.<span class="vorschlag"><b>Vorschlag:</b> Rote Zahl am Reiter „Bestellung“, wenn du eine Liste geprüft hast oder eine Firma-Frage wartet. Für dich bleibt es bei „gar nicht“.</span></li>
+      <li><b>Rückfragen zu einer Liste:</b> Bisher gab es dazu den Gesprächsverlauf der Bestell-Anfrage.<span class="vorschlag"><b>Vorschlag:</b> Je Position gibt es weiter deinen Hinweis (bei Ersetzen und Ablehnen). Alles andere fragt das Team als normale Rückfrage. Der Verlauf alter Bestell-Anfragen bleibt in der Liste lesbar.</span></li>
     </ol>
   </div>
 </section>
@@ -1543,7 +2037,7 @@ svg.sym.duenn, svg.wz-sym { stroke-width:1.8; }
         <tr><td>Schülerzugang</td><td>Ein Link je Team, über den Teams-Chat geteilt. Einträge nur dem Team zugeordnet.</td></tr>
         <tr><td>Zusammenfassung</td><td>Automatisch ohne KI</td></tr>
         <tr><td>Raster</td><td>Frei wie in Excel, jede Änderung im Hintergrund protokolliert</td></tr>
-        <tr><td>Phasen</td><td>Vorlage anpassbar, Standard = dein Sheet</td></tr>
+        <tr><td>Phasen</td><td>Vorlage anpassbar, Standard = dein Sheet (vollständige Handlung). Ab Fassung 14 auch je Projekt änderbar (J6).</td></tr>
         <tr><td>Y/R</td><td>Problem und Maßnahme sind Pflicht</td></tr>
         <tr><td>Löschen</td><td>Nichts geht verloren (verworfen / verschoben sichtbar)</td></tr>
         <tr><td>Takt</td><td>Teams buchen in jeder Projektwoche einen Termin. Bis dahin ist aktualisiert, sonst Warnung.</td></tr>
@@ -1557,8 +2051,8 @@ svg.sym.duenn, svg.wz-sym { stroke-width:1.8; }
         <tr><td>Bestellungen</td><td>Teams sammeln in einer Bestellliste und reichen nur in Einreichfenstern ein (von, bis Stichtag, im Cockpit festgelegt). Sonderfenster für einzelne Teams vergibst du. Felder mit Bestellnummer und Preis (nur Info, keine Summen, kein Budget). Entscheidung je Position: bestellen, SchulLager (verknüpft), Firma (nur Vermerk), ersetzen (du trägst ein oder das Team sucht), ablehnen.</td></tr>
         <tr><td>Terminbuchung</td><td>Projektzeiten als Regeln (z. B. jeden Donnerstag, dienstags in ungeraden KW) mit Besprechungsfenster und Terminlänge; Termine entstehen automatisch, ohne Ferien (Schulkalender-Abo) und von Hand eingetragene Ausfälle; einzelne Tage anpassbar; Buchungsschluss legst du fest. Teams buchen einen Termin je Woche per Tipp und sehen andere Buchungen nur als „belegt“.</td></tr>
         <tr><td>Aufträge / Meilensteine</td><td>Abhaken reicht / Team und Lehrkraft dürfen setzen</td></tr>
-        <tr><td>Schüler-Extras</td><td>Fotos, Aufträge abhaken, Fragen an Lehrkraft</td></tr>
-        <tr><td>Lehrer-Extras</td><td>Cockpit, private Notizen, PDF, Excel-Export (kein Import), Projektvorlagen</td></tr>
+        <tr><td>Schüler-Extras</td><td>Aufträge abhaken, Fragen an Lehrkraft, Hilfe-Knopf. Fotos nur noch über die Tafel.</td></tr>
+        <tr><td>Lehrer-Extras</td><td>Cockpit, gemeinsame Lehrernotizen, PDF, Excel-Export (kein Import), Projektvorlagen</td></tr>
         <tr><td>Cockpit</td><td>Drei Bausteine: Handlungsbedarf, Zwei-Wochen-Kalender, Projektkarten (umschaltbar auf Ampel-Matrix). Genutzt für den Morgen-Check, vor Besprechungen, für die langfristige Planung und um nachzusehen, was passiert ist.</td></tr>
         <tr><td>Kalender</td><td>Dienstkalender per ICS-Abo-Link aus Outlook, automatisch alle 30 Minuten. Kein Rückweg nach Outlook.</td></tr>
         <tr><td>Mindmap</td><td>Bild/PDF hochladen</td></tr>
@@ -1583,6 +2077,13 @@ svg.sym.duenn, svg.wz-sym { stroke-width:1.8; }
         <tr><td>Rahmen <span class="neu-marke">05.11.</span></td><td>Fassen Striche, Sticker und auch Post-its zusammen, verschiebbar, werden in „Ergebnis“ zu Auftrag, Absprache oder Meilenstein mit Bild. Nicht im Ergebnis: wandern wie offene Post-its mit.</td></tr>
         <tr><td>Bestellprüfung <span class="neu-marke">05.11.</span></td><td>Entscheidung je Position per Auswahlliste statt fünf Knöpfen, dazu „Alle offenen Positionen“ auf einmal. Bestellstatus in einer eigenen Spalte, die nur bei bestellten Positionen erscheint. „Über Firma“: Das Team wird gefragt, ein Schüler sagt zu und hakt „besorgt“ ab, bei Nein geht die Position offen zurück.</td></tr>
         <tr><td>Downloads <span class="neu-marke">05.11.</span></td><td>Nach jeder Besprechung für Team und Lehrkraft: PDF (Tafel und Ergebnis) und die Tafel als PNG, einzelne Rahmen ebenfalls als PNG. Ohne Lehrernotizen.</td></tr>
+        <tr><td>Bestellung <span class="neu-marke">06.11.</span></td><td>Eigener Reiter „Bestellung“ beim Team und auf der Projektseite, eigener Menüpunkt für Lehrkräfte. Einreichen legt keine Anfrage an. Kein Hinweis an dich, du schaust nach deiner Frist hinein.</td></tr>
+        <tr><td>Fotos <span class="neu-marke">06.11.</span></td><td>Reiter „Fotos“ entfällt ersatzlos. „Foto an die Tafel“ bleibt in der Besprechung. Vorhandene Fotos bleiben im Bericht und in der Sicherung.</td></tr>
+        <tr><td>Besprechung <span class="neu-marke">06.11.</span></td><td>Team-Seite aufgeräumt: Termin, vier Knöpfe mit Symbol, geführte Fenster mit höchstens drei Schritten, darunter nur das, was schon da ist.</td></tr>
+        <tr><td>Hilfe-Knopf <span class="neu-marke">06.11.</span></td><td>Wie im Lernbüro MT: ein Knopf je Team, Name freiwillig. Die Hilfe-Reihe sehen die Lehrkräfte, die das Projekt betreuen.</td></tr>
+        <tr><td>Lehrernotizen <span class="neu-marke">06.11.</span></td><td>Eine gemeinsame Sammlung für alle Lehrkräfte, Zeitstrahl mit neuester Notiz oben, kompakte Karte mit Überschrift, „Erweitern“ für den vollen Text, Dringlichkeit Normal oder Dringend, Projekt freiwillig. Voransicht vor dem Bau.</td></tr>
+        <tr><td>Oberpunkte <span class="neu-marke">06.11.</span></td><td>Nur Lehrkräfte ändern sie. Standard ist die vollständige Handlung. Beim Entfernen wandern die Tätigkeiten in einen anderen Oberpunkt.</td></tr>
+        <tr><td>Wieder öffnen <span class="neu-marke">06.11.</span></td><td>Das Team öffnet erledigte Anfragen mit Pflichtgrund wieder. Sie gehen an die zuletzt zuständige Lehrkraft.</td></tr>
       </tbody>
     </table>
   </div>
@@ -2299,5 +2800,323 @@ svg.sym.duenn, svg.wz-sym { stroke-width:1.8; }
   });
 
   render();
+})();
+</script>
+<script>
+/* Voransichten Fassung 14: Besprechung gefuehrt (J3), Hilfe (J4), Lehrernotizen (J5), Oberpunkte (J6), Wieder oeffnen (J7) */
+(() => {
+  const $ = (s, r = document) => r.querySelector(s);
+  const h = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  const sym = (id, cls) => { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('class', 'sym' + (cls ? ' ' + cls : '')); s.setAttribute('aria-hidden', 'true');
+    const u = document.createElementNS('http://www.w3.org/2000/svg', 'use'); u.setAttribute('href', '#' + id); s.appendChild(u); return s; };
+  const toast = (ort, text) => { const t = h('div', 'j-toast', text); ort.appendChild(t); setTimeout(() => t.remove(), 2200); };
+  const knopf = (text, cls, fn) => { const b = h('button', cls, text); b.type = 'button'; if (fn) b.addEventListener('click', fn); return b; };
+
+  /* ---------- J3: gefuehrte Fenster in der Besprechung ---------- */
+  (() => {
+    const bild = $('#j3-bild'); if (!bild) return;
+    const ueber = $('#j3-ueber'), titel = $('#j3-titel'), punkte = $('#j3-punkte'), inhalt = $('#j3-inhalt');
+    const zurueck = $('#j3-zurueck'), weiter = $('#j3-weiter');
+    const BEISPIEL = { frage: 'z. B. Dürfen wir 24 V nehmen?', thema: 'z. B. Wir zeigen den Gehäuseentwurf.', idee: 'z. B. 2 Lüfter parallel?' };
+    const ABL = {
+      stand: { titel: 'Stand eintragen', fertig: 'Stand speichern', schritte: [
+        { frage: 'Was habt ihr seit dem letzten Mal geschafft?', hilfe: 'Stichpunkte reichen, z. B. „Lüfter bestellt, Gehäuse gezeichnet“.', feld: 'text', name: 'geschafft' },
+        { frage: 'Was hakt gerade?', hilfe: 'Wenn nichts hakt, tippt auf „Nichts, läuft“.', feld: 'text', name: 'hakt', schnell: 'Nichts, läuft' },
+        { frage: 'Passt das so?', feld: 'pruefen' }] },
+      frage: { titel: 'Frage oder Thema', fertig: 'Für die Besprechung notieren', schritte: [
+        { frage: 'Was wollt ihr in der Besprechung klären?', feld: 'wahl', name: 'art', optionen: [
+          ['frage', 'Eine Frage', 'Ihr braucht eine Antwort von der Lehrkraft.', 'i-frage'], ['thema', 'Ein Thema', 'Ihr wollt etwas zeigen oder gemeinsam besprechen.', 'i-team']] },
+        { frage: 'Schreibt es in einem Satz.', feld: 'zeile', name: 'text', max: 500 },
+        { frage: 'Passt das so?', feld: 'pruefen' }] },
+      idee: { titel: 'Post-it an die Tafel', fertig: 'An die Tafel schicken', schritte: [
+        { frage: 'Was soll auf das Post-it?', feld: 'wahl', name: 'art', optionen: [
+          ['idee', 'Eine Idee', 'gelbes Post-it bei den Ideen', 'i-idee'], ['frage', 'Eine Frage', 'blaues Post-it bei den Fragen', 'i-frage']] },
+        { frage: 'Kurz wie auf einem Post-it.', hilfe: 'Höchstens 200 Zeichen.', feld: 'zeile', name: 'text', max: 200 },
+        { frage: 'So sieht es auf der Tafel aus.', feld: 'postit' }] },
+      foto: { titel: 'Foto an die Tafel', fertig: 'An die Tafel schicken', schritte: [
+        { frage: 'Fotografiert euren Aufbau.', hilfe: 'Bitte keine Personen aufs Bild.', feld: 'kamera' },
+        { frage: 'Wollt ihr etwas dazuschreiben?', hilfe: 'Freiwillig, z. B. „Lüfter montiert“.', feld: 'zeile', name: 'text', max: 200, frei: true },
+        { frage: 'Passt das so?', feld: 'foto' }] }
+    };
+    let ab = null, nr = 0, w = {};
+
+    const gueltig = s => s.feld === 'wahl' ? !!w[s.name] : s.feld === 'kamera' ? !!w.foto
+      : (s.feld === 'text' || s.feld === 'zeile') ? (s.frei || !!(w[s.name] || '').trim()) : true;
+    const pruefZeile = (et, text) => { const d = h('div'); d.appendChild(h('div', 'etikett', et)); d.appendChild(h('div', null, text)); return d; };
+
+    function zeigen() {
+      const a = ABL[ab], s = a.schritte[nr];
+      titel.textContent = a.titel;
+      punkte.replaceChildren(...a.schritte.map((_, i) => h('i', i <= nr ? 'an' : '')), h('span', null, ' Schritt ' + (nr + 1) + ' von ' + a.schritte.length));
+      const teile = [h('div', 'j-frage', s.frage)];
+      if (s.hilfe) teile.push(h('div', 'j-hilfe-text', s.hilfe));
+      if (s.feld === 'wahl') {
+        const box = h('div', 'j-wahl');
+        s.optionen.forEach(([v, t, kl, ic]) => {
+          const b = knopf('', w[s.name] === v ? 'an' : '', () => { w[s.name] = v; zeigen(); });
+          b.append(sym(ic), h('b', null, t), h('small', null, kl)); box.appendChild(b);
+        });
+        teile.push(box);
+      } else if (s.feld === 'text' || s.feld === 'zeile') {
+        const f = h(s.feld === 'text' ? 'textarea' : 'input', 'j-eingabe');
+        if (s.feld === 'text') f.rows = 3; if (s.max) f.maxLength = s.max;
+        f.placeholder = s.name === 'text' ? (BEISPIEL[w.art] || '') : '';
+        f.value = w[s.name] || '';
+        f.addEventListener('input', () => { w[s.name] = f.value; weiter.disabled = !gueltig(s); });
+        f.addEventListener('keydown', ev => { if (ev.key === 'Enter' && s.feld === 'zeile' && gueltig(s)) { ev.preventDefault(); weiter.click(); } });
+        teile.push(f);
+        if (s.schnell) { const sc = h('div', 'j-schnell'); sc.appendChild(knopf(s.schnell, '', () => { w[s.name] = s.schnell; zeigen(); })); teile.push(sc); }
+        setTimeout(() => f.focus(), 30);
+      } else if (s.feld === 'kamera') {
+        if (w.foto) teile.push(h('div', 'j-foto'), knopf('Neu aufnehmen', 'j-mini-knopf', () => { w.foto = false; zeigen(); }));
+        else { const k = h('div', 'j-kamera'); k.tabIndex = 0; k.setAttribute('role', 'button'); k.append(sym('i-kamera'), h('span', null, 'Kamera öffnen'));
+          const nimm = () => { w.foto = true; zeigen(); }; k.addEventListener('click', nimm); k.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); nimm(); } }); teile.push(k); }
+      } else if (s.feld === 'pruefen') {
+        const p = h('div', 'j-pruef');
+        if (ab === 'stand') { p.appendChild(pruefZeile('Geschafft', w.geschafft)); p.appendChild(pruefZeile('Hakt', w.hakt)); }
+        else { p.appendChild(pruefZeile(w.art === 'thema' ? 'Thema' : 'Frage', w.text)); }
+        teile.push(p);
+      } else if (s.feld === 'postit') {
+        teile.push(h('div', 'j-postit' + (w.art === 'frage' ? ' frage' : ''), w.text));
+        teile.push(h('div', 'j-hilfe-text', 'Läuft gerade keine Besprechung, wartet das Post-it bis zur nächsten.'));
+      } else if (s.feld === 'foto') {
+        const p = h('div', 'j-pruef'); p.appendChild(h('div', 'j-foto')); if ((w.text || '').trim()) p.appendChild(h('div', null, w.text)); teile.push(p);
+      }
+      inhalt.replaceChildren(...teile);
+      zurueck.textContent = nr ? 'Zurück' : 'Abbrechen';
+      weiter.textContent = nr === a.schritte.length - 1 ? a.fertig : 'Weiter';
+      weiter.disabled = !gueltig(s);
+    }
+    function oeffnen(name) { ab = name; nr = 0; w = {}; ueber.hidden = false; zeigen(); }
+    function zu() { ueber.hidden = true; const k = bild.querySelector('[data-ablauf="' + ab + '"]'); if (k) k.focus(); }
+    function fertig() {
+      if (ab === 'stand') {
+        const ort = $('#j3-stand'); ort.className = ''; ort.replaceChildren(pruefZeile('Geschafft', w.geschafft), pruefZeile('Hakt', w.hakt));
+        ort.appendChild(knopf('Ändern', 'j-mini-knopf', () => oeffnen('stand')));
+        $('#j3-stand-zeit').textContent = 'gerade eben';
+        $('#j3-fort [data-f="stand"]').classList.add('ok');
+        toast(bild, 'Stand gespeichert.');
+      } else if (ab === 'frage') {
+        const liste = $('#j3-fragen'), z = h('div', 'j-zeile');
+        z.append(h('span', 'chip', w.art === 'thema' ? 'Thema' : 'Frage'), h('span', 'txt', w.text));
+        const weg = knopf('', 'j-mini-knopf', () => { z.remove(); $('#j3-fragen-n').textContent = liste.children.length; }); weg.setAttribute('aria-label', 'zurückziehen'); weg.appendChild(sym('i-zu'));
+        z.appendChild(weg); liste.appendChild(z);
+        $('#j3-fragen-n').textContent = liste.children.length;
+        $('#j3-fort [data-f="frage"]').classList.add('ok');
+        toast(bild, 'Für die Besprechung notiert.');
+      } else {
+        const ort = $('#j3-tafel'); if (ort.classList.contains('j-leer')) { ort.className = ''; ort.textContent = ''; }
+        const z = h('div', 'j-zeile');
+        z.append(sym(ab === 'foto' ? 'i-bild' : (w.art === 'frage' ? 'i-frage' : 'i-idee')), h('span', 'txt', ab === 'foto' ? ('Foto' + ((w.text || '').trim() ? ': ' + w.text : '')) : w.text), h('span', 'leise', 'gerade'));
+        ort.appendChild(z);
+        toast(bild, 'An die Tafel geschickt.');
+      }
+      zu();
+    }
+    bild.querySelectorAll('[data-ablauf]').forEach(b => b.addEventListener('click', () => oeffnen(b.dataset.ablauf)));
+    zurueck.addEventListener('click', () => { if (nr) { nr--; zeigen(); } else zu(); });
+    weiter.addEventListener('click', () => { if (weiter.disabled) return; if (nr === ABL[ab].schritte.length - 1) fertig(); else { nr++; zeigen(); } });
+    $('#j3-zu').addEventListener('click', zu);
+    ueber.addEventListener('click', ev => { if (ev.target === ueber) zu(); });
+    ueber.addEventListener('keydown', ev => { if (ev.key === 'Escape') zu(); });
+  })();
+
+  /* ---------- J4: Hilfe-Knopf und Hilfe-Reihe ---------- */
+  (() => {
+    const fab = $('#j4-fab'); if (!fab) return;
+    const ueber = $('#j4-ueber'), reihe = $('#j4-reihe'), badge = $('#j4-badge'), namen = $('#j4-namen');
+    const R = [{ team: 'Hubtisch', wer: 'Lena Schmitt', seit: 'seit 3 min', kommt: false }];
+    let eigen = null, wahl = null;
+    function teamKnopf() {
+      fab.className = 'j-fab'; fab.replaceChildren(sym('i-hilfe'));
+      if (!eigen) { fab.appendChild(h('span', null, 'Wir brauchen Hilfe')); fab.setAttribute('aria-label', 'Hilfe rufen'); return; }
+      const nr = R.indexOf(eigen) + 1, t = h('span');
+      fab.classList.add('wartet'); if (eigen.kommt) fab.classList.add('kommt');
+      t.append(eigen.kommt ? 'Matthias Göbel kommt' : 'Ihr seid Nr. ' + nr, h('small', null, 'antippen zum Zurückziehen'));
+      fab.appendChild(t); fab.setAttribute('aria-label', 'Hilfe-Meldung zurückziehen');
+    }
+    function lehrerReihe() {
+      reihe.className = 'j-reihe' + (R.length ? '' : ' leer');
+      const kopf = h('h4'); kopf.append(sym('i-hilfe'), 'Hilfe gerade');
+      if (R.length) kopf.appendChild(h('i', 'zahl', String(R.length)));
+      const teile = [kopf];
+      if (!R.length) teile.push(h('div', 'j-leer', 'Gerade braucht niemand Hilfe.'));
+      R.forEach((m, i) => {
+        const z = h('div', 'hz'), txt = h('span'); txt.appendChild(h('b', null, m.team));
+        txt.appendChild(h('span', 'unter', (m.wer ? m.wer + ' · ' : '') + m.seit + (m.kommt ? ' · du kommst' : '')));
+        const kn = h('span', 'knoepfe');
+        kn.appendChild(knopf('Ich komme', m.kommt ? 'an' : '', () => { m.kommt = !m.kommt; alles(); }));
+        kn.appendChild(knopf('Erledigt', '', () => { R.splice(R.indexOf(m), 1); if (m === eigen) eigen = null; alles(); }));
+        z.append(h('span', 'nr', String(i + 1)), txt, kn); teile.push(z);
+      });
+      reihe.replaceChildren(...teile);
+      badge.textContent = R.length; badge.hidden = !R.length;
+    }
+    function alles() { teamKnopf(); lehrerReihe(); }
+    fab.addEventListener('click', () => {
+      if (eigen) { R.splice(R.indexOf(eigen), 1); eigen = null; alles(); toast($('#j4-bild'), 'Hilfe-Meldung zurückgezogen.'); return; }
+      wahl = null; namen.querySelectorAll('button').forEach(b => b.classList.remove('an')); ueber.hidden = false;
+    });
+    namen.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+      const an = !b.classList.contains('an'); namen.querySelectorAll('button').forEach(x => x.classList.remove('an'));
+      if (an) { b.classList.add('an'); wahl = b.textContent === 'ganzes Team' ? null : b.textContent; } else wahl = null;
+    }));
+    $('#j4-rufen').addEventListener('click', () => { eigen = { team: 'Klimaanlage', wer: wahl, seit: 'gerade eben', kommt: false }; R.push(eigen); ueber.hidden = true; alles(); toast($('#j4-bild'), 'Hilfe gerufen.'); });
+    $('#j4-zu').addEventListener('click', () => { ueber.hidden = true; });
+    ueber.addEventListener('click', ev => { if (ev.target === ueber) ueber.hidden = true; });
+    alles();
+  })();
+
+  /* ---------- J5: Lehrernotizen ---------- */
+  (() => {
+    const strahl = $('#j5-strahl'); if (!strahl) return;
+    const N = [
+      { tag: 'Heute', zeit: '09:12', wer: 'Anna Roth', proj: 'Klimaanlage', dr: true, ue: 'Klimaanlage: Lüfter erst nach Freigabe der Schaltung bestellen',
+        text: 'Ben hat die Lüfter schon auf die Liste gesetzt, die Schaltung ist aber noch nicht abgenommen.\nBitte die Position „Axiallüfter“ erst freigeben, wenn die Abnahme durch ist. Ich spreche es Dienstag in der Besprechung an.' },
+      { tag: 'Heute', zeit: '07:40', wer: 'Matthias Göbel', proj: null, dr: false, ue: 'Raum 212 am Donnerstag belegt, Besprechungen in 108',
+        text: 'Am Do 12.11. ist 212 für die Prüfung belegt. Die Besprechungen laufen in 108, das Smartboard dort ist eingerichtet.' },
+      { tag: 'Gestern', zeit: '11:05', wer: 'Peter Klein', proj: 'Hubtisch', dr: false, bespr: true, ue: 'Notizen zur Besprechung Hubtisch, KW 45',
+        text: 'Team gut vorbereitet. Lena übernimmt die Steuerung, Jonas ist mit der Mechanik im Verzug.\nNächstes Mal den Zeitplan der Mechanik gezielt nachfragen.' },
+      { tag: 'Mo 02.11.', zeit: '13:20', wer: 'Anna Roth', proj: 'Klimaanlage', dr: false, ue: 'Tim fehlt bis Freitag (Praktikum verlängert)',
+        text: 'Tim ist bis Fr 06.11. im Betrieb. Seine Tätigkeiten übernimmt in der Zeit Mia, das Team weiß Bescheid.' },
+      { tag: 'Mo 02.11.', zeit: '08:02', wer: 'Peter Klein', proj: 'Solar-Tracker', dr: false, ue: 'Servo-Frage geklärt: MG996R reicht',
+        text: 'Habe mit dem Team gerechnet, das Moment reicht mit Reserve. Die Rückfrage in den Anfragen ist erledigt.' }
+    ];
+    let filter = 'alle', projekt = '', such = '', ungelesen = new Set([N[0]]), offen = new Set(), drNeu = 0;
+    const badge = $('#j5-badge');
+    function passt(n) {
+      if (filter === 'dringend' && !n.dr) return false;
+      if (projekt === '-' ? n.proj : (projekt && n.proj !== projekt)) return false;
+      if (such && !(n.ue + ' ' + n.text).toLowerCase().includes(such)) return false;
+      return true;
+    }
+    function karte(n) {
+      const k = h('div', 'j-notiz' + (n.dr ? ' dringend' : '') + (n.bespr ? ' bespr' : ''));
+      const kopf = h('div', 'j-notiz-kopf');
+      if (n.dr) kopf.appendChild(h('span', 'j-dr', 'Dringend'));
+      kopf.appendChild(h('b', null, n.ue));
+      const auf = offen.has(n), erw = knopf(auf ? 'Einklappen' : 'Erweitern', 'j-erw', () => {
+        if (offen.has(n)) offen.delete(n); else { offen.add(n); ungelesen.delete(n); } zeichnen(); });
+      erw.setAttribute('aria-expanded', auf ? 'true' : 'false'); kopf.appendChild(erw);
+      const meta = h('div', 'j-meta'); meta.append(h('span', null, n.wer + ' · ' + n.zeit));
+      if (n.proj) meta.appendChild(h('span', 'chip', n.proj)); else meta.appendChild(h('span', 'chip', 'alle Projekte'));
+      if (n.bespr) meta.appendChild(h('span', null, 'aus der Besprechung'));
+      if (ungelesen.has(n)) meta.appendChild(h('span', null, '● neu')).style.color = 'var(--rot)';
+      k.append(kopf, meta);
+      if (auf) {
+        const voll = h('div', 'j-voll', n.text);
+        if (n.wer === 'Matthias Göbel' && !n.bespr) { const m = h('div', 'j-meta'); m.append(knopf('Bearbeiten', 'j-mini-knopf'), knopf('Verwerfen', 'j-mini-knopf', () => { N.splice(N.indexOf(n), 1); zeichnen(); })); voll.appendChild(m); }
+        if (n.bespr) { const m = h('div', 'j-meta'); m.appendChild(knopf('Zur Besprechung', 'j-mini-knopf')); voll.appendChild(m); }
+        k.appendChild(voll);
+      }
+      return k;
+    }
+    function zeichnen() {
+      const liste = N.filter(passt), teile = []; let tag = null;
+      liste.forEach(n => { if (n.tag !== tag) { tag = n.tag; teile.push(h('div', 'j-tag', tag)); } teile.push(karte(n)); });
+      if (!liste.length) teile.push(h('div', 'j-leer', 'Keine Notiz passt zum Filter.'));
+      strahl.replaceChildren(...teile);
+      const dr = [...ungelesen].filter(n => n.dr && N.includes(n)).length;
+      badge.textContent = dr; badge.hidden = !dr;
+      $('#j5-n-dr').textContent = N.filter(n => n.dr).length;
+    }
+    document.querySelectorAll('#j5 .fk[data-f]').forEach(f => {
+      const setzen = () => { filter = f.dataset.f; document.querySelectorAll('#j5 .fk[data-f]').forEach(x => x.classList.toggle('an', x === f)); zeichnen(); };
+      f.addEventListener('click', setzen); f.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); setzen(); } });
+    });
+    $('#j5-projekt').addEventListener('change', ev => { projekt = ev.target.value; zeichnen(); });
+    $('#j5-such').addEventListener('input', ev => { such = ev.target.value.trim().toLowerCase(); zeichnen(); });
+    const dlg = $('#j5-dialog'), ue = $('#j5-ue'), tx = $('#j5-text'), sp = $('#j5-speichern'), seg = $('#j5-dr');
+    let dring = 0;
+    seg.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { dring = +b.dataset.v;
+      seg.querySelectorAll('button').forEach(x => { x.classList.toggle('an', x === b); x.classList.toggle('rot', x === b && dring === 1); }); }));
+    $('#j5-neu').addEventListener('click', () => { ue.value = ''; tx.value = ''; dring = 0; seg.querySelector('[data-v="0"]').click(); $('#j5-d-projekt').value = ''; sp.disabled = true; dlg.hidden = false; setTimeout(() => ue.focus(), 30); });
+    ue.addEventListener('input', () => { sp.disabled = !ue.value.trim(); });
+    $('#j5-abbr').addEventListener('click', () => { dlg.hidden = true; });
+    dlg.addEventListener('keydown', ev => { if (ev.key === 'Escape') dlg.hidden = true; });
+    sp.addEventListener('click', () => {
+      const jetzt = new Date(), zeit = String(jetzt.getHours()).padStart(2, '0') + ':' + String(jetzt.getMinutes()).padStart(2, '0');
+      N.unshift({ tag: 'Heute', zeit, wer: 'Matthias Göbel', proj: $('#j5-d-projekt').value || null, dr: dring === 1, ue: ue.value.trim(), text: tx.value.trim() || '(ohne Text)' });
+      dlg.hidden = true; filter = 'alle'; projekt = ''; such = ''; $('#j5-projekt').value = ''; $('#j5-such').value = '';
+      document.querySelectorAll('#j5 .fk[data-f]').forEach(x => x.classList.toggle('an', x.dataset.f === 'alle'));
+      zeichnen(); toast($('#j5-bild'), 'Notiz gespeichert. Alle Lehrkräfte sehen sie.');
+    });
+    zeichnen();
+  })();
+
+  /* ---------- J6: Oberpunkte ---------- */
+  (() => {
+    const liste = $('#j6-liste'); if (!liste) return;
+    const VH = [['Informieren', 3], ['Planen', 5], ['Entscheiden', 2], ['Ausführen', 8], ['Kontrollieren', 3], ['Bewerten', 2]];
+    let P = VH.map(([n, a]) => ({ n, a })), weg = null;
+    const std = $('#j6-std'), reset = $('#j6-reset'), vor = $('#j6-vor');
+    const standard = () => P.length === VH.length && P.every((p, i) => p.n.trim() === VH[i][0]);
+    function zeichnen(fokus) {
+      const teile = [];
+      P.forEach((p, i) => {
+        const z = h('div', 'j-ob-zeile'), griff = h('span', 'griff'); griff.appendChild(sym('i-griff'));
+        const ein = h('input'); ein.value = p.n; ein.maxLength = 60; ein.setAttribute('aria-label', 'Name des Oberpunkts ' + (i + 1));
+        ein.addEventListener('input', () => { p.n = ein.value; status(); });
+        ein.addEventListener('blur', () => { if (!p.n.trim()) { p.n = 'Oberpunkt ' + (i + 1); zeichnen(); } });
+        const kn = h('span', 'knoepfe');
+        const hoch = knopf('', '', () => { [P[i - 1], P[i]] = [P[i], P[i - 1]]; weg = null; zeichnen(); }); hoch.appendChild(sym('i-hoch')); hoch.disabled = !i; hoch.setAttribute('aria-label', 'nach oben');
+        const runter = knopf('', '', () => { [P[i + 1], P[i]] = [P[i], P[i + 1]]; weg = null; zeichnen(); }); runter.appendChild(sym('i-runter')); runter.disabled = i === P.length - 1; runter.setAttribute('aria-label', 'nach unten');
+        const entf = knopf('', '', () => { if (!p.a) { P.splice(i, 1); weg = null; zeichnen(); } else { weg = p; zeichnen(); } }); entf.appendChild(sym('i-muell')); entf.disabled = P.length === 1; entf.setAttribute('aria-label', 'entfernen');
+        kn.append(hoch, runter, entf);
+        z.append(griff, h('span', 'n', String(i + 1)), ein, h('span', 'anz', p.a === 1 ? '1 Tätigkeit' : p.a + ' Tätigkeiten'), kn);
+        teile.push(z);
+        if (weg === p) {
+          const box = h('div', 'j-ob-weg'), sel = h('select'); sel.setAttribute('aria-label', 'Ziel für die Tätigkeiten');
+          P.filter(x => x !== p).forEach(x => { const o = h('option', null, x.n); o.value = P.indexOf(x); sel.appendChild(o); });
+          box.append(h('span', null, '„' + p.n + '“ hat ' + p.a + (p.a === 1 ? ' Tätigkeit' : ' Tätigkeiten') + '. Verschieben nach'), sel,
+            knopf('Verschieben und entfernen', 'j-k haupt', () => { P[+sel.value].a += p.a; P.splice(P.indexOf(p), 1); weg = null; zeichnen(); }),
+            knopf('Abbrechen', 'j-k', () => { weg = null; zeichnen(); }));
+          z.style.borderBottom = 'none'; teile.push(box);
+        }
+      });
+      liste.replaceChildren(...teile);
+      if (fokus) { const e = liste.querySelectorAll('input')[P.length - 1]; if (e) { e.focus(); e.select(); } }
+      status();
+    }
+    function status() {
+      const s = standard(); std.textContent = s ? 'Standard: vollständige Handlung' : 'angepasst'; std.classList.toggle('anders', !s); reset.disabled = s;
+      const zeilen = [];
+      P.forEach(p => { const k = h('div', 'ph'); k.append(h('span', null, (p.n.trim() || '…').toUpperCase()), h('span', null, String(p.a))); zeilen.push(k);
+        const t = h('div', 'ta'); t.textContent = p.a ? '… ' + p.a + (p.a === 1 ? ' Tätigkeit' : ' Tätigkeiten') : 'noch keine Tätigkeit'; zeilen.push(t); });
+      vor.replaceChildren(...zeilen);
+    }
+    $('#j6-plus').addEventListener('click', () => { P.push({ n: 'Neuer Oberpunkt', a: 0 }); weg = null; zeichnen(true); });
+    reset.addEventListener('click', () => {
+      const alle = P.reduce((s, p) => s + p.a, 0), sum = VH.reduce((s, v) => s + v[1], 0);
+      P = VH.map(([n, a]) => ({ n, a })); if (alle !== sum) P[3].a += alle - sum; weg = null; zeichnen();
+      toast($('#j6'), 'Vollständige Handlung wiederhergestellt.');
+    });
+    $('#j6-vorlage').addEventListener('click', () => toast($('#j6'), 'Als Vorlage „Klimaanlage“ gespeichert.'));
+    $('#j6').style.position = 'relative';
+    zeichnen();
+  })();
+
+  /* ---------- J7: Anfrage wieder oeffnen ---------- */
+  (() => {
+    const kn = $('#j7-knopf'); if (!kn) return;
+    const ueber = $('#j7-ueber'), grund = $('#j7-grund'), ok = $('#j7-ok'), verlauf = $('#j7-verlauf');
+    const anfang = verlauf.innerHTML;
+    kn.addEventListener('click', () => { grund.value = ''; ok.disabled = true; ueber.hidden = false; setTimeout(() => grund.focus(), 30); });
+    grund.addEventListener('input', () => { ok.disabled = !grund.value.trim(); });
+    $('#j7-zu').addEventListener('click', () => { ueber.hidden = true; });
+    ueber.addEventListener('click', ev => { if (ev.target === ueber) ueber.hidden = true; });
+    ok.addEventListener('click', () => {
+      verlauf.appendChild(h('div', 'j-ereignis neu', 'vom Team wieder geöffnet · gerade eben'));
+      const m = h('div', 'j-msg team', grund.value.trim()); m.appendChild(h('small', null, 'Team · gerade eben')); verlauf.appendChild(m);
+      const st = $('#j7-st'); st.className = 'st arbeit'; st.textContent = 'in Bearbeitung';
+      $('#j7-zust').textContent = 'In Bearbeitung · Matthias Göbel';
+      $('#j7-wieder').hidden = true; $('#j7-reset').hidden = false; ueber.hidden = true;
+      toast($('#j7-bild'), 'Wieder geöffnet. Matthias Göbel sieht es sofort.');
+    });
+    $('#j7-reset').addEventListener('click', () => {
+      verlauf.innerHTML = anfang; const st = $('#j7-st'); st.className = 'st fertig'; st.textContent = 'erledigt';
+      $('#j7-zust').textContent = 'Matthias Göbel'; $('#j7-wieder').hidden = false; $('#j7-reset').hidden = true;
+    });
+  })();
 })();
 </script>
