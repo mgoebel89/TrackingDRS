@@ -915,6 +915,16 @@ def api_notiz_aendern(h, con, daten, pid, nid):
     h.antwort(200, _extras(con, pid, True))
 
 
+def api_phasen(h, con, daten, pid):
+    _k, pid = _projekt(h, con, pid)
+    h.antwort(200, projekte.phasen_sicht(con, pid))
+
+
+def api_phasen_aendern(h, con, daten, pid):
+    k, pid = _projekt(h, con, pid)
+    h.antwort(200, projekte.phasen_aendern(con, k["kuerzel"], pid, daten))
+
+
 def api_vorlage_speichern(h, con, daten, pid):
     _k, pid = _projekt(h, con, pid)
     h.antwort(200, {"schluessel": extras.vorlage_speichern(con, pid, daten.get("name"), bool(daten.get("mit_team")))})
@@ -1138,6 +1148,8 @@ ROUTEN = [(m, re.compile(p), f) for m, p, f in [
     ("GET", r"/api/vpn", api_vpn),
     ("POST", r"/api/vpn", api_vpn_anfordern),
     ("GET", r"/api/projekte/(\d+)/bestellung", api_projekt_bestellung),
+    ("GET", r"/api/projekte/(\d+)/phasen", api_phasen),
+    ("POST", r"/api/projekte/(\d+)/phasen", api_phasen_aendern),
     ("POST", r"/api/projekte/(\d+)/bestellung", api_bestellung_pruefen),
     ("GET", r"/api/anfragen", api_anfragen),
     ("GET", r"/api/vorgaenge", api_vorgaenge),

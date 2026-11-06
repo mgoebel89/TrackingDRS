@@ -308,6 +308,11 @@ const T = {
       anfrage_nachricht: () => ({ rueckfrage: 'Rückfrage', ausleihe: 'Ausleihe', abnahme: 'Abnahme', bestellung: 'Bestellliste' })[d.anfrageart] +
         ' „' + d.titel + '“: ' + d.text,
       anfrage_wieder: () => '„' + d.titel + '“ wieder geöffnet: ' + d.text,
+      phase_umbenannt: () => 'Oberpunkt „' + d.alt + '“ heißt jetzt „' + d.name + '“',
+      phase_neu: () => 'Neuer Oberpunkt „' + d.name + '“',
+      phase_verschoben: () => 'Oberpunkt „' + d.name + '“ an Stelle ' + d.pos + ' verschoben',
+      phase_entfernt: () => 'Oberpunkt „' + d.name + '“ entfernt' + (d.anzahl ? ' (' + d.anzahl + ' Tätigkeiten nach „' + d.ziel + '“)' : ''),
+      phasen_standard: () => 'Oberpunkte auf den Standard zurückgesetzt',
       hilfe_gerufen: () => 'Hilfe gerufen' + (d.name ? ' (' + d.name + ')' : ''),
       hilfe_zurueck: () => 'Hilfe-Meldung zurückgezogen',
       hilfe_erledigt: () => 'Hilfe-Meldung erledigt',

@@ -148,6 +148,132 @@ def _struktur(con, pid):
     return phasen
 
 
+# --- Oberpunkte (Phasen) je Projekt, Stufe J6: nur Lehrkraefte; Standard ist die vollstaendige Handlung ---
+
+MAX_PHASE = 60
+
+
+def standard_phasen(con):
+    """Namen der Oberpunkte der mitgelieferten Vorlage "standard" (die vollstaendige Handlung)."""
+    z = con.execute("SELECT daten FROM vorlage WHERE schluessel = 'standard'").fetchone()
+    return [ph["name"] for ph in json.loads(z[0])["phasen"]] if z else []
+
+
+def phasen_sicht(con, pid):
+    liste = [{"id": ph["id"], "name": ph["name"],
+              "taetigkeiten": con.execute("SELECT COUNT(*) FROM aufgabe WHERE phase_id = ? AND verworfen = 0", (ph["id"],)).fetchone()[0],
+              "alle": con.execute("SELECT COUNT(*) FROM aufgabe WHERE phase_id = ?", (ph["id"],)).fetchone()[0]}
+             for ph in con.execute("SELECT * FROM phase WHERE projekt_id = ? ORDER BY pos, id", (pid,))]
+    std = standard_phasen(con)
+    return {"phasen": liste, "standard": std, "ist_standard": [x["name"] for x in liste] == std}
+
+
+def _phase(con, pid, phid):
+    try:
+        z = con.execute("SELECT * FROM phase WHERE id = ? AND projekt_id = ?", (int(phid), pid)).fetchone()
+    except (TypeError, ValueError):
+        z = None
+    if z is None:
+        raise ProjektFehler("Diesen Oberpunkt gibt es nicht.")
+    return z
+
+
+def _neu_nummerieren(con, pid, ids):
+    for pos, i in enumerate(ids):
+        con.execute("UPDATE phase SET pos = ? WHERE id = ?", (pos, i))
+
+
+def _aufgaben_verschieben(con, von_id, nach_id):
+    """Alle Taetigkeiten (auch verworfene) hinten an einen anderen Oberpunkt haengen. Rueckgabe: Anzahl."""
+    start = con.execute("SELECT COALESCE(MAX(pos), -1) + 1 FROM aufgabe WHERE phase_id = ?", (nach_id,)).fetchone()[0]
+    ids = [z[0] for z in con.execute("SELECT id FROM aufgabe WHERE phase_id = ? ORDER BY pos, id", (von_id,))]
+    for i, aid in enumerate(ids):
+        con.execute("UPDATE aufgabe SET phase_id = ?, pos = ? WHERE id = ?", (nach_id, start + i, aid))
+    return len(ids)
+
+
+def phasen_aendern(con, wer, pid, d):
+    """aktion: umbenennen (phase_id, name), neu (name), verschieben (phase_id, richtung -1/+1), entfernen (phase_id,
+    ziel_id: wohin die Taetigkeiten wandern, Pflicht wenn welche da sind), standard (vollstaendige Handlung
+    wiederherstellen: gleichnamige Oberpunkte behalten ihre Taetigkeiten, die uebrigen werden der Reihe nach umbenannt,
+    ueberzaehlige gehen im Oberpunkt davor auf)."""
+    p = con.execute("SELECT * FROM projekt WHERE id = ?", (pid,)).fetchone()
+    if p is None:
+        raise ProjektFehler("Dieses Projekt gibt es nicht.")
+    if p["archiviert"]:
+        raise ProjektFehler("Das Projekt ist archiviert.")
+    aktion = d.get("aktion")
+    with db.transaktion(con):
+        ids = [z[0] for z in con.execute("SELECT id FROM phase WHERE projekt_id = ? ORDER BY pos, id", (pid,))]
+        if aktion == "umbenennen":
+            ph = _phase(con, pid, d.get("phase_id"))
+            name = _text(d.get("name"), "einen Namen", MAX_PHASE)
+            if name != ph["name"]:
+                con.execute("UPDATE phase SET name = ? WHERE id = ?", (name, ph["id"]))
+                db.ereignis(con, pid, "lehrkraft", wer, "phase_umbenannt", phase_id=ph["id"], alt=ph["name"], name=name)
+        elif aktion == "neu":
+            name = _text(d.get("name"), "einen Namen", MAX_PHASE)
+            if len(ids) >= 20:
+                raise ProjektFehler("Mehr als 20 Oberpunkte gehen nicht.")
+            phid = con.execute("INSERT INTO phase (projekt_id, pos, name) VALUES (?, ?, ?)", (pid, len(ids), name)).lastrowid
+            db.ereignis(con, pid, "lehrkraft", wer, "phase_neu", phase_id=phid, name=name)
+        elif aktion == "verschieben":
+            ph = _phase(con, pid, d.get("phase_id"))
+            i = ids.index(ph["id"])
+            j = i + (1 if d.get("richtung") == 1 else -1)
+            if 0 <= j < len(ids):
+                ids[i], ids[j] = ids[j], ids[i]
+                _neu_nummerieren(con, pid, ids)
+                db.ereignis(con, pid, "lehrkraft", wer, "phase_verschoben", phase_id=ph["id"], name=ph["name"], pos=j + 1)
+        elif aktion == "entfernen":
+            ph = _phase(con, pid, d.get("phase_id"))
+            if len(ids) == 1:
+                raise ProjektFehler("Ein Projekt braucht mindestens einen Oberpunkt.")
+            n = con.execute("SELECT COUNT(*) FROM aufgabe WHERE phase_id = ?", (ph["id"],)).fetchone()[0]
+            ziel = None
+            if n:
+                if d.get("ziel_id") in (None, ""):
+                    raise ProjektFehler("Bitte wählen, in welchen Oberpunkt die Tätigkeiten wandern.")
+                ziel = _phase(con, pid, d.get("ziel_id"))
+                if ziel["id"] == ph["id"]:
+                    raise ProjektFehler("Bitte einen anderen Oberpunkt wählen.")
+                _aufgaben_verschieben(con, ph["id"], ziel["id"])
+            con.execute("DELETE FROM phase WHERE id = ?", (ph["id"],))
+            ids.remove(ph["id"])
+            _neu_nummerieren(con, pid, ids)
+            db.ereignis(con, pid, "lehrkraft", wer, "phase_entfernt", phase_id=ph["id"], name=ph["name"], anzahl=n,
+                        ziel=ziel["name"] if ziel else None)
+        elif aktion == "standard":
+            std = standard_phasen(con)
+            if not std:
+                raise ProjektFehler("Die Standardvorlage fehlt.")
+            alt = {z["id"]: z["name"] for z in con.execute("SELECT id, name FROM phase WHERE projekt_id = ?", (pid,))}
+            zuordnung = {}   # Standardname -> Phase
+            frei = list(ids)
+            for name in std:   # gleichnamige zuerst
+                treffer = next((i for i in frei if alt[i].strip().lower() == name.lower()), None)
+                if treffer is not None:
+                    zuordnung[name] = treffer
+                    frei.remove(treffer)
+            for name in std:   # dann der Reihe nach umbenennen, fehlende neu anlegen
+                if name not in zuordnung:
+                    if frei:
+                        zuordnung[name] = frei.pop(0)
+                    else:
+                        zuordnung[name] = con.execute("INSERT INTO phase (projekt_id, pos, name) VALUES (?, 0, ?)", (pid, name)).lastrowid
+            for i in frei:   # ueberzaehlige: Taetigkeiten in den Oberpunkt davor (in der bisherigen Reihenfolge)
+                davor = [x for x in ids[:ids.index(i)] if x not in frei] or [zuordnung[std[0]]]
+                _aufgaben_verschieben(con, i, davor[-1])
+                con.execute("DELETE FROM phase WHERE id = ?", (i,))
+            for name in std:
+                con.execute("UPDATE phase SET name = ? WHERE id = ?", (name, zuordnung[name]))
+            _neu_nummerieren(con, pid, [zuordnung[name] for name in std])
+            db.ereignis(con, pid, "lehrkraft", wer, "phasen_standard")
+        else:
+            raise ProjektFehler("Unbekannte Aktion.")
+    return phasen_sicht(con, pid)
+
+
 def _mitglieder(con, pid, nur_aktive=False):
     sql = "SELECT * FROM mitglied WHERE projekt_id = ?" + (" AND aktiv = 1" if nur_aktive else "") + " ORDER BY nachname, vorname"
     return [{"id": m["id"], "vorname": m["vorname"], "nachname": m["nachname"], "kuerzel": m["kuerzel"],

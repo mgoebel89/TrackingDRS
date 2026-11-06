@@ -878,3 +878,16 @@ button.haupt.rot { background: var(--rot); border-color: var(--rot); }
   .hilfe-zeile .rechts { grid-column: 2; margin-left: 0; }
 }
 @media print { .hilfe-fab { display: none !important; } }
+
+/* Oberpunkte je Projekt (J6) */
+.ob-liste { display: grid; }
+.ob-zeile { display: grid; grid-template-columns: 22px minmax(0, 1fr) 100px auto; gap: 8px; align-items: center; padding: 5px 0; border-top: 1px solid var(--linie); }
+.ob-zeile:first-child { border-top: none; }
+.ob-nr { font-family: var(--mono); font-size: .8rem; color: var(--leise); text-align: right; }
+.ob-zeile input { font-weight: 600; }
+.ob-knoepfe { display: flex; gap: 2px; }
+.ob-knoepfe button { min-width: 34px; }
+.ob-weg { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 10px; border: 1px solid var(--gelb); border-radius: 9px;
+  background: #fff8ea; font-size: .9rem; }
+.chip.gelb { background: #fff3dc; border-color: var(--gelb); color: #8a5a00; }
+@media (max-width: 760px) { .ob-zeile { grid-template-columns: 22px minmax(0, 1fr) auto; } .ob-zeile > .leise { display: none; } }

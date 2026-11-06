@@ -282,7 +282,81 @@ function projektVerwaltung(p) {
       el('span', { class: 'zeit', text: T.zeitText(e.zeit) }),
       el('span', {}, el('b', { text: T.werText(e) }), ' ', T.verlaufText(e))))));
 
-  return [verwaltung, p.archiviert ? null : teamlink, mitglieder, verlauf];
+  return [verwaltung, p.archiviert ? null : teamlink, mitglieder, oberpunkteKarte(p), verlauf];
+}
+
+// Oberpunkte (Phasen) des Tracking-Sheets fuer dieses Projekt (Stufe J6). Standard ist die Aufteilung der Vorlage.
+function oberpunkteKarte(p) {
+  const ort = el('section', { class: 'karte stapel-eng oberpunkte' });
+  const basis = '/api/projekte/' + p.id + '/phasen';
+  let D = null, weg = null;
+
+  async function senden(daten, meldung) {
+    try { D = await T.api('POST', basis, daten); weg = null; zeichnen(); if (meldung) T.meldung(meldung); return true; }
+    catch (e) { T.meldung(e.message, true); return false; }
+  }
+
+  function zeile(ph, i) {
+    const name = el('input', { value: ph.name, maxlength: '60', 'aria-label': 'Name des Oberpunkts ' + (i + 1), disabled: p.archiviert });
+    const speichern = () => {
+      const neu = name.value.trim();
+      if (!neu) { name.value = ph.name; return; }
+      if (neu !== ph.name) senden({ aktion: 'umbenennen', phase_id: ph.id, name: neu }, 'Umbenannt.');
+    };
+    name.addEventListener('change', speichern);
+    name.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); name.blur(); } });
+    const knopf = (symbol, titel, f, aus) => el('button', { type: 'button', class: 'leicht', title: titel, 'aria-label': titel,
+      disabled: aus || p.archiviert, onclick: f }, symbol);
+    const reihe = el('div', { class: 'ob-zeile' },
+      el('span', { class: 'ob-nr', text: String(i + 1) }), name,
+      el('span', { class: 'leise klein-text', text: ph.taetigkeiten === 1 ? '1 Tätigkeit' : ph.taetigkeiten + ' Tätigkeiten' }),
+      el('span', { class: 'ob-knoepfe' },
+        knopf('↑', 'nach oben', () => senden({ aktion: 'verschieben', phase_id: ph.id, richtung: -1 }), i === 0),
+        knopf('↓', 'nach unten', () => senden({ aktion: 'verschieben', phase_id: ph.id, richtung: 1 }), i === D.phasen.length - 1),
+        knopf('✕', 'entfernen', () => {
+          if (!ph.alle) senden({ aktion: 'entfernen', phase_id: ph.id }, 'Oberpunkt entfernt.');
+          else { weg = ph.id; zeichnen(); }
+        }, D.phasen.length === 1)));
+    if (weg !== ph.id) return reihe;
+    const ziel = el('select', { 'aria-label': 'Ziel für die Tätigkeiten' }, D.phasen.filter(x => x.id !== ph.id).map(x => el('option', { value: String(x.id), text: x.name })));
+    return [reihe, el('div', { class: 'ob-weg' },
+      el('span', { text: '„' + ph.name + '“ hat ' + (ph.alle === 1 ? '1 Tätigkeit' : ph.alle + ' Tätigkeiten') + '. Verschieben nach' }), ziel,
+      el('button', { type: 'button', class: 'haupt', onclick: () => senden({ aktion: 'entfernen', phase_id: ph.id, ziel_id: Number(ziel.value) },
+        'Tätigkeiten verschoben, Oberpunkt entfernt.') }, 'Verschieben und entfernen'),
+      el('button', { type: 'button', onclick: () => { weg = null; zeichnen(); } }, 'Abbrechen'))];
+  }
+
+  async function standard() {
+    const ok = await T.dialog({ titel: 'Standard wiederherstellen?', knopf: 'Wiederherstellen',
+      inhalt: el('p', { text: 'Die Oberpunkte heißen danach wieder ' + D.standard.join(', ') + '. Gleichnamige behalten ihre Tätigkeiten, ' +
+        'die übrigen werden der Reihe nach umbenannt. Was übrig bleibt, geht im Oberpunkt davor auf. Keine Tätigkeit geht verloren.' }),
+      speichern: async () => { D = await T.api('POST', basis, { aktion: 'standard' }); return true; } });
+    if (ok) { weg = null; zeichnen(); T.meldung('Standard wiederhergestellt.'); }
+  }
+
+  function zeichnen() {
+    T.setzen(ort,
+      el('div', { class: 'zeile' }, el('h2', { class: 'dreieck', text: 'Oberpunkte des Tracking-Sheets' }),
+        el('span', { class: 'chip ' + (D.ist_standard ? 'gruen' : 'gelb'), text: D.ist_standard ? 'Standard' : 'angepasst' })),
+      el('p', { class: 'leise klein-text', text: 'Gelten sofort für Team, Excel und PDF. Nur Lehrkräfte ändern sie. Umbenennen: Namen anklicken und tippen.' }),
+      el('div', { class: 'ob-liste' }, D.phasen.map(zeile)),
+      p.archiviert ? null : el('div', { class: 'zeile' },
+        el('button', { type: 'button', onclick: async () => {
+          if (await senden({ aktion: 'neu', name: 'Neuer Oberpunkt' }, 'Oberpunkt angelegt.')) {
+            const felder = ort.querySelectorAll('.ob-zeile input');
+            const letztes = felder[felder.length - 1];
+            if (letztes) { letztes.focus(); letztes.select(); }
+          }
+        } }, '+ Oberpunkt'),
+        el('button', { type: 'button', disabled: D.ist_standard, onclick: standard }, 'Standard wiederherstellen'),
+        el('span', { class: 'rechts' }, el('button', { type: 'button', onclick: () => vorlageSpeichern(p) }, 'Als Vorlage speichern'))));
+  }
+
+  (async () => {
+    try { D = await T.api('GET', basis); zeichnen(); }
+    catch (e) { T.setzen(ort, el('div', { class: 'leer', text: e.message })); }
+  })();
+  return ort;
 }
 
 async function vorlageSpeichern(p) {
