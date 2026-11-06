@@ -797,3 +797,52 @@ nav.seite { scrollbar-width: thin; }
 .wieder-oeffnen { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; padding: 10px;
   border: 1px dashed var(--blau-mittel); border-radius: 12px 5px 5px 5px; color: var(--leise); }
 .wieder-oeffnen button .symbol { width: 18px; height: 18px; }
+
+/* Besprechung beim Team (J3): Termin, vier Kacheln, gefuehrte Fenster */
+.b-termin { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.b-termin > .symbol { width: 30px; height: 30px; color: var(--blau); }
+.b-termin b { font-size: 1.1rem; display: block; }
+.b-termin > .leise.klein-text, .b-termin > div:last-child:not(.b-marken) { flex-basis: 100%; }
+.b-marken { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+.b-marken span { font-size: .72rem; font-weight: 700; border-radius: 999px; padding: 2px 10px; border: 1px solid var(--linie-stark); color: var(--leise); }
+.b-marken span.ok { background: var(--gruen); border-color: var(--gruen); color: #1d2433; }
+.b-marken span.ok::before { content: '✓ '; }
+.b-kacheln { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.b-kachel { min-width: 0; overflow-wrap: anywhere; display: grid; gap: 6px; align-content: start; text-align: left; padding: 14px; border: 1px solid var(--linie); border-radius: var(--ecke) 6px 6px 6px;
+  background: var(--karte); color: var(--text); font: inherit; cursor: pointer; box-shadow: none; transition: border-color .15s, box-shadow .15s, transform .15s; }
+.b-kachel:hover { border-color: var(--blau-mittel); box-shadow: 0 4px 14px -8px rgba(0, 99, 156, .45); transform: translateY(-1px); }
+.b-kachel:focus-visible { outline: 2px solid var(--blau); outline-offset: 2px; }
+.b-kachel b { font-size: 1rem; line-height: 1.2; }
+.b-kachel small { color: var(--leise); font-size: .76rem; line-height: 1.3; }
+.b-kachel-sym { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: var(--blau-hell); color: var(--blau); }
+.b-kachel-sym .symbol { width: 22px; height: 22px; }
+.b-kachel.gruen .b-kachel-sym { background: color-mix(in srgb, var(--gruen) 26%, transparent); color: #5f6d00; }
+.b-kachel.gelb .b-kachel-sym { background: color-mix(in srgb, var(--gelb) 28%, transparent); color: #a86a00; }
+.b-kachel.rot .b-kachel-sym { background: color-mix(in srgb, var(--rot) 14%, transparent); color: var(--rot); }
+.b-stand { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.ez-bild { width: 44px; height: 34px; object-fit: cover; border-radius: 4px; }
+dialog.gefuehrt .stapel-eng { gap: 10px; }
+.schritt-punkte { display: flex; gap: 5px; align-items: center; font-size: .74rem; color: var(--leise); margin: 2px 0 6px; }
+.schritt-punkte i { width: 24px; height: 5px; border-radius: 3px; background: var(--linie-stark); }
+.schritt-punkte i.an { background: var(--blau); }
+.schritt-frage { font-size: 1.2rem; font-weight: 700; line-height: 1.25; }
+.schritt-wahl { display: grid; gap: 8px; }
+.schritt-wahl button { display: grid; grid-template-columns: 40px 1fr; gap: 2px 10px; align-items: center; text-align: left; padding: 12px;
+  border: 1.5px solid var(--linie-stark); border-radius: 12px; background: var(--karte); color: var(--text); font: inherit; cursor: pointer; }
+.schritt-wahl button .symbol { grid-row: span 2; width: 26px; height: 26px; color: var(--blau); justify-self: center; }
+.schritt-wahl button small { color: var(--leise); font-size: .76rem; }
+.schritt-wahl button.an, .schritt-wahl button:hover { border-color: var(--blau); background: var(--blau-hell); }
+.schritt-eingabe { width: 100%; font: inherit; font-size: 1rem; }
+.schritt-navi { display: flex; gap: 8px; margin-top: 12px; }
+.schritt-navi .haupt { flex: 1; }
+button.schnell { border-radius: 999px; border-color: var(--blau-mittel); color: var(--blau); padding: 4px 12px; font-size: .82rem; }
+.schritt-kamera { display: grid; place-items: center; gap: 6px; padding: 24px 10px; border: 2px dashed var(--blau-mittel); border-radius: 12px;
+  background: var(--blau-hell); color: var(--blau); font: inherit; font-weight: 600; cursor: pointer; width: 100%; }
+.schritt-kamera .symbol { width: 34px; height: 34px; }
+.schritt-foto { max-width: 100%; max-height: 220px; border-radius: 10px; justify-self: center; display: block; margin: 0 auto; }
+.schritt-pruefen { background: var(--knopf); border-radius: 10px; padding: 10px 12px; }
+.schritt-postit { justify-self: center; margin: 4px auto; width: 170px; min-height: 120px; padding: 14px; font-size: 1.15rem; line-height: 1.2;
+  background: #ffe58a; color: #1d2433; box-shadow: 0 6px 14px -8px rgba(0, 0, 0, .5); transform: rotate(-2deg); overflow-wrap: anywhere; }
+.schritt-postit.frage { background: #bfe1f6; }
+@media (max-width: 760px) { .b-kacheln { grid-template-columns: repeat(2, minmax(0, 1fr)); } .b-marken { margin-left: 0; } }
+@media (prefers-reduced-motion: reduce) { .b-kachel { transition: none; } }

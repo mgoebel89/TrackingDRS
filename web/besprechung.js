@@ -1,6 +1,6 @@
 // Besprechung: Lehreransicht (Reiter der Projektseite, #projekt/<id>/besprechung: Kurzzusammenfassung, Ergebnis, Lehrernotizen, Abschliessen) und
-// Team-Reiter "Besprechung" (Stand vorbereiten, Fragen und Themen, Post-its und Fotos an die Tafel, Auftraege
-// abhaken, Protokolle mit eingefrorener Tafel).
+// Team-Reiter "Besprechung": Termin, vier Kacheln mit gefuehrten Fenstern (Stand eintragen, Frage oder Thema, Post-it
+// und Foto an die Tafel), darunter nur was schon da ist (Stand, Themen, an die Tafel Geschicktes, Auftraege, Protokolle).
 // Lehrernotizen kommen nur ueber die Lehrer-Schnittstelle und erscheinen nie beim Team.
 'use strict';
 
@@ -277,63 +277,174 @@ const Besprechung = (() => {
       catch (e) { T.setzen(ort, el('div', { class: 'leer', text: e.message })); }
     }
 
+    // Stand: "Geschafft" und "Hakt" getrennt gefragt, gespeichert als ein Text (so liest ihn die Kurzzusammenfassung)
+    function standTeile(text) {
+      const m = /^Geschafft:\s*([\s\S]*?)\n\s*\nHakt:\s*([\s\S]*)$/.exec(text || '');
+      return m ? { geschafft: m[1].trim(), hakt: m[2].trim() } : { geschafft: (text || '').trim(), hakt: '' };
+    }
+    const standText = w => 'Geschafft:\n' + w.geschafft.trim() + '\n\nHakt:\n' + w.hakt.trim();
+
+    // Gefuehrte Fenster: hoechstens drei Schritte, eine Frage je Schritt (am Handy von unten, am PC in der Mitte)
+    const ABLAEUFE = {
+      stand: { titel: 'Stand eintragen', fertig: 'Stand speichern', schritte: [
+        { frage: 'Was habt ihr seit dem letzten Mal geschafft?', hilfe: 'Stichpunkte reichen, z. B. „Lüfter bestellt, Gehäuse gezeichnet“.',
+          feld: 'text', name: 'geschafft' },
+        { frage: 'Was hakt gerade?', hilfe: 'Wenn nichts hakt, tippt auf „Nichts, läuft“.', feld: 'text', name: 'hakt', schnell: 'Nichts, läuft' },
+        { frage: 'Passt das so?', feld: 'pruefen' }] },
+      frage: { titel: 'Frage oder Thema', fertig: 'Für die Besprechung notieren', schritte: [
+        { frage: 'Was wollt ihr in der Besprechung klären?', feld: 'wahl', name: 'art', wahl: [
+          ['frage', 'Eine Frage', 'Ihr braucht eine Antwort von der Lehrkraft.', 'st_frage'],
+          ['thema', 'Ein Thema', 'Ihr wollt etwas zeigen oder gemeinsam besprechen.', 'st_team']] },
+        { frage: 'Schreibt es in einem Satz.', feld: 'zeile', name: 'text', max: 500 },
+        { frage: 'Passt das so?', feld: 'pruefen' }] },
+      idee: { titel: 'Post-it an die Tafel', fertig: 'An die Tafel schicken', schritte: [
+        { frage: 'Was soll auf das Post-it?', feld: 'wahl', name: 'art', wahl: [
+          ['idee', 'Eine Idee', 'gelbes Post-it bei den Ideen', 'st_idee'], ['frage', 'Eine Frage', 'blaues Post-it bei den Fragen', 'st_frage']] },
+        { frage: 'Kurz wie auf einem Post-it.', hilfe: 'Höchstens 200 Zeichen.', feld: 'zeile', name: 'text', max: 200 },
+        { frage: 'So sieht es auf der Tafel aus.', feld: 'postit' }] },
+      foto: { titel: 'Foto an die Tafel', fertig: 'An die Tafel schicken', schritte: [
+        { frage: 'Fotografiert euren Aufbau.', hilfe: 'Bitte keine Personen aufs Bild.', feld: 'foto' },
+        { frage: 'Wollt ihr etwas dazuschreiben?', hilfe: 'Freiwillig, z. B. „Lüfter montiert“.', feld: 'zeile', name: 'text', max: 200, frei: true },
+        { frage: 'Passt das so?', feld: 'pruefen' }] },
+    };
+    const BEISPIEL = { frage: 'z. B. Dürfen wir 24 V nehmen?', thema: 'z. B. Wir zeigen den Gehäuseentwurf.', idee: 'z. B. 2 Lüfter parallel?' };
+
+    function ablauf(name) {
+      const a = ABLAEUFE[name];
+      const w = name === 'stand' ? standTeile(B.vorbereitung) : {};
+      let nr = 0, vorschau = null;
+      const d = el('dialog', { class: 'blatt-dialog gefuehrt' });
+      const punkte = el('div', { class: 'schritt-punkte' });
+      const inhaltOrt = el('div', { class: 'stapel-eng' });
+      const zurueck = el('button', { type: 'button' });
+      const weiter = el('button', { type: 'button', class: 'haupt' });
+      const zu = () => { if (vorschau) URL.revokeObjectURL(vorschau); d.close(); d.remove(); };
+      const gueltig = s => s.feld === 'wahl' ? !!w[s.name] : s.feld === 'foto' ? !!w.bild
+        : (s.feld === 'text' || s.feld === 'zeile') ? (s.frei || !!(w[s.name] || '').trim()) : true;
+      const pruefZeile = (etikett, text) => el('div', {}, el('div', { class: 'etikett', text: etikett }), el('div', { class: 'vortext', text }));
+
+      function zeigenSchritt() {
+        const s = a.schritte[nr];
+        T.setzen(punkte, a.schritte.map((_, i) => el('i', { class: i <= nr ? 'an' : '' })),
+          el('span', { text: 'Schritt ' + (nr + 1) + ' von ' + a.schritte.length }));
+        const teile = [el('div', { class: 'schritt-frage', text: s.frage }), s.hilfe ? el('div', { class: 'leise klein-text', text: s.hilfe }) : null];
+        if (s.feld === 'wahl') {
+          teile.push(el('div', { class: 'schritt-wahl' }, s.wahl.map(([wert, titel, text, symbol]) => el('button', { type: 'button',
+            class: w[s.name] === wert ? 'an' : '', 'aria-pressed': w[s.name] === wert ? 'true' : 'false',
+            onclick: () => { w[s.name] = wert; nr++; zeigenSchritt(); } }, T.symbol(symbol), el('b', { text: titel }), el('small', { text })))));
+        } else if (s.feld === 'text' || s.feld === 'zeile') {
+          const f = el(s.feld === 'text' ? 'textarea' : 'input', { class: 'schritt-eingabe', maxlength: String(s.max || 2000),
+            rows: s.feld === 'text' ? '4' : null, value: w[s.name] || '', placeholder: s.name === 'text' ? BEISPIEL[w.art] || '' : '' });
+          f.addEventListener('input', () => { w[s.name] = f.value; weiter.disabled = !gueltig(s); });
+          f.addEventListener('keydown', ev => { if (ev.key === 'Enter' && s.feld === 'zeile' && gueltig(s)) { ev.preventDefault(); weiter.click(); } });
+          teile.push(f);
+          if (s.schnell) teile.push(el('div', { class: 'zeile' }, el('button', { type: 'button', class: 'schnell',
+            onclick: () => { w[s.name] = s.schnell; nr++; zeigenSchritt(); } }, s.schnell)));
+          setTimeout(() => f.focus(), 30);
+        } else if (s.feld === 'foto') {
+          const datei = el('input', { type: 'file', accept: 'image/*', capture: 'environment', hidden: true });
+          datei.addEventListener('change', async () => {
+            if (!datei.files.length) return;
+            try {
+              w.bild = await verkleinern(datei.files[0]);
+              if (vorschau) URL.revokeObjectURL(vorschau);
+              vorschau = URL.createObjectURL(datei.files[0]);
+              zeigenSchritt();
+            } catch (e) { T.meldung('Das Foto konnte nicht gelesen werden.', true); }
+          });
+          teile.push(datei, w.bild
+            ? [el('img', { class: 'schritt-foto', src: vorschau, alt: 'Vorschau' }), el('button', { type: 'button', class: 'leicht', onclick: () => datei.click() }, 'Neu aufnehmen')]
+            : el('button', { type: 'button', class: 'schritt-kamera', onclick: () => datei.click() }, T.symbol('bild'), 'Kamera öffnen'));
+        } else if (s.feld === 'pruefen') {
+          teile.push(el('div', { class: 'schritt-pruefen stapel-eng' },
+            name === 'stand' ? [pruefZeile('Geschafft', w.geschafft), pruefZeile('Hakt', w.hakt)]
+              : name === 'foto' ? [el('img', { class: 'schritt-foto', src: vorschau, alt: 'Vorschau' }), (w.text || '').trim() ? el('div', { text: w.text }) : null]
+                : pruefZeile(w.art === 'thema' ? 'Thema' : 'Frage', w.text)));
+        } else if (s.feld === 'postit') {
+          teile.push(el('div', { class: 'schritt-postit' + (w.art === 'frage' ? ' frage' : ''), text: w.text }),
+            el('div', { class: 'leise klein-text', text: 'Läuft gerade keine Besprechung, wartet das Post-it bis zur nächsten.' }));
+        }
+        T.setzen(inhaltOrt, teile);
+        zurueck.textContent = nr ? 'Zurück' : 'Abbrechen';
+        weiter.textContent = nr === a.schritte.length - 1 ? a.fertig : 'Weiter';
+        weiter.hidden = s.feld === 'wahl';   // Auswahl geht mit einem Tipp weiter
+        weiter.disabled = !gueltig(s);
+      }
+
+      async function fertig() {
+        weiter.disabled = true;
+        let ok;
+        if (name === 'stand') ok = await senden({ aktion: 'vorbereitung', text: standText(w) }, 'Stand gespeichert.');
+        else if (name === 'frage') ok = await senden({ aktion: 'eintrag_neu', art: w.art, text: w.text }, 'Für die Besprechung notiert.');
+        else if (name === 'idee') ok = await anTafel({ art: w.art, text: w.text }, 'An die Tafel geschickt.');
+        else ok = await anTafel({ bild: w.bild, text: w.text || '' }, 'Foto an die Tafel geschickt.');
+        if (ok) zu(); else weiter.disabled = false;
+      }
+
+      zurueck.addEventListener('click', () => { if (nr) { nr--; zeigenSchritt(); } else zu(); });
+      weiter.addEventListener('click', () => { if (weiter.disabled) return; if (nr === a.schritte.length - 1) fertig(); else { nr++; zeigenSchritt(); } });
+      d.append(el('div', { class: 'blatt-griff' }),
+        el('div', { class: 'zeile' }, el('h2', { class: 'dreieck', text: a.titel }),
+          el('span', { class: 'rechts' }, el('button', { type: 'button', class: 'leicht', 'aria-label': 'Schließen', onclick: zu }, '✕'))),
+        punkte, inhaltOrt, el('div', { class: 'schritt-navi' }, zurueck, weiter));
+      d.addEventListener('cancel', ev => { ev.preventDefault(); zu(); });
+      d.addEventListener('click', ev => { if (ev.target === d) zu(); });
+      document.body.appendChild(d);
+      d.showModal();
+      zeigenSchritt();
+    }
+
+    function kachel(name, symbol, titel, text, farbe) {
+      return el('button', { type: 'button', class: 'b-kachel ' + farbe, onclick: () => ablauf(name) },
+        el('span', { class: 'b-kachel-sym' }, T.symbol(symbol)), el('b', { text: titel }), el('small', { text }));
+    }
+
     function zeichnen() {
-      const stand = el('textarea', { rows: '5', maxlength: '4000', value: B.vorbereitung,
-        placeholder: 'Was habt ihr seit der letzten Besprechung geschafft? Was hakt?' });
-      const art = el('select', { class: 'klein', 'aria-label': 'Art' }, ['frage', 'thema', 'idee'].map(a => el('option', { value: a, text: ARTEN[a] })));
-      const text = el('input', { maxlength: '500', placeholder: 'z. B. Dürfen wir 24 V nehmen?', 'aria-label': 'Text' });
-      const hinzu = async () => {
-        if (!text.value.trim()) { text.focus(); return; }
-        if (await senden({ aktion: 'eintrag_neu', art: art.value, text: text.value }, 'Für die Besprechung notiert.')) text.focus();
-      };
-      text.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); hinzu(); } });
-      const fragen = B.eintraege.filter(e => e.art !== 'auftrag');
+      const themen = B.eintraege.filter(e => e.art === 'frage' || e.art === 'thema');
+      const tafel = B.eintraege.filter(e => e.art === 'idee');
       const auftraege = B.eintraege.filter(e => e.art === 'auftrag');
+      const offenAuftraege = auftraege.filter(e => !e.erledigt).length;
+      const st = standTeile(B.vorbereitung);
+      const weg = e => e.wer_art === 'team' ? el('button', { type: 'button', class: 'leicht', title: 'zurückziehen', 'aria-label': 'zurückziehen',
+        onclick: () => senden({ aktion: 'verwerfen', eintrag_id: e.id }, 'Zurückgezogen.') }, '✕') : null;
       T.setzen(ort, el('div', { class: 'stapel' },
+        el('section', { class: 'karte b-termin' },
+          T.symbol('kalender'),
+          el('div', {}, el('div', { class: 'leise klein-text', text: 'Nächste Besprechung' }), el('b', { text: terminText(B) }),
+            B.termin ? null : el('span', { class: 'leise klein-text', text: ' · Termin in der Übersicht buchen' })),
+          el('div', { class: 'b-marken' },
+            el('span', { class: B.vorbereitung ? 'ok' : '', text: 'Stand eingetragen' }),
+            el('span', { class: themen.length ? 'ok' : '', text: 'Themen notiert' })),
+          tafelStatus),
+        el('div', { class: 'b-kacheln' },
+          kachel('stand', 'stift', 'Stand eintragen', 'Was habt ihr geschafft, was hakt?', 'blau'),
+          kachel('frage', 'st_frage', 'Frage oder Thema', 'für die Besprechung notieren', 'gruen'),
+          kachel('idee', 'st_idee', 'Post-it an die Tafel', 'Idee oder Frage, kurz und knapp', 'gelb'),
+          kachel('foto', 'bild', 'Foto an die Tafel', 'Aufbau zeigen, keine Personen', 'rot')),
         el('section', { class: 'karte stapel-eng' },
-          el('h2', { class: 'dreieck', text: 'Nächste Besprechung' }),
-          el('div', {}, el('b', { text: terminText(B) }), B.termin ? null : el('span', { class: 'leise', text: ' · Termin in der Übersicht buchen' })),
-          T.feld('Stand seit dem letzten Mal', stand, B.vorbereitet ? 'zuletzt gespeichert ' + T.zeitText(B.vorbereitet) : 'kurz und stichpunktartig reicht'),
-          el('div', {}, el('button', { type: 'button', class: 'haupt', onclick: () => senden({ aktion: 'vorbereitung', text: stand.value }, 'Stand gespeichert.') }, 'Speichern'))),
+          el('div', { class: 'zeile' }, el('h2', { class: 'dreieck', text: 'Euer Stand' }),
+            B.vorbereitet ? el('span', { class: 'leise klein-text', text: T.zeitText(B.vorbereitet) }) : null,
+            B.vorbereitung ? el('span', { class: 'rechts' }, el('button', { type: 'button', class: 'leicht', onclick: () => ablauf('stand') }, 'Ändern')) : null),
+          B.vorbereitung ? el('div', { class: 'b-stand' },
+            el('div', {}, el('div', { class: 'etikett', text: 'Geschafft' }), el('div', { class: 'vortext', text: st.geschafft || '–' })),
+            st.hakt ? el('div', {}, el('div', { class: 'etikett', text: 'Hakt' }), el('div', { class: 'vortext', text: st.hakt })) : null)
+            : el('div', { class: 'leise klein-text', text: 'Noch nicht eingetragen.' })),
         el('section', { class: 'karte stapel-eng' },
-          el('h2', { class: 'dreieck', text: 'Fragen und Themen' }),
-          fragen.length ? fragen.map(e => el('div', { class: 'ez' },
-            el('span', { class: 'chip', text: ARTEN[e.art] }), el('span', { class: 'ez-text', text: e.text }),
-            e.wer_art === 'team' ? el('button', { type: 'button', class: 'leicht', title: 'zurückziehen', 'aria-label': 'zurückziehen',
-              onclick: () => senden({ aktion: 'verwerfen', eintrag_id: e.id }, 'Zurückgezogen.') }, '✕') : null))
-            : el('div', { class: 'leise klein-text', text: 'Noch nichts für die Besprechung notiert.' }),
-          el('div', { class: 'neu-eintrag' }, art, text, el('button', { type: 'button', onclick: hinzu }, 'Hinzufügen'))),
-        tafelKarte(),
+          el('div', { class: 'zeile' }, el('h2', { class: 'dreieck', text: 'Für die Besprechung' }), themen.length ? el('span', { class: 'chip', text: String(themen.length) }) : null),
+          themen.length ? themen.map(e => el('div', { class: 'ez' }, el('span', { class: 'chip', text: ARTEN[e.art] }), el('span', { class: 'ez-text', text: e.text }), weg(e)))
+            : el('div', { class: 'leise klein-text', text: 'Noch nichts notiert.' })),
         el('section', { class: 'karte stapel-eng' },
-          el('h2', { class: 'dreieck', text: 'Aufträge' }),
+          el('h2', { class: 'dreieck', text: 'An die Tafel geschickt' }),
+          tafel.length ? tafel.map(e => el('div', { class: 'ez' },
+            e.bild ? el('img', { class: 'ez-bild', src: basis + '/bild/' + e.bild, alt: 'Foto', loading: 'lazy' }) : el('span', { class: 'chip', text: 'Idee' }),
+            el('span', { class: 'ez-text', text: e.bild && e.text === 'Foto' ? 'Foto' : e.text }), weg(e)))
+            : el('div', { class: 'leise klein-text', text: 'Noch nichts. Post-its und Fotos landen in der nächsten Besprechung bei den Ideen.' })),
+        el('section', { class: 'karte stapel-eng' },
+          el('div', { class: 'zeile' }, el('h2', { class: 'dreieck', text: 'Aufträge' }), offenAuftraege ? el('span', { class: 'chip', text: offenAuftraege + ' offen' }) : null),
           auftraege.length ? auftraege.map(e => auftragZeile(e, (x, wert) => senden({ aktion: 'erledigt', eintrag_id: x.id, erledigt: wert },
             wert ? 'Abgehakt.' : 'Wieder offen.'))) : el('div', { class: 'leise klein-text', text: 'Keine Aufträge offen.' })),
         el('section', { class: 'karte stapel-eng' },
           el('h2', { class: 'dreieck', text: 'Protokolle' }), protokolle(B.protokolle, false, basis, B.projekt_titel))));
-    }
-
-    function tafelKarte() {
-      const art = el('select', { class: 'klein', 'aria-label': 'Art' }, ['idee', 'frage'].map(a => el('option', { value: a, text: ARTEN[a] })));
-      const text = el('input', { maxlength: '200', placeholder: 'z. B. 2 Lüfter parallel?', 'aria-label': 'Text für die Tafel' });
-      const foto = el('input', { type: 'file', accept: 'image/*', capture: 'environment', hidden: true });
-      const senden = async () => {
-        if (!text.value.trim()) { text.focus(); return; }
-        if (await anTafel({ art: art.value, text: text.value }, 'An die Tafel geschickt.')) text.value = '';
-      };
-      text.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); senden(); } });
-      foto.addEventListener('change', async () => {
-        if (!foto.files.length) return;
-        try {
-          const bild = await verkleinern(foto.files[0]);
-          if (await anTafel({ bild, text: text.value }, 'Foto an die Tafel geschickt.')) text.value = '';
-        } catch (e) { T.meldung('Das Foto konnte nicht gelesen werden.', true); }
-        foto.value = '';
-      });
-      return el('section', { class: 'karte stapel-eng' },
-        el('h2', { class: 'dreieck', text: 'An die Tafel' }), tafelStatus,
-        el('div', { class: 'neu-eintrag' }, art, text, el('button', { type: 'button', onclick: senden }, 'Senden')),
-        el('div', { class: 'zeile' }, el('button', { type: 'button', onclick: () => foto.click() }, '📷 Foto'), foto,
-          el('span', { class: 'leise klein-text', text: 'Aufbau fotografieren, keine Personen.' })));
     }
 
     return { laden };
