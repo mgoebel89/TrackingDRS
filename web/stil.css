@@ -846,3 +846,35 @@ button.schnell { border-radius: 999px; border-color: var(--blau-mittel); color: 
 .schritt-postit.frage { background: #bfe1f6; }
 @media (max-width: 760px) { .b-kacheln { grid-template-columns: repeat(2, minmax(0, 1fr)); } .b-marken { margin-left: 0; } }
 @media (prefers-reduced-motion: reduce) { .b-kachel { transition: none; } }
+
+/* Hilfe-Knopf (J4): Team unten rechts, Lehrkraft Reihe oben im Cockpit */
+.hilfe-fab { position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom)); z-index: 45;
+  display: flex; align-items: center; gap: 8px; border: none; border-radius: 999px; padding: 12px 18px; background: var(--rot); color: #fff;
+  font: inherit; font-weight: 700; cursor: pointer; box-shadow: 0 8px 20px -8px rgba(212, 0, 94, .7); text-align: left; }
+.hilfe-fab .symbol { width: 22px; height: 22px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; }
+.hilfe-fab small { display: block; font-weight: 600; font-size: .7rem; opacity: .8; }
+.hilfe-fab.wartet { background: var(--karte); color: var(--rot); border: 2px solid var(--rot); padding: 9px 14px; }
+.hilfe-fab.wartet small { color: var(--leise); opacity: 1; }
+.hilfe-fab.kommt { border-color: var(--gruen); color: #5f6d00; }
+.hilfe-fab.ruhig { background: var(--karte); color: var(--leise); border: 1px solid var(--linie-stark); box-shadow: var(--schatten-1); }
+.hilfe-fab:focus-visible { outline: 3px solid var(--blau); outline-offset: 2px; }
+body.mit-hilfe #meldungen { bottom: calc(max(16px, env(safe-area-inset-bottom)) + 64px); }
+.hilfe-namen { display: flex; flex-wrap: wrap; gap: 6px; }
+.hilfe-namen button { border-radius: 999px; padding: 6px 14px; }
+.hilfe-namen button.an { border-color: var(--rot); color: var(--rot); background: var(--rot-hell); }
+button.haupt.rot { background: var(--rot); border-color: var(--rot); }
+.hilfe-reihe { border: 2px solid var(--rot); display: grid; gap: 6px; }
+.hilfe-reihe > .zeile { color: var(--rot); }
+.hilfe-reihe > .zeile .symbol { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; }
+.hilfe-reihe h2 { margin: 0; font-size: 1.15rem; }
+.chip.rot { background: var(--rot); border-color: var(--rot); color: #fff; }
+.hilfe-zeile { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 6px 0; border-top: 1px solid var(--linie); }
+.hilfe-nr { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--rot); color: #fff; font-weight: 700; font-size: .78rem; }
+.hilfe-zeile button.an { background: var(--gruen); border-color: var(--gruen); color: #1d2433; }
+@media (max-width: 760px) {
+  .mit-unterleiste .hilfe-fab { bottom: calc(72px + env(safe-area-inset-bottom)); padding: 10px 14px; }
+  body.mit-hilfe.mit-unterleiste #meldungen { bottom: calc(132px + env(safe-area-inset-bottom)); }
+  .hilfe-zeile { grid-template-columns: 26px minmax(0, 1fr); }
+  .hilfe-zeile .rechts { grid-column: 2; margin-left: 0; }
+}
+@media print { .hilfe-fab { display: none !important; } }

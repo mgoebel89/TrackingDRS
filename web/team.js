@@ -222,6 +222,7 @@ async function start() {
   T.hoehenMerken();
   window.addEventListener('resize', T.hoehenMerken);
   window.addEventListener('hashchange', zeigen);
+  Hilfe.teamKnopf(basis);
   zaehlerAbfragen = T.beobachten(async () => { const z = await T.api('GET', basis + '/zaehler'); zaehlerZeigen(z); return z; },
     v => T.meldung('Neue Antwort der Lehrkraft zu „' + v.titel + '“: ' + v.text, false, '#anfragen'));
   zeigen();

@@ -52,6 +52,7 @@ async function start() {
   window.addEventListener('hashchange', zeigen);
   zeigen();
   Vorgang.beobachten();
+  Hilfe.lehrerBeobachten();
 }
 
 async function zeigen() {

@@ -23,7 +23,7 @@ import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import (VERSION, anfragen, besprechung, bestellung, cockpit, db, einstellungen, export, extras, kalender, konten, pdf,
+from . import (VERSION, anfragen, besprechung, bestellung, cockpit, db, einstellungen, export, extras, hilfe, kalender, konten, pdf,
                projekte, sheet, tafel, termine, updates, vpn)
 
 BASIS = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -727,6 +727,22 @@ def api_team_anfragen(h, con, daten, token):
     h.antwort(200, _team_anfragen(con, _team_projekt(con, token)))
 
 
+def api_team_hilfe(h, con, daten, token):
+    h.antwort(200, {"hilfe": hilfe.team_stand(con, _team_projekt(con, token))})
+
+
+def api_team_hilfe_aendern(h, con, daten, token):
+    h.antwort(200, {"hilfe": hilfe.team_aendern(con, _team_projekt(con, token), daten)})
+
+
+def api_hilfe(h, con, daten):
+    h.antwort(200, {"reihe": hilfe.reihe(con, h.konto(con))})
+
+
+def api_hilfe_aendern(h, con, daten, hid):
+    h.antwort(200, {"reihe": hilfe.lehrkraft_aendern(con, h.konto(con), _ganzzahl(hid), daten)})
+
+
 def api_team_zaehler(h, con, daten, token):
     h.antwort(200, anfragen.team_zaehler(con, _team_projekt(con, token)))
 
@@ -1126,6 +1142,8 @@ ROUTEN = [(m, re.compile(p), f) for m, p, f in [
     ("GET", r"/api/anfragen", api_anfragen),
     ("GET", r"/api/vorgaenge", api_vorgaenge),
     ("GET", r"/api/vorgaenge/zaehler", api_vorgaenge_zaehler),
+    ("GET", r"/api/hilfe", api_hilfe),
+    ("POST", r"/api/hilfe/(\d+)", api_hilfe_aendern),
     ("GET", r"/api/vorgaenge/(\d+)", api_vorgang_direkt),
     ("POST", r"/api/vorgaenge/(\d+)", api_vorgang_direkt_aendern),
     ("GET", r"/api/projekte/(\d+)/vorgaenge/(\d+)", api_vorgang),
@@ -1160,6 +1178,8 @@ ROUTEN = [(m, re.compile(p), f) for m, p, f in [
     ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/termine", api_team_termine),
     ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/anfragen", api_team_anfragen),
     ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/zaehler", api_team_zaehler),
+    ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/hilfe", api_team_hilfe),
+    ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/hilfe", api_team_hilfe_aendern),
     ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/mitglieder", api_team_mitglieder),
     ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/mitglieder/(\d+)", api_team_mitglied),
     ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/extras", api_team_extras),

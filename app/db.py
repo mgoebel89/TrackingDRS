@@ -445,6 +445,20 @@ MIGRATIONEN = [
     ALTER TABLE bestellliste ADD COLUMN team_gesehen TEXT;
     UPDATE bestellliste SET lk_geaendert = geprueft, team_gesehen = geprueft WHERE geprueft IS NOT NULL
     """,
+    # 13: Hilfe-Knopf (Stufe J4): "Wir brauchen Hilfe" je Team, Reihe fuer die betreuenden Lehrkraefte
+    """
+    CREATE TABLE hilfe (
+        id INTEGER PRIMARY KEY,
+        projekt_id INTEGER NOT NULL REFERENCES projekt(id) ON DELETE CASCADE,
+        wer TEXT NOT NULL DEFAULT '',
+        erstellt TEXT NOT NULL,
+        kommt_id INTEGER REFERENCES lehrkraft(id),
+        kommt_zeit TEXT,
+        erledigt TEXT,
+        erledigt_von TEXT,
+        zurueckgezogen INTEGER NOT NULL DEFAULT 0);
+    CREATE INDEX hilfe_offen ON hilfe (projekt_id, erledigt, zurueckgezogen)
+    """,
 ]
 
 

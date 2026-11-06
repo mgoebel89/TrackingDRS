@@ -112,6 +112,7 @@ const T = {
     liste: 'M3 17l2 2 4-4M3 7l2 2 4-4M13 6h8M13 12h8M13 18h8',
     material: 'M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73zM12 22V12M3.3 7l8.7 5 8.7-5',
     abnahme: 'M12 2a10 10 0 1 0 0 20a10 10 0 1 0 0-20M9 12l2 2 4-4',
+    hilfe: 'M12 2a10 10 0 1 0 0 20a10 10 0 1 0 0-20M4.93 4.93l4.24 4.24M14.83 9.17l4.24-4.24M14.83 14.83l4.24 4.24M9.17 14.83l-4.24 4.24M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8',
     kalender: 'M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM16 2v4M8 2v4M3 10h18',
     // Tafel-Werkzeuge
     zeiger: 'M4.04 4.69a.5.5 0 0 1 .65-.65l16 6.5a.5.5 0 0 1-.06.95l-6.12 1.58a2 2 0 0 0-1.44 1.44l-1.58 6.12a.5.5 0 0 1-.95.06z',
@@ -307,6 +308,9 @@ const T = {
       anfrage_nachricht: () => ({ rueckfrage: 'Rückfrage', ausleihe: 'Ausleihe', abnahme: 'Abnahme', bestellung: 'Bestellliste' })[d.anfrageart] +
         ' „' + d.titel + '“: ' + d.text,
       anfrage_wieder: () => '„' + d.titel + '“ wieder geöffnet: ' + d.text,
+      hilfe_gerufen: () => 'Hilfe gerufen' + (d.name ? ' (' + d.name + ')' : ''),
+      hilfe_zurueck: () => 'Hilfe-Meldung zurückgezogen',
+      hilfe_erledigt: () => 'Hilfe-Meldung erledigt',
       sonderfenster: () => 'Sonderfenster für die Bestellliste bis ' + d.bis.slice(8, 10) + '.' + d.bis.slice(5, 7) + '., ' + d.bis.slice(11, 16),
       position_neu: () => 'Bestellliste: ' + d.menge + '× „' + d.artikel + '“' + (d.uebernommen ? ' (übernommen)' : ''),
       position_geaendert: () => 'Bestellliste: „' + d.artikel + '“ geändert',

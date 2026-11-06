@@ -164,6 +164,7 @@ const Cockpit = (() => {
       S.vpn && (S.vpn.ergebnis === 'offen' || S.vpn.alt) ? el('a', { class: 'update-hinweis vpn-warnung', href: '#einstellungen' },
         S.vpn.ergebnis === 'offen' ? '⚠ VPN: Der Container erreicht über das VPN andere Geräte. Die Sperre auf dem Server fehlt oder wirkt nicht.'
           : '⚠ VPN: seit mehr als drei Tagen kein Sperrtest') : null,
+      Hilfe.reiheKarte(),
       el('div', { class: 'cockpit' }, handlungsbedarf(c), el('div', { class: 'stapel' }, zweiWochen(c), projekte)));
   }
 

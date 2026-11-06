@@ -337,6 +337,15 @@ const Vorgang = (() => {
     } catch (e) { /* manche Browser erlauben das nur ueber einen Service Worker */ }
   }
 
+  // Windows-Hinweis fuer andere Meldungen (z. B. Hilfe-Knopf), mit demselben Schalter wie bei den Anfragen
+  function windowsHinweis(titel, text, ziel, tag) {
+    if (!benachrichtigungAn() || (document.visibilityState === 'visible' && document.hasFocus())) return;
+    try {
+      const n = new Notification(T.NAME + ' · ' + titel, { body: text, tag });
+      n.onclick = () => { window.focus(); location.hash = ziel; n.close(); };
+    } catch (e) { /* manche Browser erlauben das nur ueber einen Service Worker */ }
+  }
+
   let zaehlerLaden = async () => {};
 
   function beobachten() {
@@ -431,5 +440,5 @@ const Vorgang = (() => {
     })();
   }
 
-  return { eingang, zaehlerLaden: () => zaehlerLaden(), zaehlerZeigen, beobachten, glocke, projektZahl, teamListe, teamDetail };
+  return { eingang, zaehlerLaden: () => zaehlerLaden(), zaehlerZeigen, beobachten, glocke, projektZahl, teamListe, teamDetail, windowsHinweis };
 })();
