@@ -784,3 +784,11 @@ nav.seite { scrollbar-width: thin; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 
 .logo-vorschau { max-height: 80px; max-width: 100%; width: auto; display: block; padding: 10px; border: 1px solid var(--linie); border-radius: var(--r); background: #fff; }
+
+/* Bestellung als eigener Reiter (J1): Liste mit Neuem, alter Gespraechsverlauf zur Liste */
+.protokoll.neu { border-color: var(--rot); }
+.protokoll summary .vg-punkt { display: inline-block; margin-right: 6px; vertical-align: 1px; }
+.alter-verlauf { margin-top: 8px; }
+.alter-verlauf summary { cursor: pointer; color: var(--leise); }
+.alter-verlauf .vg-n { margin-top: 6px; padding: 6px 10px; border-radius: 8px; background: var(--bg); }
+.alter-verlauf .vg-n.intern { background: #fff6d6; }

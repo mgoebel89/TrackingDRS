@@ -741,6 +741,13 @@ def api_team_anfragen_aendern(h, con, daten, token):
     h.antwort(200, _team_anfragen(con, pid))
 
 
+def api_team_bestellung_lesen(h, con, daten, token):
+    pid = _team_projekt(con, token)
+    sicht = bestellung.team_sicht(con, pid)   # erst lesen (mit Neu-Marken), dann als gesehen merken
+    bestellung.team_gesehen(con, pid)
+    h.antwort(200, {"bestellung": sicht})
+
+
 def api_team_bestellung(h, con, daten, token):
     pid = _team_projekt(con, token)
     ergebnis = bestellung.team_aendern(con, pid, daten)
@@ -835,6 +842,11 @@ def api_bestellfenster_aendern(h, con, daten, fid):
 
 def api_bestellliste(h, con, daten, lid):
     h.antwort(200, {"liste": bestellung.liste_lesen(con, h.konto(con), _ganzzahl(lid))})
+
+
+def api_projekt_bestellung(h, con, daten, pid):
+    _k, pid = _projekt(h, con, pid)
+    h.antwort(200, {"bestellung": bestellung.projekt_listen(con, pid)})
 
 
 def api_bestellung_pruefen(h, con, daten, pid):
@@ -1109,6 +1121,7 @@ ROUTEN = [(m, re.compile(p), f) for m, p, f in [
     ("GET", r"/api/update/sicherung/(vor-update-[0-9_-]+\.zip)", api_update_sicherung),
     ("GET", r"/api/vpn", api_vpn),
     ("POST", r"/api/vpn", api_vpn_anfordern),
+    ("GET", r"/api/projekte/(\d+)/bestellung", api_projekt_bestellung),
     ("POST", r"/api/projekte/(\d+)/bestellung", api_bestellung_pruefen),
     ("GET", r"/api/anfragen", api_anfragen),
     ("GET", r"/api/vorgaenge", api_vorgaenge),
@@ -1153,6 +1166,7 @@ ROUTEN = [(m, re.compile(p), f) for m, p, f in [
     ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/anfragen", api_team_anfragen_aendern),
     ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/vorgaenge/(\d+)", api_team_vorgang),
     ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/vorgaenge/(\d+)", api_team_vorgang_aendern),
+    ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/bestellung", api_team_bestellung_lesen),
     ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/bestellung", api_team_bestellung),
     ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/besprechung", api_team_besprechung),
     ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/besprechung", api_team_besprechung_aendern),

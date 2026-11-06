@@ -15,6 +15,7 @@ Eine nicht eingereichte Liste bleibt erhalten und gilt fuer das naechste Fenster
 import csv
 import datetime
 import io
+import json
 
 from . import db
 from .projekte import ProjektFehler
@@ -164,13 +165,36 @@ def _aufgaben(con, pid):
     return {a["id"]: a["titel"] for a in con.execute("SELECT id, titel FROM aufgabe WHERE projekt_id = ?", (pid,))}
 
 
-def _liste(con, l, aufgaben):
+def _neu_fuers_team(con, l):
+    """Hat die Lehrkraft seit dem letzten Blick des Teams etwas geaendert, oder wartet eine Firma-Frage?"""
+    if l["lk_geaendert"] and (l["team_gesehen"] or "") < l["lk_geaendert"]:
+        return True
+    return bool(con.execute("SELECT 1 FROM position WHERE liste_id = ? AND gestrichen = 0 AND entscheidung = 'firma' "
+                            "AND firma_stand = 'gefragt'", (l["id"],)).fetchone())
+
+
+def _alter_verlauf(con, liste_id, mit_intern):
+    """Bis Stufe J1 war jede eingereichte Liste eine Anfrage mit Gespraechsverlauf. Der bleibt bei der Liste lesbar."""
+    a = con.execute("SELECT id FROM anfrage WHERE bestellliste_id = ?", (liste_id,)).fetchone()
+    if a is None:
+        return []
+    sql = "SELECT * FROM nachricht WHERE anfrage_id = ?" + ("" if mit_intern else " AND art != 'intern'") + " ORDER BY id"
+    return [{"id": n["id"], "art": n["art"], "text": n["text"], "daten": json.loads(n["daten"]), "zeit": n["zeit"],
+             "wer_art": n["wer_art"], "wer": n["wer"]} for n in con.execute(sql, (a["id"],))]
+
+
+def _liste(con, l, aufgaben, lehrkraft=False):
     f = con.execute("SELECT * FROM bestellfenster WHERE id = ?", (l["fenster_id"],)).fetchone() if l["fenster_id"] else None
     mitglieder = _mitglieder(con, l["projekt_id"])
-    return {"id": l["id"], "eingereicht": l["eingereicht"], "geprueft": l["geprueft"], "geprueft_von": l["geprueft_von"],
-            "fenster": _fenster(f) if f else None,
-            "positionen": [_position(z, aufgaben, mitglieder)
-                           for z in con.execute("SELECT * FROM position WHERE liste_id = ? ORDER BY id", (l["id"],))]}
+    d = {"id": l["id"], "eingereicht": l["eingereicht"], "geprueft": l["geprueft"], "geprueft_von": l["geprueft_von"],
+         "fenster": _fenster(f) if f else None,
+         "positionen": [_position(z, aufgaben, mitglieder)
+                        for z in con.execute("SELECT * FROM position WHERE liste_id = ? ORDER BY id", (l["id"],))]}
+    if l["eingereicht"]:
+        d["verlauf"] = _alter_verlauf(con, l["id"], lehrkraft)
+        if not lehrkraft:
+            d["neu"] = _neu_fuers_team(con, l)
+    return d
 
 
 def _sammelliste(con, pid, anlegen=False):
@@ -179,6 +203,18 @@ def _sammelliste(con, pid, anlegen=False):
         con.execute("INSERT INTO bestellliste (projekt_id) VALUES (?)", (pid,))
         l = _sammelliste(con, pid)
     return l
+
+
+def team_neu(con, pid):
+    """Fuer die rote Zahl am Team-Reiter "Bestellung": Listen mit Neuem von der Lehrkraft oder offener Firma-Frage."""
+    return sum(1 for l in con.execute("SELECT * FROM bestellliste WHERE projekt_id = ? AND eingereicht IS NOT NULL", (pid,))
+               if _neu_fuers_team(con, l))
+
+
+def team_gesehen(con, pid):
+    """Das Team hat den Reiter "Bestellung" geoeffnet."""
+    with db.transaktion(con):
+        con.execute("UPDATE bestellliste SET team_gesehen = ? WHERE projekt_id = ? AND eingereicht IS NOT NULL", (db.jetzt(), pid))
 
 
 def team_sicht(con, pid):
@@ -274,9 +310,7 @@ def team_aendern(con, pid, d):
                 raise ProjektFehler("Die Liste ist leer.")
             con.execute("UPDATE bestellliste SET fenster_id = ?, eingereicht = ? WHERE id = ?", (offen["id"], jetzt, l["id"]))
             ereignis("liste_eingereicht", liste_id=l["id"], positionen=n, fenster_id=offen["id"])
-            from . import anfragen   # hier, um einen Import-Kreis zu vermeiden
-            anfragen.bestellung_vorgang(con, pid, l["id"], n)   # Gespraechsverlauf zur Liste
-            return {}
+            return {}   # keine Anfrage: die Lehrkraft hat die Frist gesetzt und schaut danach in den Reiter "Bestellung"
         if aktion in ("firma_antwort", "firma_besorgt"):
             z = _pos_holen(con, pid, d.get("position_id"))
             if z["entscheidung"] != "firma":
@@ -356,8 +390,8 @@ def pruefen(con, pid, wer, d):
             offen = con.execute("SELECT COUNT(*) FROM position WHERE liste_id = ? AND gestrichen = 0 AND entscheidung IS NULL",
                                 (z["liste_id"],)).fetchone()[0]
             vorher = con.execute("SELECT geprueft FROM bestellliste WHERE id = ?", (z["liste_id"],)).fetchone()[0]
-            con.execute("UPDATE bestellliste SET geprueft = ?, geprueft_von = ? WHERE id = ?",
-                        (db.jetzt() if offen == 0 else None, wer if offen == 0 else None, z["liste_id"]))
+            con.execute("UPDATE bestellliste SET geprueft = ?, geprueft_von = ?, lk_geaendert = ? WHERE id = ?",
+                        (db.jetzt() if offen == 0 else None, wer if offen == 0 else None, db.jetzt(), z["liste_id"]))
             if offen == 0 and not vorher:
                 anfragen.bestellung_notieren(con, z["liste_id"], "lehrkraft", wer, was="geprueft")
         elif aktion == "status":
@@ -366,6 +400,7 @@ def pruefen(con, pid, wer, d):
             if status is not None and status not in STATUS_WEG.get(weg, ()):
                 raise ProjektFehler("Diesen Status gibt es für diese Position nicht.")
             con.execute("UPDATE position SET status = ? WHERE id = ?", (status, z["id"]))
+            con.execute("UPDATE bestellliste SET lk_geaendert = ? WHERE id = ?", (db.jetzt(), z["liste_id"]))
             db.ereignis(con, pid, "lehrkraft", wer, "position_status", position_id=z["id"], artikel=z["artikel"], status=status)
             from . import anfragen
             anfragen.bestellung_notieren(con, z["liste_id"], "lehrkraft", wer, was="position_status", artikel=z["artikel"], status=status)
@@ -420,10 +455,21 @@ def liste_lesen(con, konto, liste_id):
                     "WHERE l.id = ? AND (pl.lehrkraft_id = ? OR ?)", (liste_id, konto["id"], konto["rolle"] == "admin")).fetchone()
     if l is None:
         raise ProjektFehler("Diese Liste gibt es nicht.")
-    d = _liste(con, l, _aufgaben(con, l["projekt_id"]))
+    d = _liste(con, l, _aufgaben(con, l["projekt_id"]), lehrkraft=True)
     d["projekt_id"] = l["projekt_id"]
     d["titel"] = _projekt(con, l["projekt_id"])["titel"]
     return d
+
+
+def projekt_listen(con, pid):
+    """Reiter "Bestellung" auf der Projektseite: die Sammelliste und alle eingereichten Listen des Teams."""
+    p = _projekt(con, pid)
+    aufgaben = _aufgaben(con, pid)
+    sammel = _sammelliste(con, pid)
+    return {"sammel": _liste(con, sammel, aufgaben, lehrkraft=True) if sammel else {"id": None, "positionen": []},
+            "lage": lage(con, p),
+            "eingereicht": [_liste(con, l, aufgaben, lehrkraft=True) for l in con.execute(
+                "SELECT * FROM bestellliste WHERE projekt_id = ? AND eingereicht IS NOT NULL ORDER BY eingereicht DESC", (pid,))]}
 
 
 def sammelbestellung(con, konto, fid):

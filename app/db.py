@@ -438,6 +438,13 @@ MIGRATIONEN = [
     """
     ALTER TABLE tafel ADD COLUMN objekte TEXT NOT NULL DEFAULT '{}'
     """,
+    # 12: Bestellung als eigener Reiter (Stufe J1): Einreichen legt keinen Vorgang mehr an. Damit das Team sieht, dass
+    # die Lehrkraft etwas an einer Liste geaendert hat: Zeitpunkt der letzten Aenderung und wann das Team zuletzt sah.
+    """
+    ALTER TABLE bestellliste ADD COLUMN lk_geaendert TEXT;
+    ALTER TABLE bestellliste ADD COLUMN team_gesehen TEXT;
+    UPDATE bestellliste SET lk_geaendert = geprueft, team_gesehen = geprueft WHERE geprueft IS NOT NULL
+    """,
 ]
 
 

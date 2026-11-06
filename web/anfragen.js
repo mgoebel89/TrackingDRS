@@ -1,7 +1,8 @@
-// Anfragen und Bestelllisten. Team (Reiter "Anfragen"): Rueckfrage, Material ausleihen, Abnahme stellen und im
-// Gespraechsverlauf verfolgen (vorgang.js); Bestellliste sammeln und im Einreichfenster einreichen. Lehrkraft: Eingang
-// (#anfragen, vorgang.js), Einreichfenster (#anfragen/fenster), Listen je Position pruefen (#anfragen/liste/<id>),
-// Sammelbestellung je Lieferant (#anfragen/sammel/<id>).
+// Anfragen und Bestelllisten. Team: Reiter "Anfragen" (Rueckfrage, Material ausleihen, Abnahme stellen und im
+// Gespraechsverlauf verfolgen, vorgang.js) und Reiter "Bestellung" (Liste sammeln, im Einreichfenster einreichen, ohne
+// Anfrage; gepruefte Listen mit Firma-Frage). Lehrkraft: Eingang (#anfragen, vorgang.js) und Menuepunkt "Bestellung":
+// Einreichfenster mit dem Stand je Team (#bestellung), Listen je Position pruefen (#bestellung/liste/<id>),
+// Sammelbestellung je Lieferant (#bestellung/sammel/<id>). Auf der Projektseite der Reiter "Bestellung".
 'use strict';
 
 const Anfragen = (() => {
@@ -30,8 +31,18 @@ const Anfragen = (() => {
     return 'abgelehnt: ' + p.kommentar;
   }
 
-  function lageText(lage) {
+  // Laufendes Fenster, in dem die Liste schon eingereicht ist (dann ist lage.offen leer)
+  function schonEingereicht(eingereicht) {
+    const jetzt = T.isoDatum(new Date()) + 'T' + new Date().toTimeString().slice(0, 8);
+    return (eingereicht || []).find(l => l.fenster && l.fenster.bis > jetzt);
+  }
+
+  function lageText(lage, eingereicht, wir = true) {
     if (lage.offen) return 'Einreichfenster offen bis ' + stichtag(lage.offen.bis) + '.';
+    const schon = schonEingereicht(eingereicht);
+    if (schon) return (wir ? 'Eure Liste ist für das Fenster bis ' : 'Die Liste ist für das Fenster bis ') + stichtag(schon.fenster.bis) +
+      ' eingereicht.' + (lage.naechstes ? ' Neue Positionen gehen ins nächste Fenster ab ' + T.kurzTag(lage.naechstes.von) + '.'
+        : wir ? ' Was ihr jetzt sammelt, reicht ihr im nächsten Fenster ein.' : '');
     if (lage.naechstes) return 'Nächstes Einreichfenster: ' + T.kurzTag(lage.naechstes.von) + ' bis ' + stichtag(lage.naechstes.bis) +
       '. Bis dahin sammelt ihr hier, dann reicht ihr die Liste einmal ein.';
     return 'Noch kein Einreichfenster festgelegt. Ihr könnt trotzdem schon sammeln.';
@@ -92,14 +103,6 @@ const Anfragen = (() => {
       } catch (e) { T.meldung(e.message, true); return false; }
     }
 
-    async function positionDialog(p) {
-      const f = positionFelder(p, D.bestellung.aufgaben);
-      const ok = await T.dialog({ titel: p ? 'Position ändern' : 'Neue Position', knopf: p ? 'Speichern' : 'Hinzufügen', inhalt: f.inhalt,
-        speichern: async () => { D = await T.api('POST', basis + '/bestellung', Object.assign({ aktion: p ? 'position_aendern' : 'position_neu',
-          position_id: p ? p.id : undefined }, f.werte())); return true; } });
-      if (ok) { zeichnen(); T.meldung('Gespeichert.'); }
-    }
-
     async function anfrageDialog(art) {
       const heute = T.isoDatum(new Date());
       const f = {
@@ -133,11 +136,66 @@ const Anfragen = (() => {
       if (ok) { zeichnen(); T.meldung('Anfrage gestellt. Antworten erscheinen im Verlauf der Anfrage.'); if (beiAenderung) beiAenderung(); }
     }
 
+    function zeichnen() {
+      if (offen) {
+        Vorgang.teamDetail({ ort, basis, id: offen, beiAenderung, zurueck: () => { offen = null; laden(); } });
+        return;
+      }
+      T.setzen(ort, el('div', { class: 'stapel' },
+        el('div', { class: 'zeile' }, el('span', { class: 'etikett', text: 'Neue Anfrage' }),
+          el('button', { type: 'button', onclick: () => anfrageDialog('rueckfrage') }, '+ Rückfrage'),
+          el('button', { type: 'button', onclick: () => anfrageDialog('ausleihe') }, '+ Material ausleihen'),
+          el('button', { type: 'button', onclick: () => anfrageDialog('abnahme') }, '+ Abnahme')),
+        el('section', { class: 'karte stapel-eng' },
+          el('h2', { class: 'dreieck', text: 'Anfragen' }),
+          Vorgang.teamListe(D.anfragen, id => { offen = id; zeichnen(); }))));
+    }
+
+    return { laden };
+  }
+
+  // Alter Gespraechsverlauf einer Liste (bis Stufe J1 war jede eingereichte Liste eine Anfrage): nur lesen
+  function alterVerlauf(l) {
+    const zeilen = (l.verlauf || []).filter(n => n.art !== 'ereignis');
+    if (!zeilen.length) return null;
+    return el('details', { class: 'alter-verlauf klein-text' }, el('summary', { text: 'Nachrichten zur Liste (' + zeilen.length + ')' }),
+      zeilen.map(n => el('div', { class: 'vg-n ' + (n.wer_art === 'team' ? 'team' : 'lehrkraft') + (n.art === 'intern' ? ' intern' : '') },
+        el('div', { class: 'leise', text: (n.wer_art === 'team' ? 'Team' : (n.wer || '').toUpperCase()) + ' · ' + T.zeitText(n.zeit) +
+          (n.art === 'intern' ? ' · intern' : '') }), el('div', { class: 'vortext', text: n.text }))));
+  }
+
+  // --- Team: Reiter "Bestellung" ---
+  function teamBestellung({ ort, basis, beiAenderung }) {
+    let D = null;
+
+    async function laden() {
+      try { D = (await T.api('GET', basis + '/bestellung')).bestellung; zeichnen(); if (beiAenderung) beiAenderung(); }
+      catch (e) { T.setzen(ort, el('div', { class: 'leer', text: e.message })); }
+    }
+
+    async function senden(pfad, daten, meldung) {
+      try {
+        D = (await T.api('POST', basis + pfad, daten)).bestellung;
+        zeichnen();
+        if (meldung) T.meldung(meldung);
+        if (beiAenderung) beiAenderung();
+        return true;
+      } catch (e) { T.meldung(e.message, true); return false; }
+    }
+
+    async function positionDialog(p) {
+      const f = positionFelder(p, D.aufgaben);
+      const ok = await T.dialog({ titel: p ? 'Position ändern' : 'Neue Position', knopf: p ? 'Speichern' : 'Hinzufügen', inhalt: f.inhalt,
+        speichern: async () => { D = (await T.api('POST', basis + '/bestellung', Object.assign({ aktion: p ? 'position_aendern' : 'position_neu',
+          position_id: p ? p.id : undefined }, f.werte()))).bestellung; return true; } });
+      if (ok) { zeichnen(); T.meldung('Gespeichert.'); }
+    }
+
     // "Ueber Firma": Frage an das Team, dann der Haken des Schuelers, der es besorgt
     function firmaFeld(p) {
       if (p.firma_stand === 'gefragt') {
         const wer = el('select', { 'aria-label': 'Wer besorgt es?' }, el('option', { value: '', text: 'Wer besorgt es?' }),
-          D.bestellung.mitglieder.map(m => el('option', { value: String(m.id), text: m.name })));
+          D.mitglieder.map(m => el('option', { value: String(m.id), text: m.name })));
         return el('div', { class: 'firma-frage stapel-eng' },
           el('b', { class: 'klein-text', text: 'Kann jemand das über seine Firma besorgen?' }),
           el('div', { class: 'zeile' }, wer,
@@ -159,24 +217,16 @@ const Anfragen = (() => {
     }
 
     function zeichnen() {
-      if (offen) {
-        Vorgang.teamDetail({ ort, basis, id: offen, beiAenderung, zurueck: () => { offen = null; laden(); } });
-        return;
-      }
-      const b = D.bestellung;
+      const b = D;
       const sammel = b.sammel.positionen.filter(p => !p.gestrichen);
       const fragen = b.eingereicht.flatMap(l => l.positionen).filter(p => !p.gestrichen && p.weg === 'firma' && p.firma_stand === 'gefragt');
       T.setzen(ort, el('div', { class: 'stapel' },
         fragen.length ? el('div', { class: 'banner w' }, el('b', { text: 'Eine Frage an euch: ' }),
           fragen.length === 1 ? 'Könnt ihr „' + fragen[0].artikel + '“ über eure Firma besorgen? Antwort unten bei der Liste.'
             : 'Könnt ihr ' + fragen.length + ' Artikel über eure Firma besorgen? Antwort unten bei der Liste.') : null,
-        el('div', { class: 'zeile' }, el('span', { class: 'etikett', text: 'Neue Anfrage' }),
-          el('button', { type: 'button', onclick: () => anfrageDialog('rueckfrage') }, '+ Rückfrage'),
-          el('button', { type: 'button', onclick: () => anfrageDialog('ausleihe') }, '+ Material ausleihen'),
-          el('button', { type: 'button', onclick: () => anfrageDialog('abnahme') }, '+ Abnahme')),
         el('section', { class: 'karte stapel-eng' },
           el('div', { class: 'zeile' }, el('h2', { class: 'dreieck', text: 'Bestellliste' }), el('span', { class: 'chip', text: sammel.length === 1 ? '1 Position' : sammel.length + ' Positionen' })),
-          el('div', { class: 'banner' + (b.lage.offen ? '' : ' leise') }, lageText(b.lage)),
+          el('div', { class: 'banner' + (b.lage.offen ? '' : ' leise') }, lageText(b.lage, b.eingereicht)),
           positionenTabelle(b.sammel.positionen, false, p => el('span', { class: 'zeile' },
             p.gestrichen ? el('button', { type: 'button', class: 'leicht', onclick: () => senden('/bestellung', { aktion: 'position_streichen', position_id: p.id, gestrichen: false }) }, '↺')
               : [el('button', { type: 'button', class: 'leicht', title: 'ändern', 'aria-label': 'ändern', onclick: () => positionDialog(p) }, '✎'),
@@ -184,20 +234,17 @@ const Anfragen = (() => {
           el('div', { class: 'zeile' },
             el('button', { type: 'button', onclick: () => positionDialog() }, '+ Position'),
             el('button', { type: 'button', class: 'haupt', disabled: !b.lage.offen || !sammel.length,
-              onclick: () => senden('/bestellung', { aktion: 'einreichen' }, 'Liste eingereicht.') },
+              onclick: () => senden('/bestellung', { aktion: 'einreichen' }, 'Liste eingereicht. Eure Lehrkraft prüft sie nach dem Stichtag.') },
               b.lage.offen ? 'Liste einreichen' : b.lage.naechstes ? 'Liste einreichen (ab ' + T.kurzTag(b.lage.naechstes.von) + ')' : 'Liste einreichen')),
           el('p', { class: 'leise klein-text', text: 'Der Preis ist nur zur Information und hat keinen Einfluss auf die Bestellung.' })),
         b.eingereicht.length ? el('section', { class: 'karte stapel-eng' },
           el('h2', { class: 'dreieck', text: 'Eingereichte Listen' }),
-          b.eingereicht.map(l => el('details', { class: 'protokoll', open: l === b.eingereicht[0] ? true : null },
-            el('summary', {}, el('b', { text: 'Liste vom ' + T.zeitText(l.eingereicht) }), ' · ' + (l.geprueft ? 'geprüft' : 'in Prüfung') +
+          b.eingereicht.map(l => el('details', { class: 'protokoll' + (l.neu ? ' neu' : ''), open: l === b.eingereicht[0] || l.neu ? true : null },
+            el('summary', {}, l.neu ? el('span', { class: 'vg-punkt', title: 'Neues von der Lehrkraft' }) : null, el('b', { text: 'Liste vom ' + T.zeitText(l.eingereicht) }), ' · ' + (l.geprueft ? 'geprüft' : 'in Prüfung') +
               ' · ' + l.positionen.filter(p => !p.gestrichen).length + ' Positionen'),
             positionenTabelle(l.positionen.filter(p => !p.gestrichen), true, p => (p.entscheidung === 'ablehnen' || p.weg === 'ersatz_gesucht')
               ? el('button', { type: 'button', class: 'leicht', onclick: () => senden('/bestellung', { aktion: 'uebernehmen', position_id: p.id }, 'In die nächste Liste übernommen.') }, 'in nächste Liste')
-              : p.weg === 'firma' ? firmaFeld(p) : null)))) : null,
-        el('section', { class: 'karte stapel-eng' },
-          el('h2', { class: 'dreieck', text: 'Anfragen' }),
-          Vorgang.teamListe(D.anfragen, id => { offen = id; zeichnen(); }))));
+              : p.weg === 'firma' ? firmaFeld(p) : null), alterVerlauf(l)))) : null));
     }
 
     return { laden };
@@ -205,15 +252,10 @@ const Anfragen = (() => {
 
   // --- Lehrkraft ---
 
-  // Kopf mit den beiden grossen Reitern der Anfragen-Seite
-  function kopf(aktiv) {
-    const reiter = (k, ziel, symbol, text, zahl) => el('a', { href: ziel, class: aktiv === k ? 'an' : '', 'aria-current': aktiv === k ? 'page' : null },
-      T.symbol(symbol), el('span', { text }), zahl ? el('span', { class: 'reiter-zahl eingang-zahl', hidden: true }) : null);
-    return el('div', { class: 'stapel-eng' },
-      el('div', { class: 'werkzeug' }, el('h1', { class: 'dreieck', text: 'Anfragen und Bestellungen' }), el('span', { class: 'rechts' }, Vorgang.glocke())),
-      el('nav', { class: 'gross-reiter', 'aria-label': 'Anfragen' },
-        reiter('eingang', '#anfragen', 'eingang', 'Eingang', true),
-        reiter('fenster', '#anfragen/fenster', 'wagen', 'Bestellungen und Einreichfenster')));
+  // Kopf der Anfragen-Seite (Bestellungen haben seit J1 einen eigenen Menuepunkt)
+  function kopf() {
+    return el('div', { class: 'werkzeug' }, el('h1', { class: 'dreieck', text: 'Anfragen' }),
+      el('span', { class: 'leise', text: 'Rückfragen, Ausleihen und Abnahmen der Teams' }), el('span', { class: 'rechts' }, Vorgang.glocke()));
   }
 
   // Statuskarte oben im Eingang: laeuft ein Einreichfenster, bis wann, fuer wen, wie viele Teams haben eingereicht
@@ -222,7 +264,7 @@ const Anfragen = (() => {
     (async () => {
       let b;
       try { b = (await T.api('GET', '/api/anfragen')).bestellung; } catch (e) { ort.remove(); return; }
-      const neu = el('button', { type: 'button', onclick: async () => { if (await fensterDialog(b)) zeigen(); } }, '+ Neues Fenster');
+      const neu = el('button', { type: 'button', class: 'haupt', onclick: async () => { if (await fensterDialog(b)) zeigen(); } }, '+ Neues Fenster');
       const fuer = f => f.projekt ? 'Sonderfenster ' + f.projekt : f.klasse ? 'Klasse ' + f.klasse : 'alle deine Projekte';
       const laeuft = b.fenster.filter(f => f.laeuft).sort((x, y) => x.bis.localeCompare(y.bis))[0];
       const kommt = b.fenster.filter(f => !f.laeuft && !f.vorbei).sort((x, y) => x.von.localeCompare(y.von))[0];
@@ -244,23 +286,31 @@ const Anfragen = (() => {
       ort.classList.toggle('laeuft', !!laeuft);
       T.setzen(ort, T.symbol('kalender'), el('div', {}, el('b', { text: titel }), el('span', { text: unter })),
         el('span', { class: 'rechts' },
-          sammel ? el('a', { class: 'knopf', href: '#anfragen/sammel/' + sammel.id }, laeuft ? 'Sammelbestellung' : 'Letzte Sammelbestellung') : null,
-          el('a', { class: 'knopf leicht', href: '#anfragen/fenster' }, 'Alle Fenster'), neu));
+          sammel ? el('a', { class: 'knopf', href: '#bestellung/sammel/' + sammel.id }, laeuft ? 'Sammelbestellung' : 'Letzte Sammelbestellung') : null,
+          neu));
     })();
     return ort;
   }
 
   async function lehrerZeigen(teil, id) {
-    if (teil === 'liste') return listeZeigen(Number(id));
-    if (teil === 'sammel') return sammelZeigen(Number(id));
-    if (teil === 'fenster') return fensterZeigen();
+    if (teil === 'liste' || teil === 'sammel' || teil === 'fenster') {   // alte Links aus der Zeit vor J1
+      location.replace('#bestellung' + (teil === 'fenster' ? '' : '/' + teil + '/' + id));
+      return;
+    }
     return Vorgang.eingang(teil === 'v' ? Number(id) : null);
   }
 
+  // Menuepunkt "Bestellung"
+  async function bestellungZeigen(teil, id) {
+    if (teil === 'liste') return listeZeigen(Number(id));
+    if (teil === 'sammel') return sammelZeigen(Number(id));
+    return fensterZeigen();
+  }
+
   async function fensterZeigen() {
-    titelSetzen('Bestellungen und Einreichfenster');
+    titelSetzen('Bestellung');
     const d = await T.api('GET', '/api/anfragen');
-    const fensterKarte = el('section', { class: 'karte stapel-eng' },
+    const fensterListe = el('section', { class: 'karte stapel-eng' },
       el('div', { class: 'zeile' }, el('h2', { class: 'dreieck', text: 'Einreichfenster für Bestelllisten' }),
         el('span', { class: 'rechts' }, el('button', { type: 'button', onclick: async () => { if (await fensterDialog(d.bestellung)) zeigen(); } }, '+ Einreichfenster'))),
       d.bestellung.fenster.length ? d.bestellung.fenster.map(f => el('div', { class: 'fenster' + (f.laeuft ? ' laeuft' : '') },
@@ -269,7 +319,7 @@ const Anfragen = (() => {
           el('span', { class: 'chip blau', text: f.projekt ? 'Sonderfenster ' + f.projekt : f.klasse || 'alle meine Projekte' }),
           el('span', { class: 'chip' + (f.laeuft ? ' blau' : ''), text: f.laeuft ? 'läuft' : f.vorbei ? 'vorbei' : 'kommt' }),
           el('span', { class: 'rechts' },
-            el('a', { class: 'knopf klein', href: '#anfragen/sammel/' + f.id }, 'Sammelbestellung'),
+            el('a', { class: 'knopf klein', href: '#bestellung/sammel/' + f.id }, 'Sammelbestellung'),
             el('button', { type: 'button', class: 'leicht', onclick: () => stichtagDialog(f) }, 'Stichtag'),
             el('button', { type: 'button', class: 'leicht', onclick: () => fensterBeenden(f) }, 'Beenden'))),
         el('div', { class: 'rollbar' }, el('table', { class: 'liste' }, el('tbody', {}, f.teams.map(t => el('tr', {},
@@ -278,9 +328,10 @@ const Anfragen = (() => {
             sammelt: 'sammelt, noch nicht eingereicht', leer: 'nichts gesammelt' }[t.stand] })),
           el('td', { class: 'leise', text: (t.positionen === 1 ? '1 Position' : t.positionen + ' Positionen') + (t.offen ? ' · ' + t.offen + ' offen' : '') +
             (t.eingereicht ? ' · ' + T.zeitText(t.eingereicht) : '') }),
-          el('td', {}, t.liste_id ? el('a', { class: 'knopf klein' + (t.stand === 'eingereicht' ? ' haupt' : ''), href: '#anfragen/liste/' + t.liste_id }, 'Prüfen') : null))))))))
+          el('td', {}, t.liste_id ? el('a', { class: 'knopf klein' + (t.stand === 'eingereicht' ? ' haupt' : ''), href: '#bestellung/liste/' + t.liste_id }, 'Prüfen') : null))))))))
         : el('div', { class: 'leise klein-text', text: 'Noch kein Einreichfenster. Teams sammeln trotzdem schon und reichen ein, sobald ein Fenster offen ist.' }));
-    T.setzen(inhalt, kopf('fenster'), fensterKarte);
+    T.setzen(inhalt, el('div', { class: 'werkzeug' }, el('h1', { class: 'dreieck', text: 'Bestellung' }),
+      el('span', { class: 'leise', text: 'Einreichfenster, Bestelllisten der Teams und Sammelbestellung' })), fensterKarte(), fensterListe);
     Vorgang.zaehlerZeigen(d.zaehler);
   }
 
@@ -429,8 +480,8 @@ const Anfragen = (() => {
           }))))));
     }
 
-    T.setzen(inhalt, el('div', { class: 'werkzeug' }, el('h1', { class: 'dreieck', text: 'Bestellliste prüfen' }),
-      el('a', { class: 'knopf', href: '#anfragen/fenster' }, 'Zu den Einreichfenstern'), el('a', { class: 'knopf', href: '#projekt/' + L.projekt_id }, 'Zum Projekt')), ort);
+    T.setzen(inhalt, el('div', { class: 'werkzeug' }, el('h1', { class: 'dreieck', text: 'Bestellliste prüfen' }), alterVerlauf(L),
+      el('a', { class: 'knopf', href: '#bestellung' }, 'Zu den Einreichfenstern'), el('a', { class: 'knopf', href: '#projekt/' + L.projekt_id + '/bestellung' }, 'Zum Projekt')), ort);
     zeichnen();
   }
 
@@ -442,7 +493,7 @@ const Anfragen = (() => {
       el('div', { class: 'werkzeug' }, el('h1', { class: 'dreieck', text: 'Sammelbestellung' }),
         el('a', { class: 'knopf', href: '/api/bestellfenster/' + fid + '/sammelbestellung.csv', download: '' }, 'Excel (CSV)'),
         el('button', { type: 'button', onclick: () => window.print() }, 'Drucken / PDF'),
-        el('a', { class: 'knopf', href: '#anfragen/fenster' }, 'Zurück')),
+        el('a', { class: 'knopf', href: '#bestellung' }, 'Zurück')),
       el('p', { class: 'leise', text: 'Einreichfenster ' + T.kurzTag(f.von) + ' bis ' + stichtag(f.bis) +
         '. Nur Positionen mit „Bestellen“ (auch Ersatzartikel), je Lieferant, gleiche Bestellnummern zusammengefasst. Preise nur zur Information.' }),
       s.lieferanten.length ? s.lieferanten.map(g => el('section', { class: 'karte stapel-eng sammel' },
@@ -454,5 +505,30 @@ const Anfragen = (() => {
         : el('div', { class: 'leer', text: 'Noch keine Position zum Bestellen entschieden.' }));
   }
 
-  return { teamErzeugen, lehrerZeigen, kopf, fensterKarte, fensterDialog };
+  // Reiter "Bestellung" auf der Projektseite: Sammelliste und eingereichte Listen dieses Teams
+  async function projektBestellung(pid, ort) {
+    const b = (await T.api('GET', '/api/projekte/' + pid + '/bestellung')).bestellung;
+    const anzahl = l => l.positionen.filter(p => !p.gestrichen).length;
+    const offenZahl = l => l.positionen.filter(p => !p.gestrichen && !p.entscheidung).length;
+    T.setzen(ort,
+      el('section', { class: 'karte stapel-eng' },
+        el('div', { class: 'zeile' }, el('h2', { class: 'dreieck', text: 'Nächste Liste' }),
+          el('span', { class: 'chip', text: anzahl(b.sammel) === 1 ? '1 Position' : anzahl(b.sammel) + ' Positionen' }),
+          el('span', { class: 'rechts' }, el('a', { class: 'knopf', href: '#bestellung' }, 'Einreichfenster'))),
+        el('div', { class: 'banner' + (b.lage.offen ? '' : ' leise') }, b.lage.offen || b.lage.naechstes || schonEingereicht(b.eingereicht)
+          ? lageText(b.lage, b.eingereicht, false).replace('. Bis dahin sammelt ihr hier, dann reicht ihr die Liste einmal ein.', '.')
+          : 'Gerade ist kein Einreichfenster für dieses Team festgelegt.'),
+        anzahl(b.sammel) ? positionenTabelle(b.sammel.positionen.filter(p => !p.gestrichen), false, () => null)
+          : el('div', { class: 'leise klein-text', text: 'Das Team sammelt gerade nichts.' })),
+      el('section', { class: 'karte stapel-eng' },
+        el('h2', { class: 'dreieck', text: 'Eingereichte Listen' }),
+        b.eingereicht.length ? el('div', { class: 'rollbar' }, el('table', { class: 'liste' }, el('tbody', {}, b.eingereicht.map(l => el('tr', {},
+          el('td', {}, el('b', { text: 'Liste vom ' + T.zeitText(l.eingereicht) })),
+          el('td', {}, el('span', { class: 'chip' + (l.geprueft ? '' : ' blau'), text: l.geprueft ? 'geprüft' : 'in Prüfung' })),
+          el('td', { class: 'leise', text: anzahl(l) + (anzahl(l) === 1 ? ' Position' : ' Positionen') + (offenZahl(l) ? ' · ' + offenZahl(l) + ' offen' : '') }),
+          el('td', {}, el('a', { class: 'knopf klein' + (l.geprueft ? '' : ' haupt'), href: '#bestellung/liste/' + l.id }, l.geprueft ? 'Ansehen' : 'Prüfen')))))))
+          : el('div', { class: 'leise klein-text', text: 'Noch keine Liste eingereicht.' })));
+  }
+
+  return { teamErzeugen, teamBestellung, lehrerZeigen, bestellungZeigen, projektBestellung, kopf, fensterKarte, fensterDialog };
 })();

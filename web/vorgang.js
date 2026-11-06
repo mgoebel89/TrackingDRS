@@ -161,7 +161,7 @@ const Vorgang = (() => {
           stand('offen', 'Neu'), stand('bearbeitung', 'In Bearbeitung'), stand('erledigt', 'Erledigt'),
           knopf(F.meine, [T.symbol('person'), 'nur meine'], () => { F.meine = !F.meine; listeLaden(); }, 'nur Vorgänge, für die du zuständig bist')),
         el('div', { class: 'filter-reihe' }, el('span', { class: 'etikett', text: 'Art' }),
-          Object.entries(ARTEN).map(([k, t]) => knopf(F.art === k, [T.symbol(ART_SYMBOL[k]), t], () => { F.art = F.art === k ? '' : k; listeLaden(); })),
+          Object.entries(ARTEN).filter(([k]) => k !== 'bestellung').map(([k, t]) => knopf(F.art === k, [T.symbol(ART_SYMBOL[k]), t], () => { F.art = F.art === k ? '' : k; listeLaden(); })),
           el('span', { class: 'rechts' }, teamWahl)));
     }
 
@@ -190,8 +190,8 @@ const Vorgang = (() => {
           el('div', { class: 'vg-vorschau', text: vorschau(v, 'lehrkraft') })),
         el('div', { class: 'vg-rechts' }, standChip(v), zustaendigWahl(v, B[String(v.projekt_id)] || [], () => listeLaden(), true))))
         : el('div', { class: 'leer stapel-eng' }, el('b', { text: F.staende.length ? 'Gerade nichts zu tun.' : 'Kein Stand gewählt.' }),
-          el('span', { class: 'leise klein-text', text: 'Anfragen kommen von den Teams: Rückfragen, Ausleihen, Abnahmen und eingereichte ' +
-            'Bestelllisten aus dem Reiter „Anfragen“ ihres Team-Links.' })));
+          el('span', { class: 'leise klein-text', text: 'Anfragen kommen von den Teams: Rückfragen, Ausleihen und Abnahmen aus dem Reiter ' +
+            '„Anfragen“ ihres Team-Links. Bestelllisten stehen unter „Bestellung“.' })));
     }
 
     async function detailLaden(stumm) {
@@ -233,7 +233,7 @@ const Vorgang = (() => {
         if (v.status === 'ausgegeben') liste_.push(k('Zurückgegeben', () => schritt(v, 'zurueck')));
       }
       if (v.art === 'abnahme' && v.status === 'neu') liste_.push(k('Freigeben', () => schritt(v, 'freigegeben')), k('Nachbessern', () => schritt(v, 'nachbessern', 'Zurückgeben')));
-      if (v.art === 'bestellung') liste_.push(el('a', { class: 'knopf', href: '#anfragen/liste/' + v.bestellliste_id }, 'Liste prüfen'));
+      if (v.art === 'bestellung') liste_.push(el('a', { class: 'knopf', href: '#bestellung/liste/' + v.bestellliste_id }, 'Liste prüfen'));
       if (v.art === 'rueckfrage' && v.stand !== 'erledigt') liste_.push(k('Sonderfenster öffnen', async () => {
         const b = (await T.api('GET', '/api/anfragen')).bestellung;
         if (await Anfragen.fensterDialog(b, v.projekt_id, v.id)) detailLaden();
@@ -271,7 +271,7 @@ const Vorgang = (() => {
         aktionen(v).length ? el('div', { class: 'zeile' }, aktionen(v)) : null);
     }
 
-    if (opt.ort) T.setzen(opt.ort, rahmen); else T.setzen(inhalt, Anfragen.kopf('eingang'), Anfragen.fensterKarte(), rahmen);
+    if (opt.ort) T.setzen(opt.ort, rahmen); else T.setzen(inhalt, Anfragen.kopf(), rahmen);
     filterZeichnen();
     await detailLaden();   // erst lesen, dann Liste und Zaehler (sonst zaehlt der gerade geoeffnete noch mit)
     await listeLaden();

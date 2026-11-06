@@ -270,24 +270,12 @@ def in_besprechung_geklaert(con, anfrage_id, wer):
 
 # --- Bestelllisten als Vorgang (Aufrufe aus bestellung.py, in dessen Transaktion) ---
 
-def bestellung_vorgang(con, pid, liste_id, positionen):
-    jetzt = db.jetzt()
-    aid = con.execute("INSERT INTO anfrage (projekt_id, art, titel, status, erstellt, geaendert, geaendert_von, bestellliste_id) "
-                      "VALUES (?, 'bestellung', ?, 'neu', ?, ?, 'Team', ?)",
-                      (pid, "Bestellliste vom %s (%d Positionen)" % (datetime.date.fromisoformat(jetzt[:10]).strftime("%d.%m."), positionen),
-                       jetzt, jetzt, liste_id)).lastrowid
-    return aid
-
-
 def bestellung_notieren(con, liste_id, wer_art, wer, **daten):
+    """Seit Stufe J1 legt Einreichen keine Anfrage mehr an. Listen aus der Zeit davor haben noch einen Vorgang: dessen
+    Verlauf wird weitergeschrieben (er steht bei der Liste), der Stand aendert sich nicht mehr."""
     a = con.execute("SELECT * FROM anfrage WHERE bestellliste_id = ?", (liste_id,)).fetchone()
-    if a is None:
-        return
-    notieren(con, a["id"], wer_art, wer, **daten)
-    if wer_art == "lehrkraft" and a["stand"] == "offen":
-        _stand(con, a, "bearbeitung", wer_art, wer)
-    elif wer_art == "team" and a["stand"] == "erledigt":   # z. B. Antwort auf die Firma-Frage
-        _stand(con, a, "bearbeitung" if a["zustaendig_id"] else "offen", wer_art, wer)
+    if a is not None:
+        notieren(con, a["id"], wer_art, wer, **daten)
 
 
 def vorgang_notieren(con, aid, pid, wer_art, wer, **daten):
@@ -340,7 +328,7 @@ def vorgaenge_lehrkraft(con, konto, filter_="aktiv", projekt_id=None, art=None, 
     if not projekte:
         return []
     kuerzel = {z["id"]: z["kuerzel"].upper() for z in con.execute("SELECT id, kuerzel FROM lehrkraft")}
-    sql = "SELECT * FROM anfrage WHERE projekt_id IN (%s)" % ",".join("?" * len(projekte))
+    sql = "SELECT * FROM anfrage WHERE art != 'bestellung' AND projekt_id IN (%s)" % ",".join("?" * len(projekte))
     werte = list(projekte)
     if art in STATUS:
         sql += " AND art = ?"
@@ -392,7 +380,7 @@ def _zeitwert(zeit):
 def vorgaenge_team(con, pid):
     liste_ = []
     namen = {z["id"]: z["name"] for z in con.execute("SELECT id, name FROM lehrkraft")}
-    for a in con.execute("SELECT * FROM anfrage WHERE projekt_id = ? ORDER BY geaendert DESC", (pid,)).fetchall():
+    for a in con.execute("SELECT * FROM anfrage WHERE projekt_id = ? AND art != 'bestellung' ORDER BY geaendert DESC", (pid,)).fetchall():
         d = _dict(a)
         d.update({"ungelesen": _ungelesen(con, a, "team"), "letzte": _letzte(con, a["id"], False),
                   "zustaendig_name": namen.get(a["zustaendig_id"])})
@@ -444,8 +432,10 @@ def zaehler(con, konto):
 
 def team_zaehler(con, pid):
     """Fuer die Reiter des Teams: Vorgaenge mit neuer Antwort einer Lehrkraft."""
+    from . import bestellung   # hier, um einen Import-Kreis zu vermeiden
     liste_ = vorgaenge_team(con, pid)
-    return {"ungelesen": sum(1 for d in liste_ if d["ungelesen"]), "neu": _neu(con, liste_, False)}
+    return {"ungelesen": sum(1 for d in liste_ if d["ungelesen"]), "neu": _neu(con, liste_, False),
+            "bestellung": bestellung.team_neu(con, pid)}
 
 
 def _schultage_seit(zeit, heute):

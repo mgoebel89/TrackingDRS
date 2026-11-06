@@ -12,7 +12,7 @@ const token = location.pathname.split('/')[2] || '';
 const basis = '/api/t/' + encodeURIComponent(token);
 const REITER = [['uebersicht', 'Übersicht', 'Start', 'start'], ['sheet', 'Tracking-Sheet', 'Sheet', 'sheet'],
   ['besprechung', 'Besprechung', 'Bespr.', 'bespr'], ['anfragen', 'Anfragen', 'Anfr.', 'anfr'],
-  ['projekt', 'Projekt', 'Projekt', 'projekt']];
+  ['bestellung', 'Bestellung', 'Bestell.', 'wagen'], ['projekt', 'Projekt', 'Projekt', 'projekt']];
 const U = { sheet: null, entfallen: [] };   // was "Demnaechst" braucht
 let projekt = null;
 const bereich = el('div', { class: 'stapel' });
@@ -22,8 +22,9 @@ let zaehlerAbfragen = () => {};
 let leiste = null;
 
 function zaehlerZeigen(z) {
-  T.reiterZahl(leiste, z.ungelesen, z.ungelesen === 1 ? '1 neue Antwort' : z.ungelesen + ' neue Antworten');
-  T.titelZahl(z.ungelesen);
+  T.reiterZahl(leiste, z.ungelesen, z.ungelesen === 1 ? '1 neue Antwort' : z.ungelesen + ' neue Antworten', 'anfragen');
+  T.reiterZahl(leiste, z.bestellung || 0, 'Neues bei euren Bestelllisten', 'bestellung');
+  T.titelZahl(z.ungelesen + (z.bestellung || 0));
 }
 
 function namenFelder(m) {
@@ -185,6 +186,12 @@ function zeigen() {
     Anfragen.teamErzeugen({ ort, basis, beiAenderung: nachAenderung }).laden();
     return;
   }
+  if (wahl === 'bestellung') {
+    const ort = el('div');
+    T.setzen(bereich, ort);
+    Anfragen.teamBestellung({ ort, basis, beiAenderung: nachAenderung }).laden();
+    return;
+  }
   const ort = el('div');
   T.setzen(bereich, ort);
   Raster.erzeugen({ ort, basis, rolle: 'team', ansicht: 'raster', beiAenderung: warnungenLaden }).laden();
@@ -209,7 +216,8 @@ async function start() {
   document.getElementById('unter').textContent = projekt.titel;
   T.titel(projekt.titel);
   if (!projekt.mitglieder.length) projekt = await eintragen();
-  leiste = T.reiterleiste(REITER.map(([k, lang, kurz, symbol]) => ({ schluessel: k, ziel: '#' + k, lang, kurz, symbol, zahl: k === 'anfragen' })));
+  leiste = T.reiterleiste(REITER.map(([k, lang, kurz, symbol]) => ({ schluessel: k, ziel: '#' + k, lang, kurz, symbol,
+    zahl: k === 'anfragen' || k === 'bestellung' })));
   T.setzen(inhalt, teamKopf(), leiste, hinweise, bereich);
   T.hoehenMerken();
   window.addEventListener('resize', T.hoehenMerken);

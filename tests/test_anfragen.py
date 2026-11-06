@@ -125,7 +125,7 @@ class Anfragen(Basis):
         z = anfragen.zaehler(self.con, self.gob)
         self.assertGreater(z["neu"][0]["nid"], nid)   # neuer Eintrag: wird wieder gemeldet
         self.assertEqual(z["neu"][0]["text"], "Oder lieber 1,5?")
-        self.assertEqual(anfragen.team_zaehler(self.con, self.klima), {"ungelesen": 0, "neu": []})
+        self.assertEqual(anfragen.team_zaehler(self.con, self.klima), {"ungelesen": 0, "neu": [], "bestellung": 0})
         # interne Notiz meldet das Team nicht, die Antwort schon
         anfragen.nachricht(self.con, self.klima, aid, "lehrkraft", {"text": "Frag mal Schu", "intern": True}, self.gob)
         self.assertEqual(anfragen.team_zaehler(self.con, self.klima)["ungelesen"], 0)
@@ -234,12 +234,13 @@ class Bestellung(Basis):
         self.entscheiden(self.klima, p5, entscheidung="ablehnen", kommentar="kein Bedarf")
         self.assertIsNotNone(self.con.execute("SELECT geprueft FROM bestellliste WHERE id = (SELECT liste_id FROM position WHERE id = ?)",
                                               (p1,)).fetchone()[0])
-        # Gespraechsverlauf zur Liste: Pruefentscheidungen als Ereignisse, "geprueft" am Ende
-        v = [x for x in anfragen.vorgaenge_lehrkraft(self.con, self.gob, "alle") if x["art"] == "bestellung" and x["projekt_id"] == self.klima][0]
-        was = [n["daten"].get("was") for n in anfragen.vorgang(self.con, self.klima, v["id"], self.gob)["verlauf"]]
-        self.assertEqual(was.count("position"), 5)
-        self.assertIn("geprueft", was)
-        self.assertEqual(anfragen.vorgang(self.con, self.klima, v["id"])["stand"], "bearbeitung")
+        # Einreichen legt keine Anfrage mehr an (J1); das Team sieht am Reiter, dass geprueft wurde, bis es hineinschaut
+        self.assertEqual(self.con.execute("SELECT COUNT(*) FROM anfrage WHERE art = 'bestellung'").fetchone()[0], 0)
+        self.assertEqual(anfragen.team_zaehler(self.con, self.klima)["bestellung"], 1)
+        self.assertTrue(bestellung.team_sicht(self.con, self.klima)["eingereicht"][0]["neu"])
+        bestellung.team_gesehen(self.con, self.klima)
+        self.assertEqual(anfragen.team_zaehler(self.con, self.klima)["bestellung"], 1)   # die Firma-Frage zu p4 wartet noch
+        self.assertEqual(bestellung.projekt_listen(self.con, self.klima)["eingereicht"][0]["verlauf"], [])
         # Status: nur passend zum Weg
         bestellung.pruefen(self.con, self.klima, "gob", {"aktion": "status", "position_id": p1, "status": "bestellt"})
         with self.assertRaises(projekte.ProjektFehler):
@@ -288,16 +289,34 @@ class Bestellung(Basis):
         self.assertEqual((pos()[p]["firma_stand"], pos()[p]["firma_wer"]), ("zugesagt", "Lena Schmitt"))
         bestellung.team_aendern(self.con, self.klima, {"aktion": "firma_besorgt", "position_id": p, "besorgt": True})
         self.assertEqual(pos()[p]["firma_stand"], "besorgt")
-        # Nein: offen zurueck an die Lehrkraft, Liste nicht mehr fertig geprueft, Vorgang ungelesen
-        v = [x for x in anfragen.vorgaenge_lehrkraft(self.con, self.gob, "alle") if x["art"] == "bestellung"][0]
-        anfragen.vorgang(self.con, self.klima, v["id"], self.gob)
+        # Nein: offen zurueck an die Lehrkraft, Liste nicht mehr fertig geprueft
         bestellung.team_aendern(self.con, self.klima, {"aktion": "firma_antwort", "position_id": q, "ja": False})
         self.assertEqual((pos()[q]["entscheidung"], pos()[q]["firma_stand"]), (None, "nein"))
         self.assertIsNone(self.con.execute("SELECT geprueft FROM bestellliste").fetchone()[0])
-        self.assertTrue([x for x in anfragen.vorgaenge_lehrkraft(self.con, self.gob, "alle") if x["id"] == v["id"]][0]["ungelesen"])
+        self.assertEqual([x for x in anfragen.vorgaenge_lehrkraft(self.con, self.gob, "alle")], [])
         # neue Entscheidung: der Firma-Vermerk verschwindet
         self.entscheiden(self.klima, q, entscheidung="bestellen")
         self.assertIsNone(pos()[q]["firma_stand"])
+
+    def test_alte_bestell_anfrage(self):
+        """Listen von vor J1 haben einen Vorgang: er erscheint nicht mehr bei den Anfragen, sein Verlauf bei der Liste."""
+        p = self.pos(self.klima)
+        bestellung.fenster_anlegen(self.con, self.gob, {"von": "2026-11-02", "bis": "2026-11-05T12:00", "klasse": "BSMT 22b"})
+        bestellung.team_aendern(self.con, self.klima, {"aktion": "einreichen"})
+        lid = self.con.execute("SELECT id FROM bestellliste").fetchone()[0]
+        with db.transaktion(self.con):
+            aid = self.con.execute("INSERT INTO anfrage (projekt_id, art, titel, status, erstellt, geaendert, stand, bestellliste_id) "
+                                   "VALUES (?, 'bestellung', 'Liste', 'neu', ?, ?, 'offen', ?)", (self.klima, self.zeit, self.zeit, lid)).lastrowid
+            anfragen.notieren(self.con, aid, "lehrkraft", "gob", art="intern", text="nur intern")
+            anfragen.notieren(self.con, aid, "lehrkraft", "gob", art="nachricht", text="Bitte Datenblatt nachreichen")
+        self.entscheiden(self.klima, p, entscheidung="bestellen")
+        self.assertEqual(anfragen.vorgaenge_team(self.con, self.klima), [])
+        self.assertEqual(anfragen.zaehler(self.con, self.gob)["ungelesen"], 0)
+        team = bestellung.team_sicht(self.con, self.klima)["eingereicht"][0]["verlauf"]
+        self.assertEqual([n["text"] for n in team if n["art"] != "ereignis"], ["Bitte Datenblatt nachreichen"])
+        lk = bestellung.liste_lesen(self.con, self.gob, lid)["verlauf"]
+        self.assertIn("nur intern", [n["text"] for n in lk])
+        self.assertEqual(self.con.execute("SELECT stand FROM anfrage WHERE id = ?", (aid,)).fetchone()[0], "offen")
 
     def test_sonderfenster_nur_fuer_ein_team(self):
         self.pos(self.klima)

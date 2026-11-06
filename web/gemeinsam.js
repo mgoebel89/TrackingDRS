@@ -160,8 +160,8 @@ const T = {
       if (a.dataset.reiter === schluessel) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
   },
-  reiterZahl(leiste, n, titel) {
-    const b = leiste && leiste.querySelector('.reiter-zahl');
+  reiterZahl(leiste, n, titel, schluessel) {
+    const b = leiste && leiste.querySelector(schluessel ? 'a[data-reiter="' + schluessel + '"] .reiter-zahl' : '.reiter-zahl');
     if (!b) return;
     b.textContent = String(n);
     b.hidden = !n;
