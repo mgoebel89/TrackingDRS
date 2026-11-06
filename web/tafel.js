@@ -474,7 +474,7 @@ const Tafel = (() => {
       }
       const mehr = await ergebnisAngaben(zone, { text: r.titel });
       if (mehr === null) { zeichnen(); return; }
-      const bild = rahmenBild(r, 'image/png').split(',')[1];
+      const bild = rahmenBild(r, 'image/jpeg').split(',')[1];   // JPEG: kommt so auch ins PDF
       const e = await senden(Object.assign({ aktion: 'rahmen_ergebnis', id: r.id, zone, bild }, mehr));
       if (e && e.key) T.meldung('„' + r.titel + '“ ist jetzt ' + { absprachen: 'eine Absprache', auftraege: 'ein Auftrag', meilensteine: 'ein Meilenstein' }[zone] + ', die Skizze hängt als Bild daran.');
     }
@@ -899,8 +899,12 @@ const Tafel = (() => {
     async function abschliessen() {
       const n = D.postits.filter(z => ERGEBNIS.includes(z.zone)).length;
       const ok = await T.dialog({ titel: 'Besprechung abschließen?', knopf: 'Abschließen',
-        inhalt: el('p', { text: 'Die Tafel wird mit ' + n + (n === 1 ? ' Ergebnis' : ' Ergebnissen') + ' eingefroren und steht im Protokoll. Offene Aufträge, Fragen und Ideen wandern zur nächsten Tafel.' }),
-        speichern: () => T.api('POST', basis + '/besprechung', { aktion: 'abschliessen', woche: D.woche }) });
+        inhalt: el('p', { text: 'Die Tafel wird mit ' + n + (n === 1 ? ' Ergebnis' : ' Ergebnissen') + ' eingefroren und steht im Protokoll. Offene Aufträge, Fragen, Ideen und Rahmen wandern zur nächsten Tafel. Danach gibt es sie als PDF und als Bild.' }),
+        speichern: () => {
+          let bild = null;   // Bild der Tafel fuer das PDF (JPEG, 3200 x 1800)
+          try { bild = bildErzeugen(D, S.pos, groesse, { typ: 'image/jpeg', zonen: true, faktor: 2 }).split(',')[1]; } catch (e) { bild = null; }
+          return T.api('POST', basis + '/besprechung', { aktion: 'abschliessen', woche: D.woche, bild });
+        } });
       if (!ok) return;
       D.abgeschlossen = true;
       T.setzen(ort, el('div', { class: 'tafel-fertig' }, el('h1', { class: 'dreieck', text: 'Besprechung abgeschlossen' }),
@@ -937,5 +941,34 @@ const Tafel = (() => {
     eingefrorenZeichnen(aufbauen(rahmen), d, bildBasis);
   }
 
-  return { starten, ansehen, aufsBoard, einbetten };
+  // --- Nach der Besprechung: Tafel als Bild (PNG, im Browser gemalt) und PDF (im Container gebaut) ---
+  async function eingefrorenesBild(url, typ) {
+    const d = (await T.api('GET', url)).tafel;
+    const pos = anordnen(d.postits, d.positionen || {}, rahmenKeys(d.objekte));
+    return bildErzeugen(d, pos, z => [breite(z), PH], { typ, zonen: true, faktor: 2 });
+  }
+
+  // p: Protokoll (id, woche, tafel_bild), basis: /api/projekte/<id> oder /api/t/<link>, titel: Projekt
+  async function alsPng(basis, p, titel) {
+    try { herunterladen(await eingefrorenesBild(basis + '/tafel/' + p.id, 'image/png'), 'Tafel ' + T.kwText(p.woche) + ' – ' + titel + '.png'); }
+    catch (e) { T.meldung(e.message, true); }
+  }
+
+  async function alsPdf(basis, p) {
+    try {
+      if (!p.tafel_bild && p.tafel) {   // Besprechungen von vor 0.10.6: Bild der Tafel einmal nachtragen
+        const bild = (await eingefrorenesBild(basis + '/tafel/' + p.id, 'image/jpeg')).split(',')[1];
+        p.tafel_bild = (await T.api('POST', basis + '/besprechung/' + p.id + '/tafelbild', { bild })).tafel_bild;
+      }
+      location.href = basis + '/besprechung/' + p.id + '/pdf';
+    } catch (e) { T.meldung(e.message, true); }
+  }
+
+  function downloadKnoepfe(basis, p, titel) {
+    return el('div', { class: 'zeile download-knoepfe' },
+      el('button', { type: 'button', class: 'haupt', onclick: () => alsPdf(basis, p) }, T.symbol('laden'), 'PDF herunterladen'),
+      p.tafel ? el('button', { type: 'button', onclick: () => alsPng(basis, p, titel) }, T.symbol('bild'), 'Tafel als Bild (PNG)') : null);
+  }
+
+  return { starten, ansehen, aufsBoard, einbetten, alsPng, alsPdf, downloadKnoepfe };
 })();

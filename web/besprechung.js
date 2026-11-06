@@ -23,7 +23,7 @@ const Besprechung = (() => {
       el('span', { class: 'ez-text' }, e.text, e.verantwortlich ? el('span', { class: 'chip', text: e.verantwortlich }) : null), status);
   }
 
-  function protokolle(liste, lehrkraft, basis) {
+  function protokolle(liste, lehrkraft, basis, titel) {
     if (!liste.length) return el('div', { class: 'leise', text: 'Noch keine abgeschlossene Besprechung.' });
     return el('div', { class: 'stapel-eng' }, liste.map(p => {
       const nach = art => (p.ergebnis || []).filter(e => e.art === art);
@@ -41,7 +41,9 @@ const Besprechung = (() => {
           p.vorbereitung ? el('div', {}, el('div', { class: 'etikett', text: 'Stand des Teams' }), el('p', { class: 'vortext', text: p.vorbereitung })) : null,
           lehrkraft && p.notizen ? el('div', { class: 'notiz-alt' }, el('div', { class: 'etikett', text: 'Lehrernotizen (nur Lehrkräfte)' }),
             el('p', { class: 'vortext', text: p.notizen })) : null,
-          p.tafel ? el('div', {}, el('button', { type: 'button', onclick: () => Tafel.ansehen(basis + '/tafel/' + p.id, basis) }, 'Tafel ansehen')) : null,
+          el('div', { class: 'zeile' },
+            p.tafel ? el('button', { type: 'button', onclick: () => Tafel.ansehen(basis + '/tafel/' + p.id, basis) }, 'Tafel ansehen') : null,
+            Tafel.downloadKnoepfe(basis, p, titel || 'Projekt')),
           el('div', { class: 'leise klein-text', text: 'abgeschlossen ' + T.zeitText(p.abgeschlossen) + (p.von ? ' von ' + p.von.toUpperCase() : '') })));
     }));
   }
@@ -187,7 +189,7 @@ const Besprechung = (() => {
       T.setzen(links, zusammenfassung());
       T.setzen(ergebnisOrt, ergebnis());
       T.setzen(frueher, el('section', { class: 'karte stapel-eng' }, el('h2', { class: 'dreieck', text: 'Frühere Besprechungen' }),
-        protokolle(B.protokolle, true, basis)));
+        protokolle(B.protokolle, true, basis, B.projekt_titel)));
     }
 
     T.setzen(ort || inhalt,
@@ -307,7 +309,7 @@ const Besprechung = (() => {
           auftraege.length ? auftraege.map(e => auftragZeile(e, (x, wert) => senden({ aktion: 'erledigt', eintrag_id: x.id, erledigt: wert },
             wert ? 'Abgehakt.' : 'Wieder offen.'))) : el('div', { class: 'leise klein-text', text: 'Keine Aufträge offen.' })),
         el('section', { class: 'karte stapel-eng' },
-          el('h2', { class: 'dreieck', text: 'Protokolle' }), protokolle(B.protokolle, false, basis))));
+          el('h2', { class: 'dreieck', text: 'Protokolle' }), protokolle(B.protokolle, false, basis, B.projekt_titel))));
     }
 
     function tafelKarte() {

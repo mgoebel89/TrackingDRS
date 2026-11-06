@@ -23,8 +23,8 @@ import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import (VERSION, anfragen, besprechung, bestellung, cockpit, db, einstellungen, export, extras, kalender, konten, projekte,
-               sheet, tafel, termine, updates, vpn)
+from . import (VERSION, anfragen, besprechung, bestellung, cockpit, db, einstellungen, export, extras, kalender, konten, pdf,
+               projekte, sheet, tafel, termine, updates, vpn)
 
 BASIS = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WEB_DIR = os.path.join(BASIS, "web")
@@ -604,8 +604,45 @@ def api_besprechung(h, con, daten, pid):
 
 def api_besprechung_aendern(h, con, daten, pid):
     k, pid = _projekt(h, con, pid)
+    if daten.get("aktion") == "abschliessen" and daten.get("bild"):   # Bild der Tafel fuer das PDF
+        daten = dict(daten, bild_name=tafel.bild_speichern(_daten_dir(h), daten["bild"]))
     ergebnis = besprechung.aendern(con, pid, "lehrkraft", k["kuerzel"], daten)
     h.antwort(200, {"ergebnis": ergebnis, "besprechung": besprechung.lesen(con, pid, lehrkraft=True)})
+
+
+# --- Nach der Besprechung: PDF (Tafel und Ergebnis) ---
+
+def _pdf_antwort(h, con, pid, bid):
+    inhalt = pdf.besprechung_pdf(con, _daten_dir(h), pid, bid)
+    name = pdf.dateiname(con, pid, bid)
+    einfach = "".join(c if c.isascii() and (c.isalnum() or c in " -_.") else "_" for c in name)
+    h.antwort(200, inhalt, "application/pdf", extra=[("Content-Disposition", "attachment; filename=\"%s\"; filename*=UTF-8''%s"
+                                                     % (einfach, urllib.parse.quote(name)))])
+
+
+def _tafelbild(h, con, pid, bid, daten):
+    if not daten.get("bild"):
+        raise Fehler(400, "Kein Bild.")
+    name = pdf.tafelbild_setzen(con, pid, bid, tafel.bild_speichern(_daten_dir(h), daten["bild"]))
+    h.antwort(200, {"tafel_bild": name})
+
+
+def api_besprechung_pdf(h, con, daten, pid, bid):
+    _k, pid = _projekt(h, con, pid)
+    _pdf_antwort(h, con, pid, _ganzzahl(bid))
+
+
+def api_besprechung_tafelbild(h, con, daten, pid, bid):
+    _k, pid = _projekt(h, con, pid)
+    _tafelbild(h, con, pid, _ganzzahl(bid), daten)
+
+
+def api_team_besprechung_pdf(h, con, daten, token, bid):
+    _pdf_antwort(h, con, _team_projekt(con, token), _ganzzahl(bid))
+
+
+def api_team_besprechung_tafelbild(h, con, daten, token, bid):
+    _tafelbild(h, con, _team_projekt(con, token), _ganzzahl(bid), daten)
 
 
 # --- Besprechungstafel ---
@@ -1112,6 +1149,8 @@ ROUTEN = [(m, re.compile(p), f) for m, p, f in [
     ("GET", r"/api/bestellliste/(\d+)", api_bestellliste),
     ("GET", r"/api/projekte/(\d+)/besprechung", api_besprechung),
     ("POST", r"/api/projekte/(\d+)/besprechung", api_besprechung_aendern),
+    ("GET", r"/api/projekte/(\d+)/besprechung/(\d+)/pdf", api_besprechung_pdf),
+    ("POST", r"/api/projekte/(\d+)/besprechung/(\d+)/tafelbild", api_besprechung_tafelbild),
     ("GET", r"/api/projekte/(\d+)/tafel", api_tafel),
     ("POST", r"/api/projekte/(\d+)/tafel", api_tafel_aendern),
     ("GET", r"/api/projekte/(\d+)/tafel/(\d+)", api_tafel_alt),
@@ -1144,6 +1183,8 @@ ROUTEN = [(m, re.compile(p), f) for m, p, f in [
     ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/bestellung", api_team_bestellung),
     ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/besprechung", api_team_besprechung),
     ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/besprechung", api_team_besprechung_aendern),
+    ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/besprechung/(\d+)/pdf", api_team_besprechung_pdf),
+    ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/besprechung/(\d+)/tafelbild", api_team_besprechung_tafelbild),
     ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/tafel", api_team_tafel),
     ("POST", r"/api/t/([A-Za-z0-9_-]{20,64})/tafel", api_team_tafel_senden),
     ("GET", r"/api/t/([A-Za-z0-9_-]{20,64})/tafel/(\d+)", api_team_tafel_alt),

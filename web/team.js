@@ -122,13 +122,27 @@ function demnaechst() {
   T.setzen(demOrt, teile.length ? teile : el('p', { class: 'leise', text: 'In den nächsten zwei Wochen steht nichts Besonderes an.' }));
 }
 
+// Letzte abgeschlossene Besprechung mit PDF (Tafel und Ergebnis) und der Tafel als Bild
+async function letzteBesprechung(ort) {
+  try {
+    const B = (await T.api('GET', basis + '/besprechung')).besprechung;
+    const p = B.protokolle[0];
+    if (!p) { ort.closest('section').remove(); return; }
+    T.setzen(ort, el('p', { class: 'leise', text: T.kwText(p.woche) + (p.termin ? ' · ' + T.kurzTag(p.termin.datum) + ', ' + p.termin.uhrzeit : '') +
+      ' · ' + (p.ergebnis || []).length + ((p.ergebnis || []).length === 1 ? ' Ergebnis' : ' Ergebnisse') }),
+    Tafel.downloadKnoepfe(basis, p, B.projekt_titel));
+  } catch (e) { ort.closest('section').remove(); }
+}
+
 function uebersicht() {
-  const terminOrt = el('div'), ampelOrt = el('div');
+  const terminOrt = el('div'), ampelOrt = el('div'), letzteOrt = el('div');
   T.setzen(bereich, el('div', { class: 'uebersicht' },
     el('div', { class: 'stapel' },
       el('section', { class: 'karte' }, el('h2', { class: 'dreieck', text: 'Besprechungstermin' }), terminOrt),
-      el('section', { class: 'karte' }, el('h2', { class: 'dreieck', text: 'Demnächst' }), demOrt)),
+      el('section', { class: 'karte' }, el('h2', { class: 'dreieck', text: 'Demnächst' }), demOrt),
+      el('section', { class: 'karte stapel-eng' }, el('h2', { class: 'dreieck', text: 'Letzte Besprechung' }), letzteOrt)),
     el('section', { class: 'karte' }, el('h2', { class: 'dreieck', text: 'Diese Woche' }), ampelOrt)));
+  letzteBesprechung(letzteOrt);
   Termine.erzeugen({ ort: terminOrt, basis, rolle: 'team', beiAenderung: termineGeladen }).laden();
   Raster.erzeugen({ ort: ampelOrt, basis, rolle: 'team', ansicht: 'woche', beiAenderung: warnungenLaden,
     beiLaden: sheet => { U.sheet = sheet; demnaechst(); } }).laden();

@@ -491,6 +491,10 @@ body.tafel-seite { background: #e9edf2; overflow: hidden; }
   display: grid; place-items: center; z-index: 3; cursor: grab; touch-action: none; }
 .st .symbol { width: 100%; height: 100%; stroke-width: 2; }
 .pi .st.haftet { width: 38px; height: 38px; padding: 6px; left: -14px; top: -16px; }
+/* Nach der Besprechung: PDF und Bild (I7) */
+.download-knoepfe { gap: 6px; flex-wrap: wrap; }
+.download-knoepfe button { display: inline-flex; align-items: center; gap: 6px; }
+
 /* Rahmen um Skizzen (I6) */
 .t-rahmen { position: absolute; border: 2px solid #7fb1cf; border-radius: 8px; background: rgba(232,242,249,.38); cursor: grab; touch-action: none; }
 .t-rahmen.ergebnis { border-color: var(--blau); }

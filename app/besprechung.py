@@ -239,6 +239,7 @@ def lesen(con, pid, lehrkraft=False):
                        for m in con.execute("SELECT * FROM mitglied WHERE projekt_id = ? AND aktiv = 1 ORDER BY nachname", (pid,))],
         "protokolle": _protokolle(con, pid, lehrkraft),
         "projektwochen": termine.projektwochen(con, _projekt(con, pid)),
+        "projekt_titel": _projekt(con, pid)["titel"],   # fuer Dateinamen (PDF, Bild)
     }
     if lehrkraft:
         d["zusammenfassung"] = zusammenfassung(con, pid, woche)
@@ -364,7 +365,8 @@ def aendern(con, pid, wer_art, wer, d):
             from . import tafel   # hier, weil tafel seinerseits besprechung braucht
             protokoll = {"termin": _termin(con, pid, woche), "vorbereitung": b["vorbereitung"],
                          "zusammenfassung": zusammenfassung(con, pid, woche), "ergebnis": ergebnis, "geklaert": geklaert,
-                         "tafel": tafel.momentaufnahme(con, pid, woche)}
+                         "tafel": tafel.momentaufnahme(con, pid, woche),
+                         "tafel_bild": d.get("bild_name")}   # Bild der Tafel (JPEG, im Browser gemalt) fuer das PDF
             con.execute("UPDATE besprechung SET abgeschlossen = ?, abgeschlossen_von = ?, protokoll = ? WHERE id = ?",
                         (jetzt, wer, json.dumps(protokoll, ensure_ascii=False), b["id"]))
             ereignis("besprechung_abgeschlossen", woche=woche, ergebnisse=len(ergebnis))

@@ -200,6 +200,27 @@ class Tafel(unittest.TestCase):
         self.assertEqual([x["a"] for x in o["pfeile"] if x["id"] == p2], [{"x": 550, "y": 120}])
         del p
 
+    def test_pdf_der_besprechung(self):
+        from app import pdf
+        # kleinstes JPEG, das den SOF-Marker hat (mehr braucht das PDF nicht zu wissen)
+        jpeg = b"\xff\xd8\xff\xc0\x00\x11\x08\x00\x10\x00\x20\x03\x01\x22\x00\x02\x11\x01\x03\x11\x01\xff\xd9"
+        name = tafel.bild_speichern(self.ordner, base64.b64encode(jpeg).decode())
+        self.board(aktion="postit", zone="auftraege", text="Datenblatt Lüfter suchen", frist="2026-11-10", x=1100, y=350)
+        self.board(aktion="postit", zone="absprachen", text="24 V ist freigegeben", x=1100, y=60)
+        b = besprechung._zeile(self.con, self.pid, self.woche)
+        besprechung.aendern(self.con, self.pid, "lehrkraft", "gob", {"aktion": "abschliessen", "woche": self.woche, "bild_name": name})
+        inhalt = pdf.besprechung_pdf(self.con, self.ordner, self.pid, b["id"])
+        self.assertTrue(inhalt.startswith(b"%PDF-1.4") and inhalt.rstrip().endswith(b"%%EOF"))
+        self.assertEqual(inhalt.count(b"/Type /Page "), 2)
+        self.assertIn(b"/Subtype /Image /Width 32 /Height 16", inhalt)
+        self.assertIn("Datenblatt Lüfter suchen".encode("cp1252"), inhalt)
+        self.assertIn(b"bis 10.11.2026", inhalt)
+        self.assertEqual(pdf.dateiname(self.con, self.pid, b["id"]), "Besprechung KW 45 - Klimaanlage.pdf")
+        # Bild nachtragen geht nur, solange keins da ist
+        self.assertEqual(pdf.tafelbild_setzen(self.con, self.pid, b["id"], "x" * 24), name)
+        with self.assertRaises(projekte.ProjektFehler):
+            pdf.besprechung_pdf(self.con, self.ordner, self.anderes, b["id"])
+
     def test_anwesenheit(self):
         tafel.melden(self.pid, "tafel")
         tafel.melden(self.pid, "g-1")
