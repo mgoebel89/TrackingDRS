@@ -792,3 +792,8 @@ nav.seite { scrollbar-width: thin; }
 .alter-verlauf summary { cursor: pointer; color: var(--leise); }
 .alter-verlauf .vg-n { margin-top: 6px; padding: 6px 10px; border-radius: 8px; background: var(--bg); }
 .alter-verlauf .vg-n.intern { background: #fff6d6; }
+
+/* Anfrage wieder oeffnen (J7) */
+.wieder-oeffnen { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; padding: 10px;
+  border: 1px dashed var(--blau-mittel); border-radius: 12px 5px 5px 5px; color: var(--leise); }
+.wieder-oeffnen button .symbol { width: 18px; height: 18px; }

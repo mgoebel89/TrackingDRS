@@ -29,6 +29,7 @@ const Vorgang = (() => {
       case 'firma': return '„' + d.artikel + '“: ' + ({ zugesagt: d.name + ' besorgt es über die Firma',
         nein: 'über die Firma nicht möglich, bitte neu entscheiden', besorgt: 'über die Firma besorgt und mitgebracht' })[d.firma];
       case 'status': return wer(n) + ': ' + (SCHRITT[d.status] || d.status);
+      case 'wieder_geoeffnet': return 'Vom Team wieder geöffnet';
       case 'tafel': return 'Soll in der Besprechung geklärt werden (liegt als Frage auf der Tafel)';
       case 'geklaert': return 'In der Besprechung am ' + datum(d.datum) + ' geklärt';
       case 'sonderfenster': return wer(n) + ' hat ein Sonderfenster für die Bestellliste geöffnet, bis ' + T.zeitpunkt(d.bis);
@@ -399,6 +400,17 @@ const Vorgang = (() => {
         return true;
       } catch (e) { T.meldung(e.message, true); return false; }
     }
+    // J7: erledigte Anfrage mit Grund wieder oeffnen
+    async function wiederOeffnen(v) {
+      const grund = el('textarea', { rows: '3', maxlength: '4000', required: true, placeholder: 'z. B. Welche Sicherung sollen wir nehmen?' });
+      const name = v.zustaendig && !v.zustaendig.ehemalig ? v.zustaendig.name : null;
+      const ok = await T.dialog({ titel: 'Anfrage wieder öffnen', knopf: 'Wieder öffnen',
+        inhalt: el('div', { class: 'felder' }, T.feld('Was ist noch offen?', grund,
+          'Ein Satz reicht. Er geht als Nachricht an ' + (name || 'eure Lehrkräfte') + '.')),
+        speichern: async () => { zeichnen((await T.api('POST', basis + '/vorgaenge/' + id, { aktion: 'wieder_oeffnen', text: grund.value })).vorgang); return true; } });
+      if (ok) { T.meldung('Wieder geöffnet.'); if (beiAenderung) beiAenderung(); }
+    }
+
     function zeichnen(v) {
       const verlaufOrt = verlauf(v, basis, 'team');
       T.setzen(ort, el('section', { class: 'karte stapel-eng vg-team' },
@@ -408,6 +420,8 @@ const Vorgang = (() => {
           v.stand === 'offen' && v.art !== 'bestellung' ? el('button', { type: 'button', class: 'leicht', onclick: () => senden({ aktion: 'zurueckziehen' }, 'Zurückgezogen.') }, 'Zurückziehen') : null,
           v.status === 'nachbessern' ? el('button', { type: 'button', onclick: () => senden({ aktion: 'erneut' }, 'Erneut angefragt.') }, 'Nachgebessert, erneut anfragen') : null),
         verlaufOrt,
+        v.stand === 'erledigt' ? el('div', { class: 'wieder-oeffnen' }, el('span', { text: 'Ist noch etwas offen?' }),
+          el('button', { type: 'button', class: 'haupt', onclick: () => wiederOeffnen(v) }, T.symbol('zurueck'), 'Wieder öffnen')) : null,
         antwortfeld('team', d => senden({ aktion: 'nachricht', text: d.text, bild: d.bild }, 'Gesendet.'))));
       verlaufOrt.scrollTop = verlaufOrt.scrollHeight;
     }

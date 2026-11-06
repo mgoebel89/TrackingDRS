@@ -298,6 +298,28 @@ class Bestellung(Basis):
         self.entscheiden(self.klima, q, entscheidung="bestellen")
         self.assertIsNone(pos()[q]["firma_stand"])
 
+    def test_team_oeffnet_wieder(self):
+        aid = anfragen.anlegen(self.con, self.klima, {"art": "rueckfrage", "titel": "24 V?", "text": "Dürfen wir?"})
+        with self.assertRaises(projekte.ProjektFehler):   # noch nicht erledigt
+            anfragen.team_aendern(self.con, self.klima, {"anfrage_id": aid, "aktion": "wieder_oeffnen", "text": "noch offen"})
+        anfragen.nachricht(self.con, self.klima, aid, "lehrkraft", {"text": "Ja."}, self.gob)
+        anfragen.bearbeiten(self.con, self.klima, self.gob, {"anfrage_id": aid, "aktion": "stand", "stand": "erledigt"})
+        with self.assertRaises(projekte.ProjektFehler):   # Grund ist Pflicht
+            anfragen.team_aendern(self.con, self.klima, {"anfrage_id": aid, "aktion": "wieder_oeffnen", "text": "  "})
+        anfragen.team_aendern(self.con, self.klima, {"anfrage_id": aid, "aktion": "wieder_oeffnen", "text": "Welche Sicherung?"})
+        v = anfragen.vorgang(self.con, self.klima, aid)
+        self.assertEqual((v["stand"], v["zustaendig"]["kuerzel"]), ("bearbeitung", "GOB"))
+        self.assertEqual([n["text"] for n in v["verlauf"] if n["art"] == "nachricht"][-1], "Welche Sicherung?")
+        self.assertIn("wieder_geoeffnet", [n["daten"].get("was") for n in v["verlauf"]])
+        self.assertTrue([x for x in anfragen.vorgaenge_lehrkraft(self.con, self.gob) if x["id"] == aid][0]["ungelesen"])
+        # betreut die Lehrkraft das Projekt nicht mehr: wieder "neu" ohne Zustaendigkeit
+        anfragen.bearbeiten(self.con, self.klima, self.gob, {"anfrage_id": aid, "aktion": "stand", "stand": "erledigt"})
+        with db.transaktion(self.con):
+            self.con.execute("DELETE FROM projekt_lehrkraft WHERE projekt_id = ? AND lehrkraft_id = ?", (self.klima, self.gob["id"]))
+        anfragen.team_aendern(self.con, self.klima, {"anfrage_id": aid, "aktion": "wieder_oeffnen", "text": "Noch eine Frage"})
+        v = anfragen.vorgang(self.con, self.klima, aid)
+        self.assertEqual((v["stand"], v.get("zustaendig")), ("offen", None))
+
     def test_alte_bestell_anfrage(self):
         """Listen von vor J1 haben einen Vorgang: er erscheint nicht mehr bei den Anfragen, sein Verlauf bei der Liste."""
         p = self.pos(self.klima)

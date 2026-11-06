@@ -162,6 +162,24 @@ def team_aendern(con, pid, d):
             con.execute("UPDATE anfrage SET status = 'zurueckgezogen' WHERE id = ?", (a["id"],))
             notieren(con, a["id"], "team", "Team", was="status", status="zurueckgezogen")
             _stand(con, a, "erledigt", "team", "Team")
+        elif aktion == "wieder_oeffnen":   # J7: erledigte Anfrage mit Grund wieder oeffnen, zurueck an dieselbe Lehrkraft
+            if a["stand"] != "erledigt":
+                raise ProjektFehler("Die Anfrage ist nicht erledigt.")
+            grund = _text(d.get("text"), "kurz, was noch offen ist", MAX_NACHRICHT)
+            zust = a["zustaendig_id"]
+            if zust is not None and not con.execute("SELECT 1 FROM projekt_lehrkraft WHERE projekt_id = ? AND lehrkraft_id = ?",
+                                                    (pid, zust)).fetchone():
+                con.execute("UPDATE anfrage SET zustaendig_id = NULL WHERE id = ?", (a["id"],))   # betreut nicht mehr: wieder neu
+                notieren(con, a["id"], "team", "Team", was="zustaendig", kuerzel=None)
+                zust = None
+            if a["status"] == "zurueckgezogen":
+                con.execute("UPDATE anfrage SET status = 'neu' WHERE id = ?", (a["id"],))
+            notieren(con, a["id"], "team", "Team", was="wieder_geoeffnet")
+            nid = notieren(con, a["id"], "team", "Team", art="nachricht", text=grund)
+            con.execute("UPDATE anfrage SET stand = ? WHERE id = ?", ("bearbeitung" if zust else "offen", a["id"]))
+            _gelesen(con, a["id"], "team", nid)
+            db.ereignis(con, pid, "team", "Team", "anfrage_wieder", anfrage_id=a["id"], anfrageart=a["art"], titel=a["titel"], text=grund[:200])
+            return
         elif aktion == "erneut":   # nach "nachbessern": Abnahme erneut anfragen
             if a["art"] != "abnahme" or a["status"] != "nachbessern":
                 raise ProjektFehler("Nur eine Abnahme mit „nachbessern“ lässt sich erneut anfragen.")

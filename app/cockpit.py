@@ -131,7 +131,7 @@ BEREICHE = {
     "raster": SHEET + ("version",),
     "besprechung": ("termin_gebucht", "termin_storniert", "termin_entfallen", "vorbereitung", "eintrag_neu", "eintrag_erledigt",
                     "eintrag_offen", "eintrag_verworfen", "eintrag_umgewandelt", "besprechung_abgeschlossen"),
-    "anfragen": ("anfrage_neu", "anfrage_status", "anfrage_nachricht", "sonderfenster", "position_neu", "position_geaendert",
+    "anfragen": ("anfrage_neu", "anfrage_status", "anfrage_nachricht", "anfrage_wieder", "sonderfenster", "position_neu", "position_geaendert",
                  "position_gestrichen", "position_zurueck", "liste_eingereicht", "position_entschieden", "position_status"),
 }
 STANDARD_BEREICHE = ("raster", "anfragen")
