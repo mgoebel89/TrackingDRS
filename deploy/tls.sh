@@ -9,7 +9,8 @@
 #
 # Die CA darf nur Zertifikate fuer das /16-Netz des Containers und seinen Namen ausstellen (Namensbeschraenkung).
 # Wer ihr Stammzertifikat auf einem Geraet installiert, vertraut ihr also nur dafuer, nicht fuer fremde Webseiten -
-# auch dann nicht, wenn jemand den Container uebernimmt. Weitere Adressen (z.B. die VPN-Adresse) per
+# auch dann nicht, wenn jemand den Container uebernimmt. Die Adresse im VPN (wg0) zaehlt nicht mit. Weitere
+# Adressen (z.B. die Zugriffsadresse oder die VPN-Adresse, falls gewuenscht) per
 # TRACKINGDRS_TLS_IPS="192.168.7.2 10.8.0.20" oder Datei /etc/trackingdrs/tls-ips (eine Adresse je Zeile).
 #
 # Dateien in /var/lib/trackingdrs/tls (Ordner root:trackingdrs 750):
@@ -28,7 +29,11 @@ cd "$DIR"
 
 extra=""
 [ -r /etc/trackingdrs/tls-ips ] && extra=$(grep -v '^#' /etc/trackingdrs/tls-ips || true)
-ips=$(echo "${TRACKINGDRS_TLS_IPS:-$(hostname -I) $extra}" | tr ' ' '\n' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' \
+# Adressen des Containers ohne das VPN (wg0): die VPN-Adresse kommt nur ueber tls-ips hinein (trackingdrs vpn
+# einrichten --zertifikat), sonst entstuende beim ersten Start mit VPN still eine neue CA
+eigene=$(ip -4 -o addr show scope global 2>/dev/null | awk '$2 != "wg0" {split($4, a, "/"); print a[1]}' || true)
+[ -n "$eigene" ] || eigene=$(hostname -I)
+ips=$(echo "${TRACKINGDRS_TLS_IPS:-$eigene $extra}" | tr ' ' '\n' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' \
   | grep -v '^127\.' | sort -u || true)
 [ -n "$ips" ] || { echo "trackingdrs-tls: keine IPv4-Adresse gefunden" >&2; exit 1; }
 

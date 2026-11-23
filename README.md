@@ -70,13 +70,19 @@ Daten: `/var/lib/trackingdrs` (SQLite-Datenbank, Zertifikate). Programm: `/opt/t
 Gebraucht werden die Adresse und der `ListenPort` des Servers, sein öffentlicher Schlüssel (auf dem Server
 `wg show wg0 public-key`, nicht der `PrivateKey` aus der Config) und eine freie VPN-Adresse für den Container. Der
 Schlüssel des Containers entsteht im Container und verlässt ihn nicht; am Ende steht der `[Peer]`-Block zum Einfügen
-auf dem Server (`AllowedIPs` nur die eine Adresse). Über das VPN ist nur HTTPS erreichbar. Die VPN-Adresse kommt ins
-Zertifikat; liegt sie außerhalb des Schulnetzes, entsteht dabei einmalig eine neue Zertifizierungsstelle (Stamm-
-zertifikat auf den Geräten neu installieren). Darum das VPN am besten vor dem Verteilen des Zertifikats einrichten.
+auf dem Server. Über das VPN ist nur HTTPS erreichbar.
+
+Seit 0.12.1 wie im Lehrerkalender MT: Von zuhause öffnest du den Lehrerbereich unter seiner **Zugriffsadresse**
+(vorbelegt mit der Schuladresse, änderbar mit `--zugriff`, muss im /16-Netz der Schuladresse liegen). Sie steht als
+zweite `Address` auf wg0 und bleibt, auch wenn sich die Schuladresse ändert; der VPS bekommt beim Container
+`AllowedIPs = <VPN-Adresse>/32, <Zugriffsadresse>/32` plus eine Route, WireGuard-App bzw. Fritzbox leiten die Adresse
+ins VPN (`trackingdrs vpn server` zeigt alles). Das Stammzertifikat bleibt dabei unverändert. Die VPN-Adresse kommt
+nur mit `--zertifikat` (im Formular: *VPN-Adresse ins Zertifikat*) ins Zertifikat; liegt sie außerhalb des
+Schulnetzes, entsteht dann eine neue Zertifizierungsstelle (Stammzertifikat auf allen Geräten neu installieren).
 
 **VPN ohne Konsole:** Dasselbe geht unter *Einstellungen → VPN* (nur Admins, mit dem eigenen Passwort bestätigt):
-Adresse und Port des VPS, sein öffentlicher Schlüssel und die VPN-Adresse eingeben. Danach zeigt die Seite die
-Erweiterung für die Server-Config, die Befehle für den VPS zum Kopieren (eintragen, Sperre, Kontrolle) und die
+Adresse und Port des VPS, sein öffentlicher Schlüssel, die VPN-Adresse und die Zugriffsadresse eingeben. Danach zeigt
+die Seite die Kopiervorlagen (VPS eintragen samt Route, Sperre, WireGuard-App, Heimnetz, Kontrolle) und die
 Config des Containers; *Verbindung prüfen* testet sofort. Wie beim Update legt der Webdienst nur einen Auftrag in
 `/var/lib/trackingdrs/vpn` ab, `trackingdrs-vpn-anfrage.path` startet `trackingdrs-vpn anfrage` als root, das die
 Angaben noch einmal prüft. Hast du schon eine WireGuard-Datei für den Container (mit dessen PrivateKey, Address und
@@ -90,7 +96,7 @@ zeigt ihn nie wieder an. Den privaten Schlüssel des Servers fragt die Seite nie
 
 ```bash
 curl -fsSLO https://raw.githubusercontent.com/mgoebel89/TrackingDRS/main/vps/sperre.sh
-sudo bash sperre.sh einrichten 10.8.0.20
+sudo bash sperre.sh einrichten 10.8.0.20 192.168.7.2   # VPN-Adresse und Zugriffsadresse des Containers
 ```
 
 Es legt eine eigene nft-Tabelle an (andere Regeln, auch ufw, bleiben unberührt) und lädt sie bei jedem Start vor dem

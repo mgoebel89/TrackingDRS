@@ -4,30 +4,42 @@
 #
 #   trackingdrs vpn einrichten   fragt Server (Adresse:Port), oeffentlichen Schluessel des Servers, VPN-Adresse des
 #                                Containers und die Netze ueber das VPN. Erzeugt den Schluessel im Container (er verlaesst
-#                                ihn nie), schreibt /etc/wireguard/wg0.conf, nimmt die VPN-Adresse ins Zertifikat auf,
-#                                startet die Verbindung und zeigt den Block fuer die Server-Config.
+#                                ihn nie), schreibt /etc/wireguard/wg0.conf, startet die Verbindung und zeigt, was auf
+#                                dem VPS und den Geraeten einzutragen ist.
 #   trackingdrs vpn status       Verbindung, letzter Handshake, Ping zum Server, Sperrtest
 #   trackingdrs vpn sperrtest    versucht Server, Heimnetz und andere Teilnehmer zu erreichen: alles muss scheitern
 #                                (laeuft auch taeglich, der Lehrerbereich warnt rot, wenn etwas durchkommt)
-#   trackingdrs vpn server       den Block fuer die Server-Config noch einmal zeigen
+#   trackingdrs vpn server       die Eintraege fuer VPS und Geraete noch einmal zeigen
 #   trackingdrs vpn aus          Verbindung beenden und beim Start nicht mehr aufbauen (Schluessel und Config bleiben)
 #   trackingdrs-vpn anfrage      Auftrag aus dem Lehrerbereich (Einstellungen -> VPN) ausfuehren; startet systemd
 #                                (trackingdrs-vpn-anfrage.path), Ergebnis in /var/lib/trackingdrs-vpn
 #
 # Ohne Rueckfragen:
 #   trackingdrs vpn einrichten --server vpn.example.de:51820 --server-schluessel <44 Zeichen> --adresse 10.8.0.20 \
-#     [--netze "10.8.0.0/24"] [--server-ip 10.8.0.1] [--alle]
-#   --alle: alle Teilnehmer des VPN (auch das Heimnetz hinter dem Router, selbst mit denselben Adressen wie das
-#           Schulnetz) erreichen den Lehrerbereich; Antworten gehen ueber den Tunnel zurueck, auf dem sie kamen.
+#     [--netze "10.8.0.0/24"] [--server-ip 10.8.0.1] [--alle] [--zertifikat] [--zugriff 192.168.7.2]
+#   --alle:       alle Teilnehmer des VPN (auch das Heimnetz hinter dem Router, selbst mit denselben Adressen wie das
+#                 Schulnetz) erreichen den Lehrerbereich; Antworten gehen ueber den Tunnel zurueck, auf dem sie kamen.
+#   --zugriff:    Adresse, unter der der Lehrerbereich von zuhause erreichbar ist (Vorgabe: bisherige oder die
+#                 Schuladresse). Sie haengt fest an wg0 und bleibt, auch wenn sich die Schuladresse aendert; sie muss
+#                 im /16-Netz der Schuladresse liegen.
+#   --zertifikat: die VPN-Adresse kommt zusaetzlich ins Zertifikat. Ohne: Zugriff ueber die Zugriffsadresse.
+#                 (Liegt die VPN-Adresse ausserhalb des bisherigen /16-Netzes, entsteht eine neue CA, und alle Geraete
+#                 brauchen das neue Stammzertifikat.)
 # Mit einer fertigen Client-Datei fuer den Container (PrivateKey, Address, Server als [Peer], ggf. PresharedKey):
-#   trackingdrs vpn einrichten --conf /root/container.conf
+#   trackingdrs vpn einrichten --conf /root/container.conf [--zertifikat] [--zugriff 192.168.7.2]
 #   (0.0.0.0/0 heisst dort: alle Absender zulassen wie --alle; DNS bleibt weg; die Datei danach loeschen)
+#
+# Zugriffsadresse ueber das VPN (wie im Lehrerkalender MT): Sie steht als zweite Address in wg0.conf. Der VPS traegt
+# diese eine Adresse beim Container ein (AllowedIPs .../32 und eine Route), die Geraete leiten sie ins VPN. Der
+# Container selbst leitet nichts weiter. arp_ignore/arp_announce sorgen dafuer, dass er im Schulnetz nur fuer seine
+# eigene eth0-Adresse antwortet (die Zugriffsadresse darf dort spaeter ein anderes Geraet haben).
 #
 # Sicherheit: Nur Verbindungen ins VPN-Netz laufen ueber den Tunnel; mit --alle nimmt WireGuard zwar Pakete jedes
 # Absenders an (AllowedIPs 0.0.0.0/0), Routen gibt es aber nur fuers VPN-Netz (Table = off) und fuer Antworten auf
 # Verbindungen, die ueber wg0 hereinkamen (Markierung 0x7464, Tabelle 7464). Der Container leitet nichts weiter,
 # und die Firewall (deploy/firewall.nft) laesst auf wg0 nur HTTPS (443) herein. Auf dem Server bekommt der Container
-# nur seine eine Adresse (AllowedIPs .../32), und vps/sperre.sh verwirft dort jede Verbindung, die er selbst aufbaut.
+# nur seine VPN-Adresse und die Zugriffsadresse (AllowedIPs je /32), und vps/sperre.sh verwirft dort jede Verbindung,
+# die er selbst aufbaut - von beiden Adressen.
 set -euo pipefail
 WG=/etc/wireguard
 CONF=$WG/wg0.conf
@@ -57,30 +69,46 @@ aus_conf() {   # aus_conf <Schluessel>: Wert aus der vorhandenen wg0.conf (Vorga
   [ -r "$CONF" ] && sed -n "s/^$1 *= *//p" "$CONF" | head -1 || true
 }
 
+schuladressen() {   # Adressen im Schulnetz (alles ausser wg0)
+  ip -4 -o addr show scope global | awk '$2 != "wg0" {split($4, a, "/"); print a[1]}'
+}
+
 server_block() {
-  local pub adresse
+  local pub adresse erlaubt schule s
   [ -s "$SCHLUESSEL" ] && [ -r "$CONF" ] || fehler "Noch nicht eingerichtet: trackingdrs vpn einrichten"
   pub=$(wg pubkey < "$SCHLUESSEL")
-  adresse=$(aus_conf Address); adresse=${adresse%/*}
+  adresse=$(aus_conf Address); adresse=${adresse%%/*}
+  schule=$(aus_conf "# Zugriff")
+  erlaubt="$adresse/32"
+  for s in $schule; do erlaubt="$erlaubt, $s/32"; done
   cat <<EOF
 
-=== Auf dem Server in dessen WireGuard-Config (z. B. /etc/wireguard/wg0.conf) einfuegen: ===
+=== 1. Auf dem VPS in dessen WireGuard-Config (z. B. /etc/wireguard/wg0.conf): ===
 
 [Peer]
-# TrackingDRS $(hostname -s): nur diese eine Adresse
+# TrackingDRS $(hostname -s): VPN-Adresse und Zugriffsadresse, sonst nichts
 PublicKey = $pub
-AllowedIPs = $adresse/32
+AllowedIPs = $erlaubt
 
 (Steht der Container mit diesem PublicKey schon in der Server-Config, z. B. weil die Client-Datei von dort kommt:
- diesen Schritt auslassen.)
+ dort nur die Zugriffsadresse bei AllowedIPs ergaenzen.)
 
-=== Danach auf dem Server uebernehmen (ohne bestehende Verbindungen zu trennen): ===
+=== 2. Danach auf dem VPS uebernehmen (ohne bestehende Verbindungen zu trennen): ===
   wg syncconf wg0 <(wg-quick strip wg0)
+EOF
+  for s in $schule; do echo "  ip -4 route replace $s/32 dev wg0"; done
+  cat <<EOF
+  (syncconf legt keine Routen an; nach einem Neustart des VPS macht wg-quick das selbst)
 
-=== Einmalig auf dem Server: Sperre, damit der Container dort nichts erreicht: ===
+=== 3. Auf dem VPS: Sperre, damit der Container dort nichts erreicht (bei neuer Adresse erneut): ===
   curl -fsSLO https://raw.githubusercontent.com/mgoebel89/TrackingDRS/main/vps/sperre.sh
-  bash sperre.sh einrichten $adresse
+  bash sperre.sh einrichten $adresse $schule
 
+=== 4. Auf den Geraeten: ===
+  Handy/Laptop mit WireGuard-App: bei AllowedIPs ergaenzen: ${schule:+$(echo $schule | sed 's/\([^ ]*\)/\1\/32/g; s/ /, /g')}
+  Heimnetz ueber Router/Fritzbox mit WireGuard: dort ${schule:+$(echo $schule | sed 's/\([^ ]*\)/\1\/32/g; s/ /, /g')} zu den Netzen ueber das VPN
+
+Von zuhause: https://${schule:-$adresse}   (oder https://$adresse, wenn die VPN-Adresse im Zertifikat steht)
 Dann hier pruefen: trackingdrs vpn status
 EOF
 }
@@ -91,7 +119,7 @@ info_ablegen() {   # info_ablegen <aktiv 0|1> [<Schnittstelle auf dem VPS>] [<au
 }
 
 anfrage() {   # Auftrag aus dem Lehrerbereich: lesen (dabei geloescht und geprueft), ausfuehren, Ergebnis ablegen
-  local zeile aktion server schl adresse netze server_ip server_if psk datei alle beginn ergebnis=ok extra=()
+  local zeile aktion server schl adresse netze server_ip server_if psk datei alle zert zugriff beginn ergebnis=ok extra=()
   export TZ=Europe/Berlin
   umask 022
   install -d -o root -g root -m 755 "$STAND"
@@ -102,10 +130,12 @@ anfrage() {   # Auftrag aus dem Lehrerbereich: lesen (dabei geloescht und geprue
     lauf_schreiben "?" "$beginn" fehler
     return 1
   fi
-  IFS='|' read -r aktion server schl adresse netze server_ip server_if psk datei alle <<< "$zeile"
+  IFS='|' read -r aktion server schl adresse netze server_ip server_if psk datei alle zert zugriff <<< "$zeile"
   [ -n "$psk" ] && extra+=(--psk)
   [ -n "$alle" ] && extra+=(--alle)
   [ -n "$datei" ] && extra+=(--aus-datei)
+  [ -n "$zert" ] && extra+=(--zertifikat)
+  [ -n "$zugriff" ] && extra+=(--zugriff "$zugriff")
   lauf_schreiben "$aktion" "$beginn" ""
   {
     echo "== $beginn $aktion (aus dem Lehrerbereich${datei:+, mit Client-Datei})"
@@ -153,7 +183,7 @@ testen() {   # testen <Server-IP>: wartet kurz auf den ersten Handshake
 }
 
 einrichten() {
-  local server="" schl="" adresse="" netze="" server_ip="" server_if="" conf="" psk="" datei="" alle=""
+  local server="" schl="" adresse="" netze="" server_ip="" server_if="" conf="" psk="" datei="" alle="" zert="" zugriff=""
   while [ $# -gt 0 ]; do
     case "$1" in
       --server) server=$2; shift 2 ;;
@@ -166,15 +196,16 @@ einrichten() {
       --psk) psk=1; shift ;;          # Schluessel und PSK hat anfrage-lesen schon abgelegt
       --aus-datei) datei=1; shift ;;
       --alle) alle=1; shift ;;
+      --zertifikat) zert=1; shift ;;
+      --zugriff) zugriff=$2; shift 2 ;;
       *) fehler "Unbekannte Option $1" ;;
     esac
   done
-  local alt_adresse; alt_adresse=$(aus_conf Address)
+  local alt_adresse alt_zugriff; alt_adresse=$(aus_conf Address); alt_adresse=${alt_adresse%%,*}; alt_zugriff=$(aus_conf "# Zugriff")
   if [ -n "$conf" ]; then   # Client-Datei: Werte und Schluessel daraus (Hinweise erscheinen direkt)
-    local werte
+    local werte alle_datei
     werte=$(cd "$REPO" && python3 -m app.vpn conf-lesen "$(readlink -f "$conf")") || exit 1
-    local alle_datei
-    IFS='|' read -r _ server schl adresse netze server_ip _ psk datei alle_datei <<< "$werte"
+    IFS='|' read -r _ server schl adresse netze server_ip _ psk datei alle_datei _ <<< "$werte"
     [ -n "$alle_datei" ] && alle=1
     echo "==> Schluessel${psk:+ und PresharedKey} aus $conf uebernommen (die Datei kannst du jetzt loeschen)"
   fi
@@ -196,6 +227,10 @@ einrichten() {
   local erg
   erg=$(cd "$REPO" && python3 -m app.vpn pruefen "$server" "$schl" "$adresse" "$netze" "$server_ip") || exit 1
   IFS='|' read -r adresse netze server_ip <<< "$erg"
+  [ -n "$zugriff" ] || zugriff=$alt_zugriff
+  [ -n "$zugriff" ] || zugriff=$(schuladressen | head -1)
+  [ -n "$zugriff" ] || fehler "Keine Schuladresse gefunden: bitte --zugriff <Adresse> angeben."
+  zugriff=$(cd "$REPO" && python3 -m app.vpn zugriff "$zugriff" "$adresse" "$netze" "$server_ip") || exit 1
 
   if ! command -v wg-quick >/dev/null; then
     echo "==> wireguard-tools installieren"
@@ -227,13 +262,18 @@ einrichten() {
 # Server-IP = $server_ip
 # Netze = $netze
 # Alle-Absender = $alle_text
+# Zugriff = $zugriff
 [Interface]
-Address = $adresse/32
+Address = $adresse/32, $zugriff/32
 Table = off
 PostUp = wg set %i private-key $SCHLUESSEL
 $psk_zeile
 ${routen}PostUp = ip -4 rule add fwmark 0x7464 lookup 7464 priority 1000 2>/dev/null || true
 PostUp = ip -4 route replace default dev %i table 7464
+# Pakete an die Zugriffsadresse, die ueber wg0 kommen: Rueckweg-Pruefung locker (Antwort geht per Markierung ueber wg0).
+# Im Schulnetz nur fuer die eigene eth0-Adresse antworten, nie fuer die Zugriffsadresse (ARP).
+PostUp = sysctl -q -w net.ipv4.conf.%i.rp_filter=2 || true
+PostUp = sysctl -q -w net.ipv4.conf.all.arp_ignore=1 net.ipv4.conf.all.arp_announce=2 || true
 PostDown = ip -4 rule del fwmark 0x7464 lookup 7464 priority 1000 2>/dev/null || true
 
 [Peer]
@@ -246,15 +286,23 @@ EOF
   )
   mv -f "$CONF.neu" "$CONF"
 
-  echo "==> Zertifikat (VPN-Adresse dazu)"
   install -d -m 755 /etc/trackingdrs
   touch "$TLS_IPS"
   [ -n "$alt_adresse" ] && [ "${alt_adresse%/*}" != "$adresse" ] && sed -i "/^${alt_adresse%/*}\$/d" "$TLS_IPS"
-  grep -qx "$adresse" "$TLS_IPS" || echo "$adresse" >> "$TLS_IPS"
-  local tls; tls=$(/usr/local/sbin/trackingdrs-tls --neustart)
+  [ -n "$alt_zugriff" ] && [ "$alt_zugriff" != "$zugriff" ] && sed -i "/^$alt_zugriff\$/d" "$TLS_IPS"
+  grep -qx "$zugriff" "$TLS_IPS" || echo "$zugriff" >> "$TLS_IPS"   # bleibt im Zertifikat, auch wenn eth0 wechselt
+  local tls
+  if [ -n "$zert" ]; then
+    echo "==> Zertifikat (VPN-Adresse dazu)"
+    grep -qx "$adresse" "$TLS_IPS" || echo "$adresse" >> "$TLS_IPS"
+  else
+    sed -i "/^$adresse\$/d" "$TLS_IPS"
+    echo "==> Zertifikat (Zugriffsadresse $zugriff)"
+  fi
+  tls=$(/usr/local/sbin/trackingdrs-tls --neustart)
   [ -n "$tls" ] && echo "$tls"
   if printf '%s' "$tls" | grep -q "neue Zertifizierungsstelle"; then
-    echo "  HINWEIS: Das Stammzertifikat ist neu. Auf den Geraeten erneut installieren: http://<container>/ca.crt"
+    echo "  HINWEIS: Das Stammzertifikat ist neu. Auf allen Geraeten erneut installieren: http://<container>/ca.crt"
   fi
 
   echo "==> Verbindung starten"
@@ -263,7 +311,6 @@ EOF
   info_ablegen 1 "$server_if" "${datei:-0}"
   if testen "$server_ip"; then echo; sperrtest || true; fi
   server_block
-  echo "Von zuhause (ueber das VPN) dann: https://$adresse"
 }
 
 status() {
@@ -285,5 +332,5 @@ case "${1:-}" in
        info_ablegen 0
        echo "VPN aus. Wieder an: trackingdrs vpn einrichten (oder im Lehrerbereich unter Einstellungen -> VPN)" ;;
   anfrage) anfrage ;;
-  *) sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+  *) sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
 esac

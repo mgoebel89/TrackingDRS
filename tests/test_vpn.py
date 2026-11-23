@@ -159,7 +159,7 @@ class AusDerOberflaeche(unittest.TestCase):
         pfad = os.path.join(self.daten, "vpn", "anfrage.json")
         self.assertEqual(vpn.anfrage_lesen(pfad), {"aktion": "einrichten", "server": "203.0.113.5:51820", "schluessel": SCHLUESSEL,
                                                     "adresse": "10.8.0.20", "netze": "10.8.0.0/24", "server_ip": "10.8.0.1",
-                                                    "server_if": "wg0", "alle": False})
+                                                    "server_if": "wg0", "alle": False, "zertifikat": False, "zugriff": ""})
         self.assertFalse(os.path.exists(pfad))   # gelesen = geloescht
         with self.assertRaises(vpn.VpnFehler):
             vpn.anfrage_lesen(pfad)
@@ -280,7 +280,7 @@ class ClientDatei(unittest.TestCase):
         with mock.patch("sys.stdout", new_callable=io.StringIO) as aus, mock.patch("sys.stderr", new_callable=io.StringIO) as err:
             self.assertEqual(vpn.main(["anfrage-lesen", pfad]), 0)
         self.assertEqual(aus.getvalue().strip(),
-                         "einrichten|vpn.example.de:51820|%s|10.8.0.20|10.8.0.0/24|10.8.0.1|wg1|1|1|1" % SCHLUESSEL)
+                         "einrichten|vpn.example.de:51820|%s|10.8.0.20|10.8.0.0/24|10.8.0.1|wg1|1|1|1||" % SCHLUESSEL)
         self.assertNotIn(PRIVAT, aus.getvalue() + err.getvalue())
         self.assertIn("Hinweis:", err.getvalue())
         with open(vpn.SCHLUESSEL) as f:
@@ -293,7 +293,7 @@ class ClientDatei(unittest.TestCase):
             f.write(CLIENT.replace("PresharedKey = %s\n" % PSK, ""))
         with mock.patch("sys.stdout", new_callable=io.StringIO) as aus, mock.patch("sys.stderr", new_callable=io.StringIO):
             self.assertEqual(vpn.main(["conf-lesen", datei]), 0)
-        self.assertTrue(aus.getvalue().strip().endswith("||1|1"))
+        self.assertTrue(aus.getvalue().strip().endswith("||1|1||"))
         self.assertFalse(os.path.exists(vpn.PSK))
 
 
@@ -403,3 +403,130 @@ Address = 10.0.0.8/32
 AllowedIPs = 0.0.0.0/0
 """
         self.assertEqual(vpn.konf_lesen(alt)[1], [])
+
+
+class Zugriffsadresse(unittest.TestCase):
+    """Wie im Lehrerkalender MT: von zuhause unter der Adresse im Schulnetz, das Zertifikat bleibt ohne Schalter gleich."""
+
+    def setUp(self):
+        self.ordner = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.ordner, True)
+        self.konf = os.path.join(self.ordner, "wg0.conf")
+        self.tls = os.path.join(self.ordner, "tls-ips")
+        for name, wert in (("VPN_DIR", os.path.join(self.ordner, "stand")), ("KONF", self.konf), ("TLS_IPS", self.tls)):
+            p = mock.patch.object(vpn, name, wert)
+            p.start()
+            self.addCleanup(p.stop)
+        with open(self.konf, "w", encoding="utf-8") as f:
+            f.write(KONF)
+
+    def test_schuladressen_ohne_wg0(self):
+        ausgabe = ("2: eth0    inet 192.168.7.2/24 brd 192.168.7.255 scope global eth0\n"
+                   "3: wg0    inet 10.8.0.20/32 scope global wg0\n"
+                   "3: wg0    inet 192.168.7.2/32 scope global wg0\n")
+        with mock.patch("subprocess.run", return_value=mock.Mock(stdout=ausgabe)):
+            self.assertEqual(vpn.schuladressen(), ["192.168.7.2"])
+            self.assertEqual([(name, str(n)) for name, n in vpn.eigene_netze()], [("eth0", "192.168.7.0/24")])
+
+    def test_info_mit_schuladresse_und_zertifikat(self):
+        with mock.patch.object(vpn, "schuladressen", return_value=["192.168.7.2"]):
+            info = vpn.info_ablegen(SCHLUESSEL, True)
+            self.assertEqual((info["schuladressen"], info["zertifikat"], info["zugriff"]), (["192.168.7.2"], False, None))
+            with open(self.tls, "w") as f:
+                f.write("# zusaetzlich\n10.8.0.20\n")
+            self.assertTrue(vpn.info_ablegen(SCHLUESSEL, True)["zertifikat"])
+            with open(self.konf, "w", encoding="utf-8") as f:
+                f.write(KONF.replace("Address = 10.8.0.20/32", "Address = 10.8.0.20/32, 192.168.7.2/32")
+                        .replace("[Interface]", "# Zugriff = 192.168.7.2\n[Interface]"))
+            info = vpn.info_ablegen(SCHLUESSEL, True)
+            self.assertEqual((info["adresse"], info["zugriff"]), ("10.8.0.20", "192.168.7.2"))
+
+    def test_zugriffsadresse(self):
+        schule = [("eth0", ipaddress.IPv4Network("192.168.7.0/24"))]
+        netze = ["10.8.0.0/24"]
+        self.assertEqual(vpn.zugriff_pruefen("", "10.8.0.20", netze, "10.8.0.1", schule), "")
+        self.assertEqual(vpn.zugriff_pruefen(" 192.168.7.2 ", "10.8.0.20", netze, "10.8.0.1", schule), "192.168.7.2")
+        self.assertEqual(vpn.zugriff_pruefen("192.168.9.9", "10.8.0.20", netze, "10.8.0.1", schule), "192.168.9.9")   # im /16 frei
+        for falsch, hinweis in (("10.9.7.2", "Bereich der Schuladresse"), ("10.8.0.50", "VPN-Netz"),
+                                ("10.8.0.20", "nicht die VPN-Adresse"), ("8.8.8.8", "private"), ("192.168.7", "IPv4")):
+            with self.subTest(falsch=falsch), self.assertRaises(vpn.VpnFehler) as f:
+                vpn.zugriff_pruefen(falsch, "10.8.0.20", netze, "10.8.0.1", schule)
+            self.assertIn(hinweis, str(f.exception))
+        d = {"aktion": "einrichten", "server": "vpn.example.de:51820", "schluessel": SCHLUESSEL, "adresse": "10.8.0.20",
+             "zugriff": "192.168.7.2"}
+        self.assertEqual(vpn.angaben_pruefen(d, schule)["zugriff"], "192.168.7.2")
+        self.assertEqual(vpn.angaben_pruefen({"aktion": "einrichten", "conf": CLIENT, "zugriff": "192.168.7.2"}, schule)["zugriff"],
+                         "192.168.7.2")
+        with mock.patch("sys.stdout", new_callable=io.StringIO) as aus, mock.patch.object(vpn, "eigene_netze", return_value=schule):
+            self.assertEqual(vpn.main(["zugriff", "192.168.7.2", "10.8.0.20", "10.8.0.0/24", "10.8.0.1"]), 0)
+        self.assertEqual(aus.getvalue().strip(), "192.168.7.2")
+        self.assertEqual(vpn.zugriff_lesen("# Zugriff = 192.168.7.2\n[Interface]\n"), "192.168.7.2")
+        self.assertIsNone(vpn.zugriff_lesen(KONF))
+
+    def test_schalter_zertifikat(self):
+        d = {"aktion": "einrichten", "server": "vpn.example.de:51820", "schluessel": SCHLUESSEL, "adresse": "10.8.0.20"}
+        self.assertFalse(vpn.angaben_pruefen(d, SCHULE)["zertifikat"])
+        self.assertTrue(vpn.angaben_pruefen(dict(d, zertifikat=True), SCHULE)["zertifikat"])
+        self.assertTrue(vpn.angaben_pruefen({"aktion": "einrichten", "conf": CLIENT, "zertifikat": "1"}, SCHULE)["zertifikat"])
+
+    def test_anfrage_traegt_zugriff_und_zertifikat_bis_zu_root(self):
+        daten = os.path.join(self.ordner, "daten")
+        with mock.patch.object(vpn, "eingerichtet", return_value=True), mock.patch.object(vpn, "eigene_netze", return_value=SCHULE):
+            vpn.anfordern(daten, {"aktion": "einrichten", "server": "203.0.113.5", "port": "51820", "schluessel": SCHLUESSEL,
+                                  "adresse": "10.8.0.20", "zugriff": "192.168.7.2", "zertifikat": True})
+            with mock.patch("sys.stdout", new_callable=io.StringIO) as aus:
+                self.assertEqual(vpn.main(["anfrage-lesen", os.path.join(daten, "vpn", "anfrage.json")]), 0)
+        self.assertTrue(aus.getvalue().strip().endswith("|1|192.168.7.2"))
+
+    def test_sperrtest_mit_zweiter_adresse(self):
+        """Die Zugriffsadresse auf wg0 aendert nichts an Adresse und Zielen des Sperrtests."""
+        text = KONF.replace("Address = 10.8.0.20/32", "Address = 10.8.0.20/32, 192.168.7.2/32")
+        adresse, netze, server_ip = vpn.konf_lesen(text)
+        self.assertEqual(str(adresse), "10.8.0.20")
+        self.assertNotIn("192.168.7.2", vpn.sperrziele(adresse, netze, server_ip))
+
+
+class Skripte(unittest.TestCase):
+    """Zertifikat, wg0.conf und Sperre: die Zugriffsadresse ist ueberall dabei, die VPN-Adresse nur auf Wunsch im Zertifikat."""
+
+    def lies(self, *teile):
+        return pathlib.Path(__file__).resolve().parent.parent.joinpath(*teile).read_text(encoding="utf-8")
+
+    def test_tls_ohne_wg0(self):
+        tls = self.lies("deploy", "tls.sh")
+        self.assertIn("$2 != \"wg0\"", tls)
+        self.assertNotIn("${TRACKINGDRS_TLS_IPS:-$(hostname -I)", tls)
+
+    def test_vpn_sh(self):
+        sh = self.lies("deploy", "vpn.sh")
+        self.assertIn("--zertifikat) zert=1", sh)
+        self.assertIn('sed -i "/^$adresse\\$/d" "$TLS_IPS"', sh)   # ohne Schalter raus aus tls-ips
+        self.assertIn("rp_filter=2", sh)
+        self.assertIn("arp_ignore=1", sh)
+        self.assertIn("Address = $adresse/32, $zugriff/32", sh)
+        self.assertIn("bash sperre.sh einrichten $adresse $schule", sh)   # Sperre fuer beide Adressen
+        self.assertIn('sperrtest) "$0" status', sh)
+
+    @unittest.skipUnless(shutil.which("bash"), "bash fehlt")
+    def test_sperre_peer_mit_zugriffsadresse(self):
+        """peer_pruefen aus vps/sperre.sh mit einem nachgebauten "wg show all allowed-ips"."""
+        skript = self.lies("vps", "sperre.sh")
+        funktion = skript[skript.index("peer_pruefen() {"):skript.index("\neinrichten() {")]
+        ordner = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, ordner, True)
+
+        def lauf(erlaubt, ip, menge):
+            prog = os.path.join(ordner, "t.sh")
+            with open(prog, "w", encoding="utf-8", newline="\n") as f:   # wg als Funktion: "command -v wg" findet sie
+                f.write("wg() { printf 'wg0\\tPUB=\\t%s\\nwg0\\tANDERER=\\t192.168.178.0/24\\n'; }\n%s\npeer_pruefen \"$1\" \"$2\"\n"
+                        % (erlaubt, funktion))
+            import subprocess
+            return subprocess.run(["bash", pathlib.Path(prog).as_posix(), ip, menge], capture_output=True, text=True).stdout
+
+        self.assertIn("Peer gefunden", lauf("10.8.0.20/32 192.168.7.2/32", "10.8.0.20", "10.8.0.20 192.168.7.2"))
+        self.assertIn("Peer gefunden", lauf("10.8.0.20/32", "10.8.0.20", "10.8.0.20"))
+        aus = lauf("10.8.0.20/32 192.168.7.2/32", "10.8.0.20", "10.8.0.20")   # Zugriffsadresse fehlt in der Sperre
+        self.assertIn("WARNUNG", aus)
+        self.assertIn("192.168.7.2/32", aus)
+        self.assertIn("WARNUNG", lauf("10.8.0.20/32 192.168.0.0/16", "10.8.0.20", "10.8.0.20 192.168.0.0"))
+        self.assertIn("kein Peer", lauf("10.8.0.21/32", "10.8.0.20", "10.8.0.20"))

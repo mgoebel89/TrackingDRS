@@ -1,5 +1,13 @@
 """WireGuard (Stufe G): Angaben fuer "trackingdrs vpn einrichten" pruefen und den Sperrtest ausfuehren.
 
+Der Container wird Teilnehmer im WireGuard-VPN. Ueber das VPN nimmt er nur HTTPS (443) an und antwortet ueber das VPN
+zurueck. Von zuhause erreichbar ist er unter seiner ZUGRIFFSADRESSE (wie im Lehrerkalender MT): vorbelegt mit der
+Schuladresse, aenderbar. Der Container haengt sie fest an wg0, sie gilt also auch dann weiter, wenn sich seine Adresse in
+der Schule aendert; VPS und Geraete leiten diese eine Adresse ins VPN (Kopiervorlagen im Lehrerbereich). Sie muss im
+/16-Netz der Schuladresse liegen: dann reicht die bisherige Zertifizierungsstelle, und das Stammzertifikat auf den
+Geraeten bleibt. Die VPN-Adresse kommt nur auf Wunsch ins Zertifikat (ausserhalb des bisherigen Netzes = neue CA).
+Die Sperre auf dem VPS (vps/sperre.sh) gilt fuer beide Adressen des Containers.
+
 Aufruf aus deploy/vpn.sh (als root, im Repo-Ordner):
   python3 -m app.vpn pruefen <server:port> <schluessel> <adresse> "<netze>" [<server-ip>]
     Ausgabe: adresse|netze|server-ip (bereinigt), sonst eine Fehlermeldung und Exit 1.
@@ -9,8 +17,11 @@ Aufruf aus deploy/vpn.sh (als root, im Repo-Ordner):
     das der Lehrerbereich anzeigt (rote Warnung, wenn etwas durchkommt). Exit 0 dicht/aus, 2 offen, 1 sonst.
   python3 -m app.vpn anfrage-lesen <datei>
     Auftrag aus dem Lehrerbereich lesen, loeschen, pruefen. Ausgabe: aktion|server|schluessel|adresse|netze|server-ip|
-    server-if|psk|aus_datei|alle (bei sperrtest/aus nur die Aktion). alle = 1: Verbindungen von jedem Absender aus dem
-    VPN annehmen (Heimnetz hinter dem VPN, auch wenn es dieselben Adressen wie das Schulnetz hat).
+    server-if|psk|aus_datei|alle|zertifikat|zugriff (bei sperrtest/aus nur die Aktion; zugriff leer = Schuladresse).
+    alle = 1: Verbindungen von jedem Absender aus dem VPN annehmen (Heimnetz hinter dem VPN, auch wenn es dieselben
+    Adressen wie das Schulnetz hat).
+  python3 -m app.vpn zugriff <zugriffsadresse> <vpn-adresse> "<netze>" <server-ip>
+    Zugriffsadresse pruefen. Ausgabe: die Adresse (leer = Schuladresse nehmen), sonst Fehlermeldung und Exit 1.
   python3 -m app.vpn conf-lesen <client-datei>
     Wie anfrage-lesen, aber aus einer WireGuard-Datei fuer den Container (trackingdrs vpn einrichten --conf). Legt den
     privaten Schluessel (und PresharedKey) aus der Datei nach /etc/wireguard. Ausgabe wie oben.
@@ -36,6 +47,7 @@ from . import db
 KONF = "/etc/wireguard/wg0.conf"
 SCHLUESSEL = "/etc/wireguard/trackingdrs.key"   # privater Schluessel des Containers (nur root)
 PSK = "/etc/wireguard/trackingdrs.psk"          # PresharedKey, nur wenn die Client-Datei einen hat
+TLS_IPS = "/etc/trackingdrs/tls-ips"            # zusaetzliche Adressen im Zertifikat (deploy/tls.sh)
 VPN_DIR = os.environ.get("TRACKINGDRS_VPN_DIR", "/var/lib/trackingdrs-vpn")
 PORTS = (22, 53, 80, 443, 8080)
 HANDSHAKE_MAX = 300   # Sekunden; mit Keepalive 25 erneuert WireGuard den Handshake alle 2 Minuten
@@ -45,15 +57,28 @@ class VpnFehler(Exception):
     pass
 
 
-def eigene_netze():
-    """Netze der anderen Schnittstellen (eth0 im Schulnetz): das VPN darf sie nicht ueberdecken."""
+def _schnittstellen():
+    """[(name, ip_interface)] der Schnittstellen ausser wg0 (eth0 im Schulnetz)."""
     aus = subprocess.run(["ip", "-4", "-o", "addr", "show", "scope", "global"], capture_output=True, text=True).stdout
-    netze = []
+    liste = []
     for zeile in aus.splitlines():
         teile = zeile.split()
         if len(teile) >= 4 and teile[2] == "inet" and teile[1] != "wg0":
-            netze.append((teile[1], ipaddress.ip_interface(teile[3]).network))
-    return netze
+            liste.append((teile[1], ipaddress.ip_interface(teile[3])))
+    return liste
+
+
+def eigene_netze():
+    """Netze der anderen Schnittstellen (eth0 im Schulnetz): das VPN darf sie nicht ueberdecken."""
+    return [(name, i.network) for name, i in _schnittstellen()]
+
+
+def schuladressen():
+    """Adressen des Containers im Schulnetz: ueber das VPN ebenfalls erreichbar, wenn der VPS sie dorthin leitet."""
+    try:
+        return [str(i.ip) for _, i in _schnittstellen()]
+    except (OSError, ValueError):
+        return []
 
 
 def pruefen(server, schluessel, adresse, netze, server_ip="", lokal=()):
@@ -116,6 +141,39 @@ def konf_lesen(text):
     netze = [n for n in netze if n.prefixlen >= 8]
     server = werte.get("Server-IP")
     return adresse, netze, ipaddress.IPv4Address(server) if server else None
+
+
+def zugriff_pruefen(zugriff, adresse, netze, server_ip, lokal=()):
+    """Zugriffsadresse von zuhause: leer = die Schuladresse (setzt vpn.sh ein). Sonst eine IPv4-Adresse ausserhalb des
+    VPN-Netzes, die im /16-Netz der Schuladresse liegt (sonst reicht die Zertifizierungsstelle nicht)."""
+    zugriff = (zugriff or "").strip()
+    if not zugriff:
+        return ""
+    try:
+        z = ipaddress.IPv4Address(zugriff.split("/")[0])
+    except ValueError:
+        raise VpnFehler("Die Zugriffsadresse bitte als IPv4-Adresse, z. B. 192.168.7.2.") from None
+    if not z.is_private or z.is_loopback or z.is_link_local:
+        raise VpnFehler("Die Zugriffsadresse muss eine private Adresse sein (wie die Schuladresse).")
+    if str(z) in (str(adresse), str(server_ip)):
+        raise VpnFehler("Die Zugriffsadresse darf nicht die VPN-Adresse des Containers oder des Servers sein.")
+    for n in netze or []:
+        if z in ipaddress.IPv4Network(str(n), strict=False):
+            raise VpnFehler("Die Zugriffsadresse %s liegt im VPN-Netz %s. Nimm dafür die VPN-Adresse oder eine Adresse aus "
+                            "dem Schulnetz." % (z, n))
+    bereich = ipaddress.IPv4Network("%s/16" % z, strict=False)
+    if lokal and not any(bereich.overlaps(netz) for _, netz in lokal):
+        raise VpnFehler("Die Zugriffsadresse %s liegt nicht im Bereich der Schuladresse (%s). Dafür bräuchten alle Geräte ein "
+                        "neues Stammzertifikat; nimm eine Adresse aus %s." % (
+                            z, ", ".join(str(netz) for _, netz in lokal),
+                            ", ".join(str(ipaddress.IPv4Network("%s/16" % netz.network_address, strict=False)) for _, netz in lokal)))
+    return str(z)
+
+
+def zugriff_lesen(text):
+    """Zugriffsadresse aus wg0.conf (Kommentar von vpn.sh), None bei alten Dateien."""
+    m = re.search(r"^\s*#\s*Zugriff\s*=\s*(\S+)\s*$", text, re.M)
+    return m.group(1) if m else None
 
 
 def alle_absender(text):
@@ -330,7 +388,8 @@ def conf_einlesen(text, lokal=()):
 
 def angaben_pruefen(d, lokal=()):
     """Auftrag aus dem Formular oder der Anfrage-Datei -> bereinigtes dict, sonst VpnFehler.
-    Mit einer Client-Datei (conf) kommen privat, psk und hinweise dazu; die gehen nie an die Seite zurueck."""
+    Mit einer Client-Datei (conf) kommen privat, psk und hinweise dazu; die gehen nie an die Seite zurueck.
+    zertifikat: die VPN-Adresse kommt ins Zertifikat (sonst nur Schul- und Zugriffsadresse, die CA bleibt)."""
     aktion = d.get("aktion")
     if aktion not in AKTIONEN:
         raise VpnFehler("Unbekannte Aktion.")
@@ -341,14 +400,17 @@ def angaben_pruefen(d, lokal=()):
         raise VpnFehler("Name der WireGuard-Schnittstelle auf dem Server bitte wie in /etc/wireguard, z. B. wg0.")
     if d.get("conf"):
         angaben, privat, psk, hinweise = conf_einlesen(str(d["conf"]), lokal)
+        zugriff = zugriff_pruefen(str(d.get("zugriff") or ""), angaben["adresse"], angaben["netze"].split(), angaben["server_ip"], lokal)
         return dict(angaben, aktion=aktion, server_if=schnitt, privat=privat, psk=psk, hinweise=hinweise,
-                    alle=angaben["alle"] or _ja(d.get("alle")))
+                    alle=angaben["alle"] or _ja(d.get("alle")), zertifikat=_ja(d.get("zertifikat")), zugriff=zugriff)
     server = str(d.get("server") or "").strip()
     schluessel = str(d.get("schluessel") or "").strip()
     adresse, netze, server_ip = pruefen(server, schluessel, str(d.get("adresse") or ""), str(d.get("netze") or ""),
                                         str(d.get("server_ip") or ""), lokal)
+    zugriff = zugriff_pruefen(str(d.get("zugriff") or ""), adresse, netze, server_ip, lokal)
     return {"aktion": aktion, "server": server, "schluessel": schluessel, "adresse": adresse, "netze": " ".join(netze),
-            "server_ip": server_ip, "server_if": schnitt, "alle": _ja(d.get("alle"))}
+            "server_ip": server_ip, "server_if": schnitt, "alle": _ja(d.get("alle")), "zertifikat": _ja(d.get("zertifikat")),
+            "zugriff": zugriff}
 
 
 def _ja(wert):
@@ -393,7 +455,8 @@ def _laeuft(lauf):
 def web_stand(daten_dir):
     lauf = _lesen("lauf.json")
     return {"eingerichtet": eingerichtet(), "einrichtung": _lesen("einrichtung.json"), "sperrtest": kurz(), "lauf": lauf,
-            "laeuft": _laeuft(lauf), "wartet": os.path.exists(_anfrage_pfad(daten_dir)), "protokoll": _protokoll()}
+            "laeuft": _laeuft(lauf), "wartet": os.path.exists(_anfrage_pfad(daten_dir)), "protokoll": _protokoll(),
+            "schuladressen": schuladressen()}
 
 
 def anfordern(daten_dir, daten):
@@ -414,7 +477,7 @@ def anfordern(daten_dir, daten):
     # Mit Client-Datei geht die Datei selbst an root (sie enthaelt den privaten Schluessel des Containers): nur fuer den
     # Webdienst lesbar und nur, bis root sie abholt.
     auftrag = {"aktion": angaben["aktion"], "conf": d["conf"], "server_if": angaben["server_if"],
-               "alle": angaben["alle"]} if "privat" in angaben \
+               "alle": angaben["alle"], "zertifikat": angaben["zertifikat"], "zugriff": angaben["zugriff"]} if "privat" in angaben \
         else {k: v for k, v in angaben.items() if k != "hinweise"}
     pfad = _anfrage_pfad(daten_dir)
     os.makedirs(os.path.dirname(pfad), exist_ok=True)
@@ -462,6 +525,14 @@ def _oeffentlicher_schluessel(text):
     raise VpnFehler("Öffentlicher Schlüssel des Containers ungültig.")
 
 
+def _im_zertifikat(adresse):
+    try:
+        with open(TLS_IPS, encoding="utf-8") as f:
+            return adresse in [z.strip() for z in f if not z.startswith("#")]
+    except OSError:
+        return False
+
+
 def info_ablegen(container_schluessel, aktiv, server_if=None, aus_datei=None):
     """Als root nach dem Einrichten/Ausschalten: was die Seite fuer Peer-Block und VPS-Befehle braucht.
     aus_datei: eingerichtet mit einer Client-Datei (der Server kennt den Container dann meist schon)."""
@@ -477,7 +548,8 @@ def info_ablegen(container_schluessel, aktiv, server_if=None, aus_datei=None):
             "container_schluessel": _oeffentlicher_schluessel(container_schluessel),
             "server_if": server_if or alt.get("server_if") or "wg0", "konf": konf,
             "aus_datei": alt.get("aus_datei", False) if aus_datei is None else aus_datei, "psk": os.path.exists(PSK),
-            "alle": alle_absender(text)}
+            "alle": alle_absender(text), "schuladressen": schuladressen(), "zertifikat": _im_zertifikat(str(adresse)),
+            "zugriff": zugriff_lesen(text)}
     _schreiben("einrichtung.json", info)
     return info
 
@@ -531,7 +603,10 @@ def main(argv):
                 print("Hinweis: %s" % h, file=sys.stderr)
             print("|".join([*(a.get(k, "") for k in ("aktion", "server", "schluessel", "adresse", "netze", "server_ip",
                                                      "server_if")), "1" if a.get("psk") else "", "1" if a.get("privat") else "",
-                            "1" if a.get("alle") else ""]))
+                            "1" if a.get("alle") else "", "1" if a.get("zertifikat") else "", a.get("zugriff") or ""]))
+            return 0
+        if argv[:1] == ["zugriff"] and len(argv) == 5:
+            print(zugriff_pruefen(argv[1], argv[2], argv[3].split(), argv[4], eigene_netze()))
             return 0
         if argv[:1] == ["info-ablegen"] and len(argv) in (3, 4, 5):
             info_ablegen(argv[1], argv[2] == "1", argv[3] if len(argv) >= 4 and argv[3] else None,

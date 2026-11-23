@@ -975,7 +975,7 @@ function updateKarte() {
 
 // --- VPN (nur Admins) ---
 // Einrichten, pruefen und ausschalten laufen als root ueber systemd (deploy/vpn.sh "anfrage"); die Seite legt nur einen
-// Auftrag ab und liest das Ergebnis. Beim ersten Einrichten startet der Dienst neu (Zertifikat mit der VPN-Adresse):
+// Auftrag ab und liest das Ergebnis. Bekommt das Zertifikat eine neue Adresse, startet der Dienst neu:
 // die Karte fragt weiter, bis er wieder antwortet. Fuer den VPS zeigt sie Peer-Block und Befehle zum Kopieren.
 // Einen privaten Schluessel nimmt die Seite nie an: der des Containers entsteht im Container, der des Servers bleibt dort.
 
@@ -994,34 +994,47 @@ function vorlage(titel, text, hilfe) {
     el('pre', { class: 'vorlage-text', text }));
 }
 
-function vpnBefehle(e) {
+// Kopiervorlagen (wie im Lehrerkalender MT): VPS (Peer + Route fuer die Zugriffsadresse), Sperre fuer beide Adressen,
+// WireGuard-App, Heimnetz, Kontrolle
+function vpnBefehle(e, schule) {
   const wg = e.server_if || 'wg0', datei = '/etc/wireguard/' + wg + '.conf';
-  const peer = ['[Peer]', '# TrackingDRS ' + (e.name || '') + ': nur diese eine Adresse', 'PublicKey = ' + e.container_schluessel,
+  const liste = adressen => adressen.map(a => a + '/32').join(', ');
+  const erlaubt = liste([e.adresse].concat(schule));
+  const peer = ['[Peer]', '# TrackingDRS ' + (e.name || '') + ': VPN-Adresse und Zugriffsadresse, sonst nichts',
+    'PublicKey = ' + e.container_schluessel,
     e.psk ? '# PresharedKey = derselbe wie in der Client-Datei (gehört auch hier hinein)' : null,
-    'AllowedIPs = ' + e.adresse + '/32'].filter(Boolean).join('\n');
-  const eintragen = 'sudo tee -a ' + datei + " >/dev/null <<'EOF'\n\n" + peer + '\nEOF\n' +
-    "sudo bash -c 'wg syncconf " + wg + ' <(wg-quick strip ' + wg + ")'";
+    'AllowedIPs = ' + erlaubt].filter(Boolean).join('\n');
+  const routen = schule.map(a => 'sudo ip -4 route replace ' + a + '/32 dev ' + wg).join('\n');
+  const uebernehmen = "sudo bash -c 'wg syncconf " + wg + ' <(wg-quick strip ' + wg + ")'" + (routen ? '\n' + routen : '');
+  const eintragen = e.aus_datei
+    ? 'sudo nano ' + datei + '\n# beim [Peer] des Containers (PublicKey ' + e.container_schluessel.slice(0, 8) + '…) die Zeile ändern:\n' +
+      '#   AllowedIPs = ' + erlaubt + '\n' + uebernehmen
+    : 'sudo tee -a ' + datei + " >/dev/null <<'EOF'\n\n" + peer + '\nEOF\n' + uebernehmen;
   const sperre = 'curl -fsSLO https://raw.githubusercontent.com/mgoebel89/TrackingDRS/main/vps/sperre.sh\n' +
-    'sudo bash sperre.sh einrichten ' + e.adresse;
-  const kontrolle = 'sudo wg show ' + wg + '\nsudo bash sperre.sh status';
+    'sudo bash sperre.sh einrichten ' + [e.adresse].concat(schule).join(' ');
+  const ziel = schule[0] || e.adresse;
   return el('div', { class: 'stapel-eng' },
-    vorlage('Erweiterung für deine Server-Config', peer, 'Dieser Block gehört in ' + datei + ' auf dem VPS. Schritt 1 trägt ihn für dich ein.'),
-    el('h3', { text: 'Auf dem VPS (per SSH als Benutzer mit sudo)' }),
+    el('h3', { text: 'So erreichst du den Lehrerbereich von zuhause' + (schule.length ? ' unter ' + schule.join(', ') : '') }),
+    schule.length ? null : el('p', { class: 'warnung-text', text: 'Keine Zugriffsadresse bekannt. Dann geht es nur über die VPN-Adresse (mit Zertifikat).' }),
     el('ol', { class: 'vpn-schritte' },
-      el('li', {}, vorlage('Container eintragen und übernehmen', eintragen,
-        (e.aus_datei ? 'Hast du die Client-Datei auf dem VPS erzeugt, steht der Container dort schon: dann diesen Schritt auslassen. ' : '') +
-        'Hängt den Block an die Server-Config an und übernimmt ihn, ohne bestehende Verbindungen zu trennen. Steht der Container ' +
-        'schon in der Datei (z. B. nach „Neu einrichten“), den alten Block vorher löschen: sudo nano ' + datei + '. Steht dort ' +
-        '„SaveConfig = true“: erst sudo wg-quick down ' + wg + ', dann eintragen, dann sudo wg-quick up ' + wg + '.')),
-      el('li', {}, vorlage('Sperre setzen (einmalig)', sperre,
-        'Danach erreicht der Container über das VPN weder den Server noch dein Heimnetz. Frei ist nur HTTPS zum Container. ' +
-        'Ohne öffentliches Repo: vps/sperre.sh per scp auf den VPS kopieren und nur die zweite Zeile ausführen.')),
-      el('li', {}, vorlage('Kontrollieren', kontrolle,
-        'Beim Peer des Containers steht „latest handshake: … seconds ago“, bei der Sperre zählen die drop-Zähler. ' +
-        'Dann hier „Verbindung prüfen“.'))));
+      el('li', {}, vorlage('Auf dem VPS: Container eintragen und übernehmen', eintragen,
+        (e.aus_datei ? 'Die Client-Datei kam vom VPS, der Container steht dort also schon: Nur bei seinem [Peer] die Zugriffsadresse unter AllowedIPs ergänzen. ' :
+          'Hängt den Block an die Server-Config an. Steht der Container schon in der Datei (z. B. nach „Neu einrichten“), den alten Block vorher löschen. ') +
+        '„wg syncconf“ übernimmt das, ohne bestehende Verbindungen zu trennen; die Route für die Zugriffsadresse legt es nicht an, dafür die letzte Zeile (nach einem Neustart des VPS macht wg-quick das selbst). ' +
+        'Steht dort „SaveConfig = true“: erst sudo wg-quick down ' + wg + ', dann ändern, dann sudo wg-quick up ' + wg + '.')),
+      el('li', {}, vorlage('Auf dem VPS: Sperre setzen (auch nach neuer Adresse)', sperre,
+        'Danach erreicht der Container über das VPN weder den Server noch dein Heimnetz, auch nicht von der Zugriffsadresse aus. ' +
+        'Frei ist nur HTTPS zum Container. Ohne öffentliches Repo: vps/sperre.sh per scp auf den VPS kopieren und nur die zweite Zeile ausführen.')),
+      schule.length ? el('li', {}, vorlage('Handy oder Laptop mit WireGuard-App', liste(schule),
+        'In der App den Tunnel bearbeiten und bei „Erlaubte IPs“ / AllowedIPs diese Adresse mit Komma anhängen. Ist dort schon 0.0.0.0/0 eingetragen, ist nichts zu tun.')) : null,
+      schule.length ? el('li', {}, vorlage('Heimnetz (Router oder Fritzbox mit WireGuard)', liste(schule),
+        'Für Geräte ohne eigene WireGuard-App: Das Gerät, das dein Heimnetz mit dem VPS verbindet, braucht diese Adresse bei den Netzen, die über das VPN laufen. Die Adresse darf in deinem Heimnetz nicht selbst vergeben sein.')) : null,
+      el('li', {}, vorlage('Kontrollieren', 'sudo wg show ' + wg + '\nsudo bash sperre.sh status\n# dann von zuhause im Browser:\nhttps://' + ziel + '/',
+        'Beim Peer des Containers stehen „latest handshake: … seconds ago“ und ' + (schule.length ? 'die Zugriffsadresse unter „allowed ips“' : 'seine VPN-Adresse') +
+        ', bei der Sperre zählen die drop-Zähler. Dann hier „Verbindung prüfen“. Die Seite öffnet sich mit demselben Stammzertifikat wie in der Schule.'))));
 }
 
-function vpnFormular(e) {
+function vpnFormular(e, schule) {
   e = e || {};
   const m = (e.server || '').match(/^\[?(.*?)\]?:(\d+)$/);
   const f = {
@@ -1033,6 +1046,7 @@ function vpnFormular(e) {
     server_ip: el('input', { value: e.server_ip || '', placeholder: 'leer = erste Adresse im VPN-Netz (z. B. 10.8.0.1)', autocomplete: 'off' }),
     netze: el('input', { value: (e.netze || []).join(' '), placeholder: 'leer = das Netz der VPN-Adresse (/24)', autocomplete: 'off' }),
     alle: el('input', { type: 'checkbox', checked: e.alle === undefined ? true : !!e.alle }),
+    zertifikat: el('input', { type: 'checkbox', checked: !!e.zertifikat }),
     server_if: el('input', { required: true, value: e.server_if || 'wg0', maxlength: '15', autocomplete: 'off' }),
     passwort: el('input', { type: 'password', required: true, autocomplete: 'current-password' }),
     conf: el('textarea', { rows: '11', required: true, class: 'mono vpn-conf', spellcheck: 'false', autocomplete: 'off',
@@ -1074,22 +1088,34 @@ function vpnFormular(e) {
       el('button', { type: 'button', class: k === m ? 'an' : '', onclick: () => wechseln(k) }, t)));
   };
   wechseln(e.aus_datei ? 'datei' : 'werte');
+  const zugriff = el('input', { value: e.zugriff || schule[0] || '', placeholder: schule[0] || 'z. B. 192.168.7.2', autocomplete: 'off',
+    required: !schule.length });
+  const zertWarnung = el('p', { class: 'warnung-text', hidden: !f.zertifikat.checked,
+    text: 'Liegt die VPN-Adresse außerhalb des Netzes der Schuladresse (' + (schule.join(', ') || 'unbekannt') + '), entsteht ein neues ' +
+      'Stammzertifikat. Die Seite ist dann kurz weg, und ALLE Geräte (auch die der Kolleg*innen) müssen das neue Stammzertifikat installieren.' });
+  f.zertifikat.addEventListener('change', () => { zertWarnung.hidden = !f.zertifikat.checked; });
   return T.dialog({
     titel: e.adresse ? 'VPN neu einrichten' : 'VPN einrichten', knopf: 'Einrichten',
     inhalt: el('div', { class: 'felder' },
       umschalter, werte, ausDatei,
+      T.feld('Adresse für den Zugriff von zuhause', zugriff, (schule[0] ? 'Schuladresse jetzt: ' + schule.join(', ') + '. ' : '') +
+        'Bleibt fest, auch wenn sich die Schuladresse ändert. Muss im selben Bereich liegen (gleiche ersten beiden Zahlen), sonst bräuchte es ein neues Stammzertifikat.'),
       el('label', { class: 'haken' }, f.alle, el('span', {}, el('b', { text: 'Alle Teilnehmer meines VPN' }),
         el('span', { class: 'leise klein-text', style: 'display:block', text: 'Jedes Gerät im VPN und in deinem Heimnetz hinter dem VPN ' +
           'erreicht den Lehrerbereich (nur HTTPS), auch wenn das Heimnetz dieselben 192.168er-Adressen wie das Schulnetz hat. Der ' +
           'Container selbst erreicht dein Heimnetz weiterhin nicht.' }))),
+      el('label', { class: 'haken' }, f.zertifikat, el('span', {}, el('b', { text: 'VPN-Adresse ins Zertifikat' }),
+        el('span', { class: 'leise klein-text', style: 'display:block', text: 'Normalerweise nicht nötig: Von zuhause öffnest du den ' +
+          'Lehrerbereich unter der Zugriffsadresse, das Stammzertifikat bleibt, wie es ist.' }))),
+      zertWarnung,
       T.feld('Schnittstelle auf dem VPS', f.server_if, 'Dateiname in /etc/wireguard ohne .conf (nur für die Befehle zum Kopieren)'),
-      el('p', { class: 'warnung-text', text: 'Liegt die VPN-Adresse außerhalb von 192.168.x.x, entsteht einmalig ein neues ' +
-        'Stammzertifikat. Die Seite ist dann kurz weg, und alle Geräte brauchen das neue Stammzertifikat.' }),
       T.feld('Dein Passwort zur Bestätigung', f.passwort)),
     speichern: () => T.api('POST', '/api/vpn', modus === 'datei'
-      ? { aktion: 'einrichten', conf: f.conf.value, server_if: f.server_if.value, alle: f.alle.checked, passwort: f.passwort.value }
+      ? { aktion: 'einrichten', conf: f.conf.value, server_if: f.server_if.value, alle: f.alle.checked, zertifikat: f.zertifikat.checked,
+        zugriff: zugriff.value, passwort: f.passwort.value }
       : { aktion: 'einrichten', server: f.host.value, port: f.port.value, schluessel: f.schluessel.value, adresse: f.adresse.value,
-        server_ip: f.server_ip.value, netze: f.netze.value, server_if: f.server_if.value, alle: f.alle.checked, passwort: f.passwort.value }),
+        server_ip: f.server_ip.value, netze: f.netze.value, server_if: f.server_if.value, alle: f.alle.checked,
+        zertifikat: f.zertifikat.checked, zugriff: zugriff.value, passwort: f.passwort.value }),
   });
 }
 
@@ -1119,7 +1145,7 @@ function vpnKarte() {
     let v;
     try { v = await T.api('GET', '/api/vpn'); } catch (e) {
       if (beobachten && ++versuche < 40) {
-        T.setzen(ort, kopf(), el('p', { class: 'update-laeuft', text: 'Der Dienst startet neu (Zertifikat mit der VPN-Adresse) … gleich geht es weiter.' }),
+        T.setzen(ort, kopf(), el('p', { class: 'update-laeuft', text: 'Der Dienst startet neu (neues Zertifikat) … gleich geht es weiter.' }),
           versuche > 8 ? el('p', { class: 'leise', text: 'Dauert es länger? Dann ist das Stammzertifikat neu und der Browser traut der ' +
             'Seite noch nicht: Seite neu laden, das neue Stammzertifikat über http://<Container>/ca.crt installieren.' }) : null);
         weiter();
@@ -1140,9 +1166,10 @@ function vpnKarte() {
   function zeichnen(v) {
     const e = v.einrichtung, t = v.sperrtest, laeuft = v.laeuft || v.wartet, gesperrt = laeuft || !v.eingerichtet;
     S.vpn = t;
+    const schule = (e && e.schuladressen && e.schuladressen.length ? e.schuladressen : v.schuladressen) || [];
     const knopf = (text, klick, klasse) => el('button', { type: 'button', class: klasse || '', disabled: gesperrt, onclick: klick }, text);
     const einrichten = async () => {
-      const r = await vpnFormular(e);
+      const r = await vpnFormular(e, schule);
       if (!r) return;
       gestartet(r);
       if (r.hinweise && r.hinweise.length) T.meldung('Aus der Datei: ' + r.hinweise.join(' '));
@@ -1157,18 +1184,25 @@ function vpnKarte() {
         t.alt ? el('p', { class: 'warnung-text', text: 'Seit mehr als drei Tagen kein Sperrtest. Läuft der Timer? „Verbindung prüfen“ testet sofort.' }) : null);
     }
     const lauf = v.lauf && v.lauf.ende ? v.lauf : null;
+    const ziele = e && e.zugriff ? [e.zugriff] : schule;   // alte Einrichtung ohne Zugriffsadresse: Schuladresse
+    const adressen = e ? ziele.concat(e.zertifikat ? [e.adresse] : []) : [];
     T.setzen(ort, kopf(),
       !v.eingerichtet ? el('p', { class: 'leise', text: 'Das Einrichten über diese Seite geht, sobald diese Version einmal über die ' +
         'Konsole installiert wurde (trackingdrs-update). Hier läuft es gerade ohne Container.' }) : null,
       laeuft ? el('div', { class: 'stapel-eng' }, el('p', { class: 'update-laeuft', text: 'Auftrag läuft …' }),
         v.protokoll ? el('pre', { class: 'update-protokoll', text: v.protokoll }) : null) : null,
       !e ? el('p', { class: 'leise', text: 'Der Container wird Teilnehmer in deinem WireGuard-VPN. Von zuhause ist dann nur diese Seite ' +
-        'über HTTPS erreichbar, sonst nichts im Schulnetz. Du gibst die Daten deines VPS ein und bekommst die Erweiterung für die ' +
-        'Server-Config und die Befehle für den VPS zum Kopieren.' }) : null,
+        'über HTTPS erreichbar, sonst nichts im Schulnetz, und zwar unter derselben Adresse wie in der Schule' +
+        (schule[0] ? ' (' + schule[0] + ')' : '') + '. Du gibst die Daten deines VPS ein oder lädst eine fertige Client-Datei hoch ' +
+        'und bekommst die Einträge für VPS, Sperre, WireGuard-App und Heimnetz zum Kopieren.' }) : null,
       status,
       e ? el('dl', { class: 'daten' },
-        el('dt', { text: 'Adresse' }), el('dd', {}, el('span', { class: 'mono', text: e.adresse }), e.aktiv ? [' · ',
-          el('a', { href: 'https://' + e.adresse + '/', target: '_blank', rel: 'noopener', text: 'https://' + e.adresse }), ' (von zuhause)'] : null),
+        el('dt', { text: 'Von zuhause' }), el('dd', {}, adressen.length ? adressen.map((a, i) => [i ? ' · ' : null,
+          el('a', { href: 'https://' + a + '/', target: '_blank', rel: 'noopener', class: 'mono', text: 'https://' + a })]) : '–'),
+        e.zugriff && schule.length && !schule.includes(e.zugriff) ? [el('dt', { text: 'Schuladresse' }), el('dd', {},
+          el('span', { class: 'mono', text: schule.join(', ') }), el('span', { class: 'leise klein-text', text: ' (hat sich geändert, die Zugriffsadresse gilt weiter)' }))] : null,
+        el('dt', { text: 'VPN-Adresse' }), el('dd', {}, el('span', { class: 'mono', text: e.adresse }),
+          e.zertifikat ? null : el('span', { class: 'leise klein-text', text: ' (nicht im Zertifikat)' })),
         el('dt', { text: 'Server' }), el('dd', { class: 'mono', text: e.server || '–' }),
         el('dt', { text: 'Erreichbar für' }), el('dd', { text: e.alle ? 'alle Teilnehmer deines VPN, auch dein Heimnetz' :
           'nur Geräte mit einer Adresse im VPN-Netz ' + (e.netze || []).join(', ') }),
@@ -1179,7 +1213,7 @@ function vpnKarte() {
           ? [knopf('Verbindung prüfen', () => auftrag('sperrtest'), 'haupt'), knopf('Neu einrichten', einrichten), knopf('VPN aus', ausschalten, 'warnen')]
           : [knopf('Wieder einschalten', einrichten, 'haupt')],
         e ? el('a', { class: 'knopf leicht', href: '/ca.crt', download: '' }, 'Stammzertifikat') : null),
-      e && e.aktiv ? vpnBefehle(e) : null,
+      e && e.aktiv ? vpnBefehle(e, ziele) : null,
       e ? el('details', {}, el('summary', { text: 'Config des Containers (/etc/wireguard/wg0.conf)' }),
         vorlage('wg0.conf', e.konf, 'Ist im Container schon aktiv. Der private Schlüssel liegt getrennt in /etc/wireguard/trackingdrs.key ' +
           'und wird nie angezeigt.')) : null,

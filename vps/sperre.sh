@@ -1,7 +1,8 @@
 #!/bin/bash
 # TrackingDRS (Stufe G): Sperrregeln auf dem WireGuard-Server (VPS). Laeuft auf dem Server, nicht im Container.
 #
-#   bash sperre.sh einrichten 10.8.0.20 [weitere Container-Adressen]
+#   bash sperre.sh einrichten 10.8.0.20 [192.168.7.2]   VPN-Adresse und Zugriffsadresse des Containers
+#                                                       (stehen in "trackingdrs vpn server" im Container)
 #   bash sperre.sh status
 #   bash sperre.sh aus
 #
@@ -27,22 +28,29 @@ fehler() { echo "Fehler: $*" >&2; exit 1; }
 ipv4() { [[ $1 =~ ^([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})$ ]] || return 1
   local t; for t in "${BASH_REMATCH[@]:1}"; do [ "$t" -le 255 ] || return 1; done; }
 
-peer_pruefen() {   # Steht der Container als Peer mit genau seiner Adresse (/32) in einer WireGuard-Config?
-  local ip=$1 zeile
+peer_pruefen() {   # peer_pruefen <ip> "<alle Adressen in der Sperre>": hat der Peer nur diese Adressen (je /32)?
+  local ip=$1 menge=" ${2:-$1} " zeile a erlaubt="" fremd=""
   command -v wg >/dev/null || { echo "  Hinweis: wg nicht gefunden, Peer nicht geprueft."; return; }
   zeile=$(wg show all allowed-ips 2>/dev/null | grep -E "(^|[[:space:]])$ip/32([[:space:]]|$)" || true)
   if [ -z "$zeile" ]; then
     echo "  Hinweis: kein Peer mit AllowedIPs = $ip/32 aktiv. Im Container zeigt  trackingdrs vpn server  den Block."
-  elif [ "$(echo "$zeile" | wc -w)" -gt 3 ]; then
-    echo "  WARNUNG: Der Peer mit $ip hat weitere AllowedIPs: $zeile"
-    echo "           Fuer den Container gehoert dort nur $ip/32 hin, sonst kann er fremde Absender nutzen."
+    return
+  fi
+  # VPN-Adresse und Zugriffsadresse des Containers stehen beide in der Sperre und duerfen beim Peer stehen
+  for a in $(echo "$zeile" | awk '{for (i = 3; i <= NF; i++) print $i}'); do
+    if [[ $a == */32 && $menge == *" ${a%/32} "* ]]; then erlaubt="$erlaubt $a"; else fremd="$fremd $a"; fi
+  done
+  if [ -n "$fremd" ]; then
+    echo "  WARNUNG: Der Peer mit $ip hat AllowedIPs, die nicht in der Sperre stehen:$fremd"
+    echo "           Fuer den Container gehoeren dort nur seine VPN-Adresse und die Zugriffsadresse hin (je /32), und"
+    echo "           beide in die Sperre: bash $0 einrichten <VPN-Adresse> <Zugriffsadresse>"
   else
-    echo "  Peer gefunden: $(echo "$zeile" | awk '{print $1}'), AllowedIPs $ip/32"
+    echo "  Peer gefunden: $(echo "$zeile" | awk '{print $2}'), AllowedIPs$erlaubt"
   fi
 }
 
 einrichten() {
-  [ $# -ge 1 ] || fehler "Container-Adresse fehlt: bash $0 einrichten 10.8.0.20"
+  [ $# -ge 1 ] || fehler "Container-Adresse fehlt: bash $0 einrichten 10.8.0.20 [Zugriffsadresse]"
   local ip menge
   for ip in "$@"; do ipv4 "$ip" || fehler "$ip ist keine IPv4-Adresse (die VPN-Adresse des Containers, z. B. 10.8.0.20)."; done
   menge=$(IFS=,; echo "$*" | sed 's/,/, /g')
@@ -109,7 +117,7 @@ EOF
   systemctl enable -q trackingdrs-sperre.service
   systemctl restart trackingdrs-sperre.service
   echo "==> Sperre aktiv"
-  for ip in "$@"; do peer_pruefen "$ip"; done
+  for ip in "$@"; do peer_pruefen "$ip" "$*"; done
   weiterleitung
   echo
   echo "Im Container pruefen:  trackingdrs vpn sperrtest   (alles muss \"gesperrt\" sein)"
@@ -127,9 +135,10 @@ status() {
     echo "Sperre NICHT geladen. Einrichten: bash $0 einrichten <Container-Adresse>"
     return 1
   fi
-  local ip
-  for ip in $(nft -j list set inet "$TABELLE" container 2>/dev/null | grep -oE '"[0-9]+(\.[0-9]+){3}"' | tr -d '"'); do
-    peer_pruefen "$ip"
+  local ip menge
+  menge=$(nft -j list set inet "$TABELLE" container 2>/dev/null | grep -oE '"[0-9]+(\.[0-9]+){3}"' | tr -d '"' | tr '\n' ' ')
+  for ip in $menge; do
+    peer_pruefen "$ip" "$menge"
   done
   weiterleitung
   echo "Die Zaehler bei \"counter drop\" zeigen, wie oft etwas verworfen wurde."
@@ -146,5 +155,5 @@ case "${1:-}" in
   einrichten) shift; einrichten "$@" ;;
   status) status ;;
   aus) aus ;;
-  *) sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+  *) sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
 esac
